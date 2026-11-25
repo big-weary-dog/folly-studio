@@ -34,10 +34,10 @@ test('People changes a role, disables and deletes an account', async ({ browser,
   await row.getByLabel('Role').selectOption('curator');
   await expect(row.getByLabel('Role')).toHaveValue('curator');
   await row.getByRole('button', { name: 'Disable' }).click();
-  await expect(row.getByText('Disabled')).toBeVisible();
+  await expect(row.getByText('Disabled', { exact: true })).toBeVisible();
   await shot(page, info, '1-people-laptop');
   await row.getByRole('button', { name: 'Enable' }).click();
-  await expect(row.getByText('Disabled')).toHaveCount(0);
+  await expect(row.getByText('Disabled', { exact: true })).toHaveCount(0);
   await row.getByRole('button', { name: 'Delete…' }).click();
   const confirm = page.getByRole('dialog', { name: 'Delete account' });
   await expect(confirm).toContainText('Delete the account moth? This cannot be undone.');

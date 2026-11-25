@@ -5,8 +5,8 @@
 //
 // Calibration (perf-calibrate.js): runners differ about 2× in speed, so in the same page and worker, warm and at full
 // speed, the look's frames take turns with a fixed reference workload, and our pattern and core code are held to the
-// look's cost as a multiple of the reference's (under a 4× throttle on a busy 2-CPU runner that ratio wandered
-// 1.0–1.7×; at full speed it holds 0.9–1.2×). The page runs the reference too, to set its throttle and to check it.
+// look's cost as a multiple of the reference's (at full speed it holds 1.8–1.9× on the Folly's 4,870 LEDs). The page
+// runs the reference too, to set its throttle and to check it.
 //
 // The phone (a slowdown above 1×) is a fixed one, not this runner slowed: a typical runner's core at 1/rate of its
 // speed, which runs the reference in RUNNER_REF_MS × rate. Slowing this runner's own times instead slowed its load
@@ -54,9 +54,10 @@ const WARM_MS = 2000, SETTLE_MS = 6000;
 // crawling runner; one unanswered in 5 s (a restarted worker) is dropped.
 const FULL = { bursts: 32, gap: 50, worker: true }, SLOWED = { bursts: 12, gap: 250, worker: false };
 const CAL_PAIRS = 2, CAL_WAIT_MS = 5000;
-// The demo look costs 0.9–1.2× the reference (idle, on 2 CPUs, on 2 CPUs with busy processes; 1.0–1.1× on CI); 1.6
-// leaves it a third to grow, and a core twice as slow per LED reads 2.1.
-const MAX_RATIO = 1.6;
+// The demo look costs 1.8–1.9× the reference on the default rig, the Folly's 4,870 LEDs (0.9× on City of Gods' 2,114:
+// the reference's work is fixed, the look's grows with the LEDs); 2.5 leaves it a third to grow, and a core twice as
+// slow per LED reads 3.7.
+const MAX_RATIO = 2.5;
 // The reference unloaded on a typical runner (2.9 ms on CI's; 3.0–3.5 on a 2.8 GHz Xeon): × 4, the phone's 12 ms.
 const RUNNER_REF_MS = 3;
 // The promise: on that phone the look runs above the app's 20 fps floor (runtime.js RATES: 40, 30, 20). A look that
