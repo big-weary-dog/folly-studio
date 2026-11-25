@@ -1,6 +1,6 @@
 // What visits move over the wire, against the real server and the app as Vite builds it (test/fixtures/browser.js
 // keeps an HTTP cache the way a browser does). A cold Studio load (the shell, its styles and modules, the
-// Studio's lazy modules and styles, the sandbox, rig.json and the API calls) stays within COLD; a reload, even
+// Studio's lazy modules and styles, the pattern worker, rig.json and the API calls) stays within COLD; a reload, even
 // a day later, sends only the shell and the API calls, each a 304; and lists carry no code.
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -57,7 +57,7 @@ for (const encoding of Object.keys(COLD)) {
     for (const r of b.log) assert.ok(r.status === 200 || r.status === 'cache', `${r.url}: ${r.status}`);
     const files = b.log.filter((r) => !/^\/(?:studio|api\/)/.test(r.url)).map((r) => r.url);
     for (const url of files) assert.match(url, /^\/assets\/[\w.-]+-[\w-]{8}\.\w+$/, 'by its content-hashed name');
-    for (const name of ['studio-*.js', 'studio-*.css', 'rig-folly-*.json', 'sandbox-*.html', 'renderer-*.js']) {
+    for (const name of ['studio-*.js', 'studio-*.css', 'rig-folly-*.json', 'sandbox-worker-*.js', 'renderer-*.js']) {
       const want = new RegExp(`/${name.replace('*', '[\\w-]+').replace('.', '\\.')}$`);
       assert.ok(files.some((url) => want.test(url)), `${name} is loaded`);
     }

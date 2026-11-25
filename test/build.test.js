@@ -1,6 +1,6 @@
 // The app as Vite builds it (vite.config.js), served by src/static.ts: the shell runs under the app CSP with no
-// inline script, every asset has a content-hashed name kept for a year, the sandbox page carries everything it runs
-// (its CSP loads nothing) and its Worker renders, and the gzipped budgets hold. Also the JSON API on the wire.
+// inline script, every asset has a content-hashed name kept for a year, the pattern worker carries everything it
+// runs (its CSP loads nothing) and renders, and the gzipped budgets hold. Also the JSON API on the wire.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -12,7 +12,7 @@ import zlib from 'node:zlib';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static.ts';
+import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_WORKER } from '../src/static.ts';
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 import { serve, signup } from './fixtures/app.js';
 import { libraryCode } from './fixtures/patterns.js';
@@ -78,26 +78,20 @@ describe('the built app', () => {
     assert.equal((await get('/.vite/manifest.json')).status, 404, 'dotfiles are never served');
   });
 
-  test('the sandbox page loads nothing, has its CSP, and its Worker renders a frame', async () => {
-    const files = new Set(Object.values(manifest).flatMap((e) => e.assets ?? [])
-      .filter((f) => /sandbox-[\w-]+\.html$/.test(f)));
-    assert.equal(files.size, 1, [...files].join(', '));
+  test('the pattern worker loads nothing, has its CSP, and renders a frame', async () => {
+    const files = readdirSync(path.join(dist, 'assets')).filter((f) => /^sandbox-worker-[\w-]+\.js$/.test(f));
+    assert.equal(files.length, 1, files.join(', '));
     const [file] = files;
-    const r = await get(`/${file}`);
-    assert.equal(r.headers['content-security-policy'], CSP_SANDBOX);
+    const r = await get(`/assets/${file}`);
+    assert.equal(r.headers['content-security-policy'], CSP_WORKER);
     assert.equal(r.headers['cache-control'], CACHE_IMMUTABLE);
-    assert.ok(!/\b(?:src|href)\s*=|@import|url\(|\/\*@[A-Z]+@\*\//.test(r.text), 'nothing to load, no marker left');
-    const blocks = [...r.text.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
-    assert.deepEqual(blocks.map((m) => m[1]), [' type="text/x-folly-worker" id="pattern-worker"', '']);
-    for (const [, , script] of blocks) {
-      assert.ok(script.length > 1000, 'the Worker and the relay are inlined');
-      assert.match(script, /^\(function\s*\(\)\s*\{\s*"use strict";[\s\S]*\}\)\(\);?\s*$/, 'strict, no globals');
-    }
-    // The Worker as the relay starts it: one classic script, here in a realm of its own with a stand-in `self`.
+    assert.ok(!/\bimport\b\s*[({"'`\w*]|importScripts\(/.test(r.text), 'one script: it imports nothing');
+    assert.match(r.text, /^\(function\s*\(\)\s*\{[\s\S]*\}\)\(\);?\s*$/, 'its names in its own scope');
+    // Here in a realm of its own with a stand-in `self`.
     const out = [];
     let onMessage;
     const self = { postMessage: (m) => out.push(m), addEventListener: (type, fn) => { onMessage = fn; } };
-    vm.runInNewContext(blocks[0][2], { self, performance, console });
+    vm.runInNewContext(r.text, { self, performance, console });
     const rig = JSON.parse(readFileSync(new URL('../public/data/rig-folly.json', import.meta.url), 'utf8'));
     const code = libraryCode('clouds');
     onMessage({ data: { type: 'init', rig, library: [] } });

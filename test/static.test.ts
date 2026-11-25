@@ -1,5 +1,5 @@
 // The built app (dist/) as src/static.ts serves it: br or gzip from the copies the build precompresses
-// (tools/vite-compress.ts), ETag revalidation, cache headers (content-hashed assets kept a year), the sandbox page's
+// (tools/vite-compress.ts), ETag revalidation, cache headers (content-hashed assets kept a year), the pattern worker's
 // CSP, the shell for SPA routes, and what is never served.
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, utimes, writeFile } from 'node:fs/promises';
@@ -11,16 +11,16 @@ import zlib from 'node:zlib';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { etagMatches, pickEncoding } from '../src/http.ts';
-import { CACHE_ASSET, CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_SANDBOX } from '../src/static.ts';
+import { CACHE_ASSET, CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_WORKER } from '../src/static.ts';
 import { precompress } from '../tools/vite-compress.ts';
 import { serve } from './fixtures/app.js';
 
 const BIG_JS = `// a module big enough to compress\n${
   'export const lights = ["ruby", "sapphire", "amber", "emerald"];\n'.repeat(80)}`;
-const SANDBOX = `<!doctype html><script>${'/* relay */'.repeat(100)}</script>`;
+const WORKER = `(function(){${'/* patterns */'.repeat(100)}})();`;
 const FILES: Record<string, string | Buffer> = {
   'index.html': `<!doctype html><title>Folly Studio</title>${'<p>APP SHELL</p>'.repeat(60)}`,
-  'assets/sandbox-Ab12Cd34.html': SANDBOX, 'assets/big-Ab12Cd34.js': BIG_JS,
+  'assets/sandbox-worker-Ab12Cd34.js': WORKER, 'assets/big-Ab12Cd34.js': BIG_JS,
   'assets/tiny-Ab12Cd34.js': 'export const a = 1;\n', 'big.js': BIG_JS, 'pic.png': Buffer.alloc(4096, 7),
   'assets/rig-Ab12Cd34.json': JSON.stringify({ pos: Array.from({ length: 3000 }, (_, i) => +(i * 0.137).toFixed(3)) }),
   '.vite/manifest.json': '{}',
@@ -142,20 +142,20 @@ describe('serving', () => {
     assert.equal((await get('/big.js')).headers['cache-control'], CACHE_ASSET);
   });
 
-  test('the sandbox page: its own CSP, kept a year, compressed', async () => {
-    const r = await get('/assets/sandbox-Ab12Cd34.html', { 'accept-encoding': 'gzip' });
+  test('the pattern worker: its own CSP, kept a year, compressed', async () => {
+    const r = await get('/assets/sandbox-worker-Ab12Cd34.js', { 'accept-encoding': 'gzip' });
     assert.equal(r.status, 200);
-    assert.equal(r.headers['content-security-policy'], CSP_SANDBOX);
-    assert.equal(CSP_SANDBOX,
-      "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts");
+    assert.equal(r.headers['content-security-policy'], CSP_WORKER);
+    assert.equal(CSP_WORKER, "default-src 'none'; script-src 'unsafe-eval'");
     assert.equal(r.headers['cache-control'], CACHE_IMMUTABLE);
     assert.equal(r.headers['content-encoding'], 'gzip');
-    assert.match(String(r.headers['content-type']), /^text\/html/);
-    assert.equal(zlib.gunzipSync(r.body).toString(), SANDBOX);
-    const same = await get('/assets/sandbox-Ab12Cd34.html',
+    assert.match(String(r.headers['content-type']), /^text\/javascript/);
+    assert.equal(zlib.gunzipSync(r.body).toString(), WORKER);
+    const same = await get('/assets/sandbox-worker-Ab12Cd34.js',
       { 'accept-encoding': 'gzip', 'if-none-match': r.headers.etag! });
     assert.equal(same.status, 304);
-    assert.equal(same.headers['content-security-policy'], CSP_SANDBOX);
+    assert.equal(same.headers['content-security-policy'], CSP_WORKER);
+    assert.equal((await get('/assets/tiny-Ab12Cd34.js')).headers['content-security-policy'], CSP_APP, 'only it');
   });
 
   test('dotfiles (the build manifest), missing files and other methods are refused', async () => {

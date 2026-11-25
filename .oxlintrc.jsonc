@@ -26,7 +26,7 @@
     "unicorn/no-array-sort": "off",                      // they sort fresh arrays; toSorted() would copy again
     "unicorn/no-array-reverse": "off",                   // likewise toReversed()
     "unicorn/no-new-array": "off",                       // `new Array(n).fill(0)` is the clear way to size one
-    "unicorn/prefer-add-event-listener": "off",          // a MessagePort's onmessage setter also starts the port
+    "unicorn/prefer-add-event-listener": "off",          // a worker's onmessage: one handler, replaced with it
     "unicorn/require-post-message-target-origin": "off"  // every postMessage goes to a Worker or a port
   },
   "overrides": [

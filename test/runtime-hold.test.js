@@ -2,16 +2,13 @@
 // frame, until the live preview pumps again.
 import assert from 'node:assert/strict';
 
-import { afterEach, test, vi } from 'vitest';
+import { test } from 'vitest';
 
 import { Runtime } from '../public/js/runtime.ts';
 
-afterEach(() => vi.unstubAllGlobals());
-
 test('hold drops the reply in flight and stops the live frames until a pump', () => {
-  vi.stubGlobal('window', { addEventListener() {}, removeEventListener() {} });
   const shown = [], asked = [];
-  const rt = new Runtime({ container: null, time: () => 0.5, onFrame: (rgb) => shown.push(rgb),
+  const rt = new Runtime({ time: () => 0.5, onFrame: (rgb) => shown.push(rgb),
     onCompiled() {}, onFrameErrors() {}, onStatus() {} });
   clearInterval(rt.watchdog);
   Object.assign(rt, { phase: 'ready', _post: (m) => { if (m.type === 'frame') asked.push(m.seq); } });
