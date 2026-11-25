@@ -41,16 +41,30 @@ export async function libraryFiles(dir: string, { retired = false } = {}) {
   return files;
 }
 
+/** upgrade(layers): each module that is an exact library copy on its current file, naming its entry as `ref` (the
+ * one its ref names when it is that entry's copy, else the one entry whose copy it is). */
 export async function historicalLibrary(dir: string) {
-  const replacements = new Map<string, string>();
-  for (const { code, hashes } of (await libraryFiles(dir)).values()) {
-    for (const hash of hashes) replacements.set(hash, code!);
+  const files = await libraryFiles(dir);
+  const replacements = new Map<string, string>(), names = new Map<string, string | null>();
+  for (const [name, { code, hashes }] of files) {
+    for (const hash of hashes) {
+      replacements.set(hash, code!);
+      names.set(hash, names.has(hash) && names.get(hash) !== name ? null : name);
+    }
   }
   const replace = (code: string) => replacements.get(sha256(code)) ?? code;
+  const refOf = (m: { code: string, ref?: string }) => {
+    const hash = sha256(m.code);
+    return (m.ref && files.get(m.ref)?.hashes.has(hash) ? m.ref : names.get(hash)) ?? m.ref;
+  };
   const modules = (list: Module[]) => {
     for (const m of list) {
       if (m.kind === 'composite' && m.layers) for (const sub of m.layers) modules(sub.modules);
-      else m.code = replace(m.code);
+      else {
+        const ref = refOf(m);
+        if (ref) m.ref = ref;
+        m.code = replace(m.code);
+      }
     }
   };
   const upgrade = (layers: Layer[]): Layer[] => {

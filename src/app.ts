@@ -18,6 +18,7 @@ import { type Config, configOf } from './config.ts';
 import { createFramesCache } from './frames-cache.ts';
 import { createLog, errorHandler, keepTail, type Log } from './http.ts';
 import { createLightStore } from './light.ts';
+import { libraryRefs } from './library-refs.ts';
 import { rigFileOf, rigOf } from './rig-choice.ts';
 import { createPreviews } from './previews/index.ts';
 import { frontView } from './previews/motion.ts';
@@ -64,10 +65,14 @@ export async function createServer(opts: Options = {}) {
   const log = keepTail(opts.log ?? createLog());
   const rig = opts.rig ?? rigOf(config), rigFile = rigFileOf(publicDir, rig);
 
-  const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored } });
+  const loaders = createLoaders(publicDir, { log, rigFile });
+  // A look's code is its modules' library files, never what is stored (SPEC-looks "Modules").
+  // With custom code (tests only) a look keeps the code it was saved with.
+  const views = opts.customCode ? {}
+    : { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
+  const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored }, views });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
-  const loaders = createLoaders(publicDir, { log, rigFile });
   const { loadRig } = loaders;
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
   const box = renderBox || createRenderBox({ publicDir, rigFile, log, config, customCode: opts.customCode });

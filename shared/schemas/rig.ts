@@ -56,8 +56,11 @@ export const Preset = z.strictObject({ ...shelfed, kind: z.literal('preset'),
   layers: z.array(PresetLayer).min(1).max(4), globals: Globals.optional() })
   .refine((p) => p.layers.every((l) => l.modules.every((m) => !m.input || l.modules.some((x) => x.id === m.input))),
     'a module\'s input names a module of its layer');
+/** `hidden`: kept for the looks that use it, off the shelf (GET /api/library leaves it out); `was`: its name before a
+ * rename (SPEC "Library"). */
 const ModuleShape = z.looseObject({ ...shelfed,
-  kind: z.enum(MODULE_KINDS as unknown as ['source', 'warp', 'filter']).catch('source') });
+  kind: z.enum(MODULE_KINDS as unknown as ['source', 'warp', 'filter']).catch('source'),
+  hidden: z.boolean().catch(false).optional(), was: z.string().regex(NAME).optional().catch(undefined) });
 // A malformed preset is dropped, never read as a source.
 const Module = z.preprocess((e, ctx) => (e && typeof e === 'object' && (e as { kind?: unknown }).kind === 'preset'
   ? (ctx.addIssue('not a preset'), z.NEVER) : e), ModuleShape);

@@ -43,9 +43,10 @@ export function resolveLook(look: BenchLook): BenchLook {
     duration: Duration.parse(look.duration ?? 30), bpm: Bpm.parse(look.bpm ?? null) ?? undefined };
 }
 
-type IndexEntry = { name: string, kind?: string, layers?: BenchLook['layers'], globals?: BenchLook['globals'] };
+type IndexEntry = { name: string, kind?: string, hidden?: boolean, layers?: BenchLook['layers'],
+  globals?: BenchLook['globals'] };
 const index: IndexEntry[] = JSON.parse(readFileSync(here('../public/patterns/index.json'), 'utf8'));
-const of = (kind: string) => index.filter((e) => (e.kind ?? 'source') === kind);
+const of = (kind: string) => index.filter((e) => (e.kind ?? 'source') === kind && !e.hidden);
 const one = (id: string, modules: BenchLook['layers'][number]['modules']) => ({ id, title: id, layers: [{ modules }] });
 
 /** Every library look; presets softened as the Studio adds them unless `noSoften`. */
