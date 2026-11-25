@@ -40,7 +40,7 @@ type Made = { title: string; modules: { ref?: string }[] };
 /** The layers a path's look has: its practice look's, or a new look's first (Studio setup()), and any layer a step
  * adds from the shelf (+ Add, then a preset or a source). */
 function layersOf(p: (typeof PATHS)[number]): Made[] {
-  const id = new URLSearchParams((p.look ?? p.start).split('?')[1]).get('tour');
+  const id = new URLSearchParams(p.start.split('?')[1]).get('tour');
   const first = library.find((e): e is ModuleEntry => (e.kind || 'source') === 'source')!;
   const added = p.steps.flatMap((s) => (Array.isArray(s.anchor) && s.anchor.includes('layers-add') ? s.anchor : []))
     .filter((a) => a.startsWith('shelf:')).map((a) => a.slice(6))
@@ -111,7 +111,7 @@ describe('the tutorial matches the app', () => {
   }
 
   test('each path that starts on a practice look has one, made from the library, that saves as a look', () => {
-    const wanted = PATHS.flatMap((p) => [p.start, p.look ?? ''])
+    const wanted = PATHS.map((p) => p.start)
       .map((at) => new URLSearchParams(at.split('?')[1]).get('tour')).filter(Boolean);
     assert.deepEqual([...recipes.keys()].sort(), [...wanted].sort());
     for (const [id, r] of recipes) {

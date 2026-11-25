@@ -43,7 +43,7 @@ export function createPreview(st: Studio) {
   let viewer: Viewer | null = null, runtime: Runtime | null = null, guard: FlashGuard | null = null;
   let baked: { frames: Frames; rgb: Float32Array; index: number } | null = null;
   let raf = 0, last = 0, statsAt = 0, clockAt = 0, onScreen = true, everReady = false, guarded = false;
-  let heavyKey = '', bakedLoad = 0, pushTimer = 0, alive = true, frozen = false, io: IntersectionObserver | null = null;
+  let heavyKey = '', bakedLoad = 0, alive = true, frozen = false, io: IntersectionObserver | null = null;
   const disposers: (() => void)[] = [];
 
   // Every frame shown goes through show(): the view dims, with a banner, while a large area flashes over the
@@ -97,8 +97,6 @@ export function createPreview(st: Studio) {
   const onVisibility = () => (document.hidden ? stop() : kick());
 
   function push() {
-    clearTimeout(pushTimer);
-    pushTimer = 0;
     const { layers, extra } = st.sandboxLook.peek();
     runtime?.setLook(layers, extra);
     kick();
@@ -201,12 +199,10 @@ export function createPreview(st: Studio) {
       });
       runtime.start(rig, library.filter((e) => (e.kind || 'source') === 'source')
         .map(({ name, code }) => ({ name, code })));
-      // What the sandbox runs follows the look; while code is being typed, it waits for the typing to settle.
+      // What the sandbox runs follows the look.
       disposers.push(effect(() => {
         void st.sandboxLook.value;
-        const wait = c.typingUntil - performance.now();
-        clearTimeout(pushTimer);
-        if (wait > 0) pushTimer = window.setTimeout(push, wait); else push();
+        push();
       }), effect(() => {         // the server's copy lost its frames (a new bake, an edit): back to live
         if (baked && !st.server.value?.bake?.frames) p.playBaked(false);
       }), effect(() => {
@@ -217,7 +213,6 @@ export function createPreview(st: Studio) {
         const [groups, tags] = JSON.parse(key) as [string[] | null, string[] | null];
         v.setHighlight(index.layerMask(groups ?? undefined, tags ?? undefined, hover, pinned), true);
       }));
-      st.flush = () => { c.typingUntil = 0; if (pushTimer) push(); };
       st.onEdit = () => {
         if (!baked) return;
         p.playBaked(false);
@@ -272,7 +267,6 @@ export function createPreview(st: Studio) {
     destroy() {
       alive = false;
       stop();
-      clearTimeout(pushTimer);
       for (const d of disposers) d();
       document.removeEventListener('visibilitychange', onVisibility);
       bakedLoad++;

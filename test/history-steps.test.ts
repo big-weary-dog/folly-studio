@@ -94,20 +94,13 @@ describe('steps', () => {
     assert.equal(st.look.peek().title, 'Later');
   });
 
-  test('a group of edits is one step; AI rounds undone are told once, dropped ones too', () => {
+  test('a group of edits is one step', () => {
     const h = createSteps(), st = studio(), L = st.look.peek();
     h.start(L);
     const o = { step: 'Added the preset “Fire”', kind: 'add', merge: 'preset:1' } as const;
     h.record(L, { ...L, globals: { macros: { storm: { value: 1, min: 0, max: 1 } } } }, o);
     h.record(L, { ...L, layers: [] }, o);
     assert.equal(h.list.peek().length, 2);
-    const ai = (id: string) => ({ ideaId: id, asked: 'slower', changes: [] });
-    h.record(L, { ...L, title: 'x' }, { step: 'AI', kind: 'ai', ai: ai('i1') });
-    h.record(L, { ...L, title: 'y' }, { step: 'AI', kind: 'ai', ai: ai('i2') });
-    h.at.value = 1;
-    h.record(L, { ...L, title: 'z' });   // drops both rounds
-    assert.deepEqual(h.undoneRounds(), ['i1', 'i2']);
-    assert.deepEqual(h.undoneRounds(), []);
   });
 
   test('a toast can undo its step after sealing and saving, but cannot undo a later edit', () => {

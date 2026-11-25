@@ -19,7 +19,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       const layers = page.locator('li.layer'), nav = page.locator('.main-nav'), { store } = studio.app;
       const accounts = store.users.list().length;
 
-      await test.step('in by a name: the Studio, with no AI and no My looks', async () => {
+      await test.step('in by a name: the Studio, with no My looks', async () => {
         await page.goto(`${studio.origin}/login`);
         await page.getByRole('button', { name: 'Guest', exact: true }).click();
         await page.getByLabel('Your name').fill('Wren');
@@ -28,7 +28,6 @@ for (const [name, device] of Object.entries(SIZES)) {
         await expect(page).toHaveURL(`${studio.origin}/studio`);
         await expect(layers).toHaveCount(1, { timeout: 60_000 });
         await expect(page.locator('.user-box .tag')).toHaveText('Guest');
-        await expect(nav.locator('a[href="/ideas"]')).toHaveCount(0);
         await expect(nav.locator('a[href="/looks"]')).toHaveCount(0);
         expect(store.users.list()).toHaveLength(accounts);
       });

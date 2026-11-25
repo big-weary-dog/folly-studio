@@ -1,12 +1,10 @@
 // HTTP API client (SPEC "HTTP API"): JSON in and out, cookie session. A non-2xx response throws an ApiError with the
 // server's message and `status` (0: the server could not be reached).
 import type {
-  Bake, BakeMode, BakingState, Explore, FlashSettings, Idea, IdeaHow, IdeaHowLive, Listed, Look, LookCreate, LookPatch,
-  ServerStats, User, Version, VersionListed,
+  Bake, BakeMode, BakingState, FlashSettings, Listed, Look, LookCreate, LookPatch, ServerStats, User, Version,
+  VersionListed,
 } from '../../shared/schemas/api.ts';
-import type { Access, Invite, Person, PersonLimits } from '../../shared/schemas/access.ts';
 import type { LightSettings } from '../../shared/schemas/light.ts';
-import type { AdminModels, ModelChoices, ModelsConfig } from '../../shared/schemas/models.ts';
 import type { ReportBody, ReportSummary } from '../../shared/schemas/report.ts';
 import type { LibraryEntry } from '../../shared/schemas/rig.ts';
 import type { Tour } from '../../shared/schemas/tour.ts';
@@ -49,7 +47,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 }
 
 const enc = encodeURIComponent;
-type Me = { user: User, flash?: FlashSettings, access?: Access };
+type Me = { user: User, flash?: FlashSettings };
+
 export const api = {
   me: () => request<Partial<Me>>('GET', '/api/me'),
   signup: (username: string, password: string) => request<Me>('POST', '/api/signup', { username, password }),
@@ -58,27 +57,6 @@ export const api = {
   logout: () => request('POST', '/api/logout', {}),
   saveTour: (tour: Tour) => request<{ tour: Tour }>('PUT', '/api/me/tour', tour),
 
-  ideas: () => request<{ ideas?: Idea[] }>('GET', '/api/ideas'),
-  /** `wait`: the idea's `status@updatedAt` as last seen; the server answers when that changes (or after 25 s). */
-  idea: (id: string, wait?: string) => request<{ idea?: Idea }>('GET',
-    `/api/ideas/${enc(id)}${wait ? `?wait=${enc(wait)}` : ''}`),
-  /** How an idea was made (SPEC-generators "How it was made"): its owner's or an admin's. */
-  ideaHow: (id: string) => request<IdeaHow>('GET', `/api/ideas/${enc(id)}/how`),
-  ideaHowLive: (id: string) => request<IdeaHowLive>('GET', `/api/ideas/${enc(id)}/how/live`),
-  createIdea: (text: string, model?: string, explore?: Explore) => request<{ idea: Idea }>('POST', '/api/ideas',
-    { text, model, explore }),
-  models: () => request<ModelChoices>('GET', '/api/models'),
-  /** Redeem an invite code: the account's access once unlocked. */
-  redeem: (code: string) => request<{ access: Access }>('POST', '/api/invite', { code }),
-  invites: () => request<{ invites: Invite[] }>('GET', '/api/admin/invites'),
-  createInvite: (body: { label?: string, uses?: number, days?: number }) => request<{ invite: Invite, code: string }>(
-    'POST', '/api/admin/invites', body),
-  revokeInvite: (id: string) => request<{ invite: Invite }>('DELETE', `/api/admin/invites/${enc(id)}`),
-  people: () => request<{ people: Person[] }>('GET', '/api/admin/people'),
-  updatePerson: (id: string, patch: { unlocked?: boolean, limits?: PersonLimits | null, reset?: true }) =>
-    request<{ person: Person }>('PUT', `/api/admin/people/${enc(id)}`, patch),
-  adminModels: () => request<AdminModels>('GET', '/api/admin/models'),
-  saveModels: (config: ModelsConfig) => request<AdminModels>('PUT', '/api/admin/models', config),
   light: () => request<LightSettings>('GET', '/api/light'),
   saveLight: (light: LightSettings) => request<LightSettings>('PUT', '/api/admin/light', light),
 
@@ -95,11 +73,6 @@ export const api = {
   /** Names version `n` (it is kept), or unnames it (`null`). */
   nameVersion: (id: string, n: number, name: string | null) =>
     request<{ version: VersionListed }>('PUT', `/api/looks/${enc(id)}/versions/${n}`, { name }),
-  /** A refinement undone: its look was put back (SPEC-generators "Refine history"). */
-  undoRefine: (id: string) => request<{ idea: Idea }>('POST', `/api/ideas/${enc(id)}/undo`),
-  /** A refinement of one's own look (SPEC-generators "Refine"): its idea, to follow with idea(). */
-  refine: (id: string, body: { text?: string, model?: string, critique?: true,
-    fix?: { layer: string, error: string } }) => request<{ idea: Idea }>('POST', `/api/looks/${enc(id)}/refine`, body),
   bake: (id: string) => request<{ bake: Bake }>('POST', `/api/looks/${enc(id)}/bake`, {}),
 
   /** An F8 bug report (SPEC "Bug reports"); 413 when it is too big. */

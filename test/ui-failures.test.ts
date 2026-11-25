@@ -60,7 +60,7 @@ describe('Signed out', () => {
     onSignedOut(() => out++);
     try {
       let settled = false;
-      void api.ideas().finally(() => { settled = true; });
+      void api.looks().finally(() => { settled = true; });
       await new Promise((r) => setTimeout(r, 10));
       assert.deepEqual([out, settled], [1, false]);
       for (const call of [api.me(), api.login('a', 'b'), api.signup('a', 'b')]) {

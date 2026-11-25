@@ -10,7 +10,6 @@ them), and opens `/studio?tour=<path>`, a practice look of where the last chapte
 (`public/data/tutorial/<path>.json`: `{ title, layers: [preset layer & { tag?, clips? }], palette?, macros?,
 automation?, bpm?, view? }`, `tag` (one or several) playing a layer on the rig's groups with that tag, `view` the rig
 view the preview opens on) as an unsaved copy, so nothing a person owns changes until they save.
-A path that starts on another page names its practice look (`look`), where its Studio steps go.
 A step waits on the Studio's state through a read-only view (`ui/tour-view.ts`) and finds its control by
 `data-tour="<name>"`; the tour writes nothing but the user's `tour`, and moves between pages only as the app's own
 links do: over unsaved edits the app asks first, and keeping them leaves Tutorials open.
@@ -21,11 +20,8 @@ Replay: the user menu's Tutorials.
 In order:
 
 - `first-look`, Getting around: turning the model, a view, zoom, Fit, pause
-  and play, the way to Ideas.
-- `idea`, From an idea: describing a look on Ideas, then Turn it into a look, which while that step is open opens the
-  practice look `idea` in place of asking a model (`tourIdea` in `ui/tour-view.ts`: nothing is sent, and it works on
-  a locked account); its layers. Without Ideas (without AI access, SPEC-access "AI only with
-  access"), the path starts on its look and leaves out the steps on Ideas or going there.
+  and play.
+- `look`, The look: the look the chapters build, so far Rose and Arches, and its layers.
 - `modules`, Modules and colour: a source's number (its settings under its line in the chain), a choice (Comet, its
   bands twice its tail, so each reads as a comet), Soften down to 0 for crisp comets, a colour param by palette role,
   the Look tab, the palette.
