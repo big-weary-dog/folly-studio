@@ -44,9 +44,7 @@ beforeAll(async () => {
   dist = await builtApp();
   manifest = JSON.parse(readFileSync(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(tmpdir(), 'studio-build-'));
-  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet,
-    admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } },
-    generators: true, customCode: true });
+  app = await createServer({ dataDir: dir, distDir: dist, log: quiet, admins: 'wire', customCode: true });
   base = `http://127.0.0.1:${(await app.listen(0)).port}`;
 });
 afterAll(async () => {
@@ -160,21 +158,5 @@ describe('the JSON API on the wire', () => {
     assert.equal((await get(url, { cookie, 'accept-encoding': 'br', 'if-none-match': gz.headers.etag })).status, 304);
     const me = await get('/api/me', { cookie, 'accept-encoding': 'br' });
     assert.equal(me.headers['content-encoding'], undefined, 'not worth it under 1 KB');
-  });
-
-  test('the ideas list and an idea revalidate: a poll of an unchanged idea is an empty 304', async () => {
-    const { idea } = await fetch(`${base}/api/ideas`, { method: 'POST', headers: { cookie,
-      'content-type': 'application/json' }, body: JSON.stringify({ text: 'embers rising', model: 'sol' }) })
-      .then((r) => r.json());
-    for (const url of ['/api/ideas', `/api/ideas/${idea.id}`]) {
-      const first = await get(url, { cookie });
-      assert.equal(first.headers['cache-control'], 'private, no-cache');
-      const again = await get(url, { cookie, 'if-none-match': first.headers.etag });
-      assert.equal(again.status, 304, url);
-      assert.equal(again.raw.length, 0);
-      app.store.ideas.update(idea.id, { status: 'generating' });
-      assert.equal((await get(url, { cookie, 'if-none-match': first.headers.etag })).status, 200, `${url} changed`);
-      app.store.ideas.update(idea.id, { status: 'queued' });
-    }
   });
 });

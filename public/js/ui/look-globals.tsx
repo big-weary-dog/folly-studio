@@ -1,6 +1,6 @@
 // The Look panel (SPEC "Globals"): a palette picker showing its roles, the look's modulators (look-mods.tsx), and
-// faders (macros that do not move by themselves) to add, rename and set (their range: as the API or a generator gave
-// it), each saying what it drives. Wide: a tab of the bottom dock; phones: the Look tab.
+// faders (macros that do not move by themselves) to add, rename and set (their range: as the look gave it), each
+// saying what it drives. Wide: a tab of the bottom dock; phones: the Look tab.
 // Loaded when the Look tab first shows.
 import { useId } from 'preact/hooks';
 

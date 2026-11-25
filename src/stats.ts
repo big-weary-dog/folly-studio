@@ -5,17 +5,14 @@ import os from 'node:os';
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { isPending } from '../shared/idea-status.ts';
 import type { ServerStats, StatsDay } from '../shared/schemas/api.ts';
 import { forAdmins, type Log } from './http.ts';
 import type { Store } from './store.ts';
 
 const DAYS = 7, SLOW_MS = 1000, SLOWEST = 10, MAX_VISITORS = 100_000, DAY_MS = 86_400_000;
-/** Answered by the dozen (frame chunks, previews, idea polls): counted, and logged only when they fail or are slow. */
+/** Answered by the dozen (frame chunks, previews): counted, and logged only when they fail or are slow. */
 const QUIET = new Set(['/api/looks/:id/frames/:hash/:n', '/api/looks/:id/frames/:hash/manifest',
-  '/api/looks/:id/preview/:name', '/api/ideas/:id']);
-/** Held open up to 25 s by design (SPEC "HTTP API"), so never slow. */
-const POLL = '/api/ideas/:id';
+  '/api/looks/:id/preview/:name']);
 
 /** A day's counts, and what tells its visitors and people apart (dropped when the day ends). */
 type Day = StatsDay & { end: number, salt: Buffer, seen: Set<string>, members: Set<string> };
@@ -34,8 +31,8 @@ const sizeOf = (n: unknown) => {
  * The stats and the request log. `trustProxy`: the request came through the tunnel, whose Cloudflare country header
  * (untrusted, two letters or nothing) is logged with it.
  */
-export function createStats({ log, store, ideas = true, trustProxy = false }: { log: Log,
-  store: Pick<Store, 'ideas' | 'looks'>, ideas?: boolean, trustProxy?: boolean }) {
+export function createStats({ log, store, trustProxy = false }: { log: Log, store: Pick<Store, 'looks'>,
+  trustProxy?: boolean }) {
   const startedAt = new Date().toISOString();
   const days: Day[] = [];
   const slowest: ServerStats['slowest'] = [];
@@ -60,7 +57,7 @@ export function createStats({ log, store, ideas = true, trustProxy = false }: { 
     const route = api && req.routeOptions.url ? req.routeOptions.url : pathOf(req.url);
     d.requests++;
     if (status >= 500) d.errors++;
-    const slow = ms >= SLOW_MS && route !== POLL;
+    const slow = ms >= SLOW_MS;
     if (slow) {
       d.slow++;
       slowest.unshift({ at: new Date().toISOString(), method: req.method, route, status, ms });
@@ -93,20 +90,8 @@ export function createStats({ log, store, ideas = true, trustProxy = false }: { 
     return { startedAt, uptime: Math.round(process.uptime()), memory: { rss: memory.rss, heap: memory.heapUsed },
       load: os.loadavg()[0]!, slowest: [...slowest],
       days: days.map(({ end: _e, salt: _s, seen: _v, members: _m, ...d }) => d),
-      bakes, ...(ideas ? { ideas: ideaCounts(store, recent) } : {}) };
+      bakes };
   }
 
   return { onResponse, read, routes: { 'GET /admin/stats': forAdmins(async () => read()) } };
-}
-
-/** Ideas and refinements made in the last 24 hours, those that failed, and those queued or generating now. */
-function ideaCounts(store: Pick<Store, 'ideas'>, recent: (at?: string) => boolean) {
-  const counts = { made: 0, failed: 0, waiting: 0 };
-  for (const idea of store.ideas.list()) {
-    if (isPending(idea)) counts.waiting++;
-    if (!recent(idea.createdAt)) continue;
-    counts.made++;
-    if (idea.status === 'failed') counts.failed++;
-  }
-  return counts;
 }

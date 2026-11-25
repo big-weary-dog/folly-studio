@@ -47,8 +47,7 @@ describe('guests', () => {
     assert.equal((await g.get(`/api/looks/${shared}`)).status, 200);
     assert.equal((await g.get('/api/library')).status, 200);
     const writes = [['POST', '/api/looks', { title: 'Mine', layers: [] }], ['PUT', `/api/looks/${shared}`, {}],
-      ['POST', '/api/ideas', { text: 'a slow red wave' }], ['PUT', '/api/me/tour', { seen: true, done: [] }],
-      ['POST', '/api/invite', { code: 'ABCD-EFGH-JKMN' }], ['POST', `/api/looks/${shared}/bake`, {}],
+      ['PUT', '/api/me/tour', { seen: true, done: [] }], ['POST', `/api/looks/${shared}/bake`, {}],
       ['DELETE', `/api/looks/${shared}`]];
     for (const [method, url, body] of writes) {
       const r = await g.req(method, url, body);

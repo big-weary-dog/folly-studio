@@ -1,5 +1,5 @@
-// An account deleted, by itself or on People (SPEC-access "Your account", "People"): the account, its sessions, ideas
-// and every look it owns (shared ones too), and the looks' frames and previews.
+// An account deleted, by itself or on People (SPEC-access "Your account", "People"): the account, its sessions and
+// every look it owns (shared ones too), and the looks' frames and previews.
 import type { Auth } from './auth.ts';
 import type { Logger } from './http.ts';
 import type { Store } from './store.ts';
@@ -11,7 +11,6 @@ export type Removal = { store: Store, auth: Auth, dropFrames: (id: string) => Pr
 export async function removeAccount({ store, auth, dropFrames, previews, log = console }: Removal, id: string) {
   const looks = store.looks.list((l) => l.owner === id).map((l) => l.id);
   for (const look of looks) store.looks.remove(look);
-  for (const idea of store.ideas.list((i) => i.owner === id)) store.ideas.remove(idea.id);
   auth.removeUser(id);
   await Promise.all(looks.map((look) => Promise.all([dropFrames(look), previews?.drop(look)]).catch((err) => {
     log.error?.(`account: could not remove the frames or previews of look ${look}:`, err);

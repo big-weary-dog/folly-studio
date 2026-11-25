@@ -103,7 +103,7 @@ describe('low priority, one at a time', () => {
 });
 
 describe('the disk cap', () => {
-  test('evicts the least recently used bakes, never a reviewed or a fleet-box one', async () => {
+  test('evicts the least recently used bakes, never a reviewed one or one no render box made', async () => {
     const framesDir = path.join(tmp, 'cap');
     fs.mkdirSync(framesDir);
     const looks = [];
@@ -148,8 +148,8 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     fs.writeFileSync(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(100)));
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
       async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length, 200) }; } };
-    app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, generator: { enqueue() {} }, log: quiet,
-      generators: true, customCode: true, renderBox });
+    app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, log: quiet, customCode: true,
+      renderBox });
     base = `http://127.0.0.1:${(await app.listen(0)).port}`;
     const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ username: 'cache', password: 'correct horse' }) });

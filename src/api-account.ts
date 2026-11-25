@@ -1,5 +1,5 @@
-// An account's own settings (SPEC-access "Your account"): a new password, or the account deleted with its looks and
-// ideas. Each needs the password; wrong ones are limited per address and account, as failed sign-ins are.
+// An account's own settings (SPEC-access "Your account"): a new password, or the account deleted with its looks.
+// Each needs the password; wrong ones are limited per address and account, as failed sign-ins are.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { AccountDelete, PasswordChange } from '../shared/schemas/api.ts';

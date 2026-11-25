@@ -2,7 +2,7 @@
 
 F8 on any page (or "Report a problem" in the user menu, for phones) files a report for signed-in accounts.
 Guests and signed-out visitors see an explanation that reporting needs an account before the form opens.
-That explanation closes when an account signs in; reporting does not require an AI invite.
+That explanation closes when an account signs in.
 The press freezes the moment:
 the page's state is read first, the 3D view's next frame is kept as a JPEG (≤ 960 px wide, quality 0.8), then
 everything pauses (the preview's loop and the 3D view) until the form

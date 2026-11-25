@@ -1,5 +1,4 @@
-// The renderer both boxes bake with: render-box/render.ts (the authoritative bake) and
-// fleet-box/check.ts --bake (the Fleet worker's own). The host binds or copies it next to them.
+// The renderer render-box/render.ts bakes with. The host binds or copies it next to it.
 import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';

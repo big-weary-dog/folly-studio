@@ -1,4 +1,4 @@
-// npm run smoke, too: custom code and generators off, as on every server (SPEC-baking "Custom code"): Admin → Baking
+// npm run smoke, too: custom code off, as on every server (SPEC-baking "Custom code"): Admin → Baking
 // says library only, the Studio has no code to edit, its pickers only the library, and custom code is refused.
 // Screenshots land in CODE_SHOTS when set, else the test's output folder.
 import { readFileSync } from 'node:fs';
@@ -7,7 +7,7 @@ import path from 'node:path';
 import { expect, test } from './studio.js';
 
 const PEOPLE = 'code-admin-390,code-admin-1366';
-test.use({ serverOptions: { admins: PEOPLE, generators: false, customCode: false } });
+test.use({ serverOptions: { admins: PEOPLE, customCode: false } });
 
 const CUSTOM = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
 

@@ -159,7 +159,7 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
 
 // Baked frames within a disk budget (STUDIO_FRAMES_MAX_BYTES, default 2 GB). While <framesDir> holds more,
 // the frames used least recently go: a bake's .fseq files with its wire folder (chunks and downloads). Never
-// a reviewed look's, a fleet-box bake's (no box can make it again) or frames in use. An evicted bake keeps
+// a reviewed look's, a bake from no render box (none here can make it again) or frames in use. An evicted bake keeps
 // its record and is baked again when someone asks for its frames: bakes are deterministic.
 // Last use: when this run saw it used, else the .fseq's mtime (touched on use, at most every 10 minutes).
 async function folderBytes(dir: string) {
@@ -235,8 +235,8 @@ export function createFramesDisk({ framesDir, store, maxBytes = DEFAULT_FRAMES_M
       log.info?.(`[frames] evicted ${(g.bytes / 1e6).toFixed(1)} MB (looks ${g.looks.join(', ')}) for the disk cap`);
     }
     if (left > maxBytes) {
-      log.warn?.(`[frames] ${(left / 1e6).toFixed(0)} MB of frames that cannot be evicted (reviewed, fleet-box `
-        + `or in use), over STUDIO_FRAMES_MAX_BYTES ${(maxBytes / 1e6).toFixed(0)} MB`);
+      log.warn?.(`[frames] ${(left / 1e6).toFixed(0)} MB of frames that cannot be evicted (reviewed, from no `
+        + `render box or in use), over STUDIO_FRAMES_MAX_BYTES ${(maxBytes / 1e6).toFixed(0)} MB`);
     }
   }
 

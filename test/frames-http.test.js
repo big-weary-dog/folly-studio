@@ -49,10 +49,9 @@ async function startApp() {
       return { bytes: Buffer.from(writeFseq({ frames: FRAMES, data, ranges: [[0, C]], uniqueId: 1 })) };
     },
   };
-  const generator = { enqueue() {}, async idle() {} };
   const dataDir = path.join(tmp, 'data');
-  app = await createServer({ dataDir, publicDir, generator, log: quiet, renderBox, curators: ['carol'],
-    generators: true, customCode: true });
+  app = await createServer({ dataDir, publicDir, log: quiet, renderBox, curators: ['carol'],
+    customCode: true });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
 }

@@ -150,7 +150,7 @@ describe('compressed FSEQ', () => {
   test('a box may hand back a compressed bake: checked like any other', async () => {
     const rig = { ...lineRig(2), output: { universes: 2, channelsPerUniverse: 510 } };
     rig.pixels = { ...rig.pixels, universe: [1, 2], channel: [1, 1] };
-    const { bake } = checkFrames(await compressFseq(parseFseq(plain)), { source: 'fleet-box', rig });
+    const { bake } = checkFrames(await compressFseq(parseFseq(plain)), { source: 'render-box', rig });
     assert.equal(bake.status, 'done', bake.reason);
     assert.equal(bake.analysis.frames, F);
   });

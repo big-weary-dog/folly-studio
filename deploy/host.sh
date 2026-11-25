@@ -129,20 +129,10 @@ if [ "$live" != "releases/$commit" ]; then
 fi
 
 node=$(command -v node)
-# Relative paths in the settings are the checkout's, as when it was the working directory, never a release's: the
-# data (resolved above), the other files and folders, and commands named with a slash (a bare name is a PATH lookup).
-# shellcheck disable=SC1090
-mapfile -d '' -t settings_paths < <(cd "$root"; set -a; . "$env_file"
-  for name in STUDIO_MODELS STUDIO_CODEX_WORK STUDIO_FLEET_WORK STUDIO_FLEET_DATA \
-    STUDIO_CODEX_BIN STUDIO_FLEET_BIN STUDIO_FLEET_TMUX; do
-    value=${!name:-}
-    case $value in '' | /*) continue ;; esac
-    case $name in *_BIN | *_TMUX) [[ $value == */* ]] || continue ;; esac
-    printf '%s\0' "$name=$(realpath -m "$value")"
-  done)
-# Each as one systemd argument: quoted, with its own \, ", $ and % escaped.
+# The data folder (resolved above) is the checkout's, as when it was the working directory, never a release's.
+# As one systemd argument: quoted, with its own \, ", $ and % escaped.
 paths_args=
-for setting in "STUDIO_DATA=$data" "${settings_paths[@]}"; do
+for setting in "STUDIO_DATA=$data"; do
   setting=${setting//\\/\\\\}; setting=${setting//\"/\\\"}; setting=${setting//\$/\$\$}
   paths_args+="\"${setting//%/%%}\" "
 done
@@ -161,7 +151,7 @@ ExecStart=/usr/bin/env $paths_args$node server.ts
 Restart=always
 RestartSec=5
 TimeoutStopSec=20
-# A stop signals the server alone, which stops its generator calls itself and leaves their ideas for the next start.
+# A stop signals the server alone, which saves and closes itself.
 KillMode=mixed
 
 [Install]

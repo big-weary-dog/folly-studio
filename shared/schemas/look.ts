@@ -1,6 +1,6 @@
 // A look as the API stores it (SPEC "Looks", "Timeline", "Globals", "Param bindings"), strict: a bad look is refused
-// with a 400 naming its first problem (problem()). Generators' looks are cleaned leniently first (generated.ts). A
-// palette given by name is filled in from data/palettes.json, so a stored look carries its colours.
+// with a 400 naming its first problem (problem()). A palette given by name is filled in from data/palettes.json, so a
+// stored look carries its colours.
 import { z } from 'zod';
 
 import PALETTES from '../../public/data/palettes.json' with { type: 'json' };

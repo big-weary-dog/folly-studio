@@ -1,9 +1,8 @@
-// The HTTP API's request bodies and what it answers with (SPEC "HTTP API"): accounts, ideas and looks. Bodies are
+// The HTTP API's request bodies and what it answers with (SPEC "HTTP API"): accounts and looks. Bodies are
 // parsed with these on the server; the browser takes the types (`import type`).
 import { z } from 'zod';
 
 import ACCOUNT from '../../public/data/account.json' with { type: 'json' };
-import type { IdeaStatus } from '../idea-status.ts';
 import { ROLES, type Role } from '../policy.ts';
 import type { Tour } from './tour.ts';
 import { type Automation, Bpm, Duration, Globals, type Layer, Layers, LookTitle, Summary } from './look.ts';
@@ -44,36 +43,10 @@ export const Login = z.object({
   username: Username.nullable().catch(null), password: z.string().max(MAX_PASSWORD).catch(''),
 }).catch({ username: null, password: '' });
 
-/** How much a generator explores before it commits (SPEC-generators "Explore"); an idea without one explores. */
-export const EXPLORE = ['quick', 'explore', 'deep'] as const;
-export type Explore = typeof EXPLORE[number];
-/** What a Deep idea costs: `uses` against an account's limits; whether only admins may ask for it; whether anyone
- * may (off: the API refuses it and the Studio does not offer it). */
-export const DEEP = { uses: 2, adminOnly: false, enabled: false };
-export const IdeaBody = z.object({
-  text: z.string({ error: 'Describe the idea in 3–2000 characters.' }).trim()
-    .min(3, { error: 'Describe the idea in 3–2000 characters.' })
-    .max(2000, { error: 'Describe the idea in 3–2000 characters.' }),
-  /** A model id (shared/schemas/models.ts); none: the registry's default. */
-  model: z.string({ error: 'model must name one of the models.' })
-    .max(32, { error: 'model must name one of the models.' }).optional(),
-  explore: z.enum(EXPLORE, { error: 'explore must be quick, explore or deep.' }).default('explore'),
-});
-/** POST /api/looks/:id/refine: the change asked for; or a critique, or a runtime error to fix, with no text. */
-export const RefineBody = z.object({
-  text: z.string({ error: 'Describe the change in at most 1000 characters.' }).trim()
-    .max(1000, { error: 'Describe the change in at most 1000 characters.' }).default(''),
-  model: IdeaBody.shape.model,
-  critique: z.boolean({ error: 'critique must be true or false.' }).optional(),
-  fix: z.object({ layer: z.string().trim().min(1).max(80), error: z.string().trim().min(1).max(400) },
-    { error: 'fix is { layer, error }.' }).optional(),
-}).refine((b) => b.text.length >= 2 || b.critique || b.fix, { error: 'Describe the change first.' });
-
 /** POST /api/looks. `automation` is checked against the look's globals (automationFor). */
 export const LookCreate = z.object({
   title: LookTitle, summary: Summary, layers: Layers, duration: Duration.optional(), globals: Globals.optional(),
   automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false), chain: Chain,
-  ideaId: z.string({ error: 'ideaId does not name one of your ideas.' }).nullish(),
   /** An import's look, by its id where it was made (SPEC-looks "Look files"). */
   origin: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, { error: 'origin is not a look id.' }).optional(),
 });
@@ -98,69 +71,27 @@ export const LooksQuery = z.object({
   versions: z.string().optional(),
 });
 
-// What the API answers with (it never reads these back): an account, the flash check's settings, an idea, a look as
-// lists and GET show it.
+// What the API answers with (it never reads these back): an account, the flash check's settings, a look as lists and
+// GET show it.
 /** `guest`: a guest's session, not an account (SPEC-access "Guests"). */
 export type User = { id: string, username: string, role: Role, tour?: Tour, guest?: true };
 /** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
 /** A curator's approval of a look whose bake fails the flash check: why, who, when. */
 export type FlashOverride = { reason: string, by: string, at: string };
-/** Where a generation's time went, in ms: in the queue, building the prompt, the model's request, parsing; the render
- * check and the critique round, when they ran; and the tokens its calls used (`input` counts the `cached`). */
-export type Timing = { wait: number, prompt: number, request: number, parse: number, total: number, check?: number,
-  critique?: number, draft?: number, tokens?: { input: number, cached: number, output: number } };
-/** One round of a prompted model's idea (SPEC-generators "The idea log"): compose, repair, critique, … */
-export type IdeaRound = { kind: string, ms: number, outcome?: string };
-/** A change a round made (`+ layer Rose (bars)`, `Rose: speed 0.2 → 0.5`) and the model's why for it. */
-export type HowChange = { text: string, why?: string };
-/** What the render check after a round found: ms a frame's render took, errors, and the frame checks' numbers. */
-export type HowChecks = { ms: number, errors: number, meanBrightness?: number, darkFraction?: number,
-  flashHz?: number, flashOk?: boolean };
-/** A still the model was shown: its file in the idea's log, the view (front, or a group's close-up), its time (s). */
-export type HowStill = { file: string, view: string, at: number };
-/** A round as "How it was made" shows it (SPEC-generators "The idea log"): the model's critique, plan and thinking
- * summary, what it changed, what the checks found, the stills it was shown (how many, once the log is gone), the
- * docs it read and the critique's group warnings; for admins, expand's notes, why a repair ran and its dollars. */
-export type HowRound = { n: number, kind: string, ms: number, outcome?: string,
-  tokens?: { input: number, cached: number, output: number, reasoning: number }, critique?: string, plan?: string,
-  thinking?: string, changes?: HowChange[], checks?: HowChecks, stills?: number | HowStill[], docs?: string[],
-  warnings?: string[], notes?: string[], reason?: string[], usd?: number };
-/** A part of what the model was first asked: its size, about how many tokens, and its text where the viewer may read
- * it (the shared guide and catalog, admins only). */
-export type HowPart = { name: string, bytes: number, tokens: number, text?: string };
-/** GET /api/ideas/:id/how: the idea, how its model ran, the prompt's parts and the rounds, `from` the idea's log, the
- * summary the idea keeps, or neither; `usd` (admins) what it cost. */
-export type IdeaHow = { idea: Idea, from: 'log' | 'idea' | 'none',
-  run: { via?: string, effort?: string, level?: string, name?: string }, prompt?: HowPart[], rounds: HowRound[],
-  usd?: number };
-/** GET /api/ideas/:id/how/live: the idea's status, how many rounds have ended, and the one running now (thinking so
- * far); polled while the idea runs, the page fetching /how again when `rounds` or `status` moves. */
-export type IdeaHowLive = { status: IdeaStatus, rounds: number,
-  round?: { n: number, kind: string, ms: number, thinking?: string } };
-/** What a refinement asks besides its text (SPEC-generators "Refine"). */
-export type RefineAsk = { critique?: true, fix?: { layer: string, error: string } };
-/** `model`: the model asked for; `generator`: the one that made the look (a fallback's, if it took over); `by`: its
- * label as shown ("by <label>"); `explore`: how much it explores (a prompted model's); `took`: what its look took from
- * each draft; `rounds`: what its rounds did; `how`: how it was made, kept with the idea (GET /api/ideas/:id/how). */
-export type Idea = { id: string, owner: string, text: string, status: IdeaStatus,
-  model?: string, generator: string, by?: string, explore?: Explore, took?: string, timing?: Timing, lookId?: string,
-  refine?: RefineAsk, changes?: string[], verdict?: string, undone?: true, error?: string | null, createdAt: string,
-  rounds?: IdeaRound[], how?: HowRound[],
-  updatedAt: string };
 export type LookCreate = z.input<typeof LookCreate>;
 export type LookPatch = z.input<typeof LookPatch>;
 /** A look as lists show it: what a card needs, no layers or code. */
 export type Listed = { id: string, owner: string, ownerName: string, title: string, summary: string, duration: number,
-  layerCount: number, shared: boolean, reviewed: boolean, bpm?: number, sharedAt?: string, ideaId?: string,
+  layerCount: number, shared: boolean, reviewed: boolean, bpm?: number, sharedAt?: string,
   preview?: string, createdAt: string, updatedAt: string };
 /** A look as GET /api/looks/:id answers; `version` (its owner's only): the number of the version it is. */
 export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.infer<typeof Globals>,
   automation?: Automation, versionCount: number, version?: number, bake?: Bake | null, reviewedBy?: string,
   flashOverride?: FlashOverride, chain?: 2, origin?: string };
 
-/** How a version was made (SPEC-history "Versions"): a save, an AI refinement, a restore of version
- * `from`, or a look file overruling it. */
+/** How a version was made (SPEC-history "Versions"): a save, an AI refinement (kept from before Studio dropped the
+ * AI), a restore of version `from`, or a look file overruling it. */
 export type VersionHow = 'auto' | 'ai' | 'restore' | 'import';
 /** What a version is besides its content: its number, how it was made, its name (named ones are kept), the round. */
 export type VersionMeta = { n: number, how?: VersionHow, name?: string, from?: number, ideaId?: string,
@@ -181,7 +112,7 @@ export type Analysis = { frames: number, seconds: number, fps: number, channels:
   estPeakAmps: number, flicker: Flashes & { ok: boolean, small: Flashes,
     limits?: { perSecond: number, delta: number, area: number } } };
 /** A look's bake as stored (SPEC "Baked frames" > Stored); `boxStats` is what the box said, kept as untrusted. */
-export type Bake = { source: 'render-box' | 'fleet-box', status: 'queued' | 'running' | 'done' | 'failed', ok: boolean,
+export type Bake = { source: 'render-box', status: 'queued' | 'running' | 'done' | 'failed', ok: boolean,
   reason?: string, warning?: string, checkedAt?: string, requestedAt?: string, startedAt?: string, layersHash?: string,
   renderKey?: string, seconds?: number, analysis?: Analysis, frames?: { bytes: number, sha256: string },
   boxStats?: { untrusted: true, reported: unknown } };
@@ -205,5 +136,4 @@ export type StatsDay = { day: string, visitors: number, people: number, views: n
   errors: number, slow: number };
 export type ServerStats = { startedAt: string, uptime: number, memory: { rss: number, heap: number }, load: number,
   days: StatsDay[], slowest: { at: string, method: string, route: string, status: number, ms: number }[],
-  bakes: { done: number, failed: number, waiting: number },
-  ideas?: { made: number, failed: number, waiting: number } };
+  bakes: { done: number, failed: number, waiting: number } };

@@ -158,7 +158,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => x.userId === user.id && x.id !== keep)) store.sessions.remove(s.id);
   }
 
-  /** The account gone, with its sessions (its looks and ideas are the API's). */
+  /** The account gone, with its sessions (its looks are the API's). */
   function removeUser(id: string) {
     endSessions(id);
     store.users.remove(id);

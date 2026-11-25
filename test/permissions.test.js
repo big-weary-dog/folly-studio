@@ -77,13 +77,9 @@ describe('routes that need a role', () => {
   });
 
   const expected = {
-    'GET /api/admin/models': 200, 'PUT /api/admin/models': 400, 'PUT /api/admin/light': 400,
-    'GET /api/admin/invites': 200, 'POST /api/admin/invites': 201, 'DELETE /api/admin/invites/:id': 404,
-    'GET /api/admin/people': 200, 'PUT /api/admin/people/:id': 404, 'GET /api/admin/reports': 200,
-    'GET /api/admin/reports/:id': 404, 'GET /api/admin/reports/:id/shot': 404,
-    'GET /api/admin/ideas/:id/log': 404, 'GET /api/admin/ideas/:id/log/stills/:name': 400,
-    'PUT /api/admin/baking': 400, 'GET /api/admin/stats': 200, 'GET /api/admin/accounts': 200,
-    'PUT /api/admin/accounts/:id': 404, 'DELETE /api/admin/accounts/:id': 404,
+    'PUT /api/admin/light': 400, 'GET /api/admin/reports': 200, 'GET /api/admin/reports/:id': 404,
+    'GET /api/admin/reports/:id/shot': 404, 'PUT /api/admin/baking': 400, 'GET /api/admin/stats': 200,
+    'GET /api/admin/accounts': 200, 'PUT /api/admin/accounts/:id': 404, 'DELETE /api/admin/accounts/:id': 404,
   };
   test('a member is refused every admin route, no session is asked to log in, and an admin passes', async () => {
     const routes = [...new Map(registered.map((r) => [`${r.method} ${r.url}`, r])).values()];

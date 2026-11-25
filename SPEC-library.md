@@ -42,11 +42,11 @@ Studio shows as a rose window whose petals are clicked in and out, writing them 
 Any kind may carry `label` (its name in
 the Studio, a unit in parentheses: `'Speed (bars a second)'`) and `help` (≤ 300 characters: one or two sentences on
 what it does and how it looks low and high). The Studio shows `help` on hover over the param's row, and on a touch
-screen behind an ⓘ beside it; the generators' library docs give it as the param's effect. Every library param has
+screen behind an ⓘ beside it. Every library param has
 `help`.
 
 A number's optional `soft: [lo, hi]` sets its slider's drag and fill range, within `min..max` with `lo < hi`.
-Typing, bindings, automation and the generators use the full `min..max`. Outside `soft`, the number shows exactly
+Typing, bindings and automation use the full `min..max`. Outside `soft`, the number shows exactly
 and the fill stays at its nearest end. Without `soft`, drag and fill also use `min..max`; malformed `soft` is ignored.
 
 Controls may carry `showWhen: { otherParam: [value, …] }`: show the row only when each named
@@ -58,7 +58,7 @@ An unknown param does not match; malformed conditions are ignored.
 Every source also has `brightness` (`SOURCE_PARAMS`: 0–1, default 1, label Brightness), after its own params: the core
 scales the rgb of what `pixel()` returns by it (alpha kept), in a layer and in `use()`, so it binds like any param
 (an LFO, a global, the envelope) and a look without it reads 1. A source that declares its own `brightness` keeps it
-and applies it itself. The Studio shows it with the rest, and the generators' catalogue lists it on every source.
+and applies it itself. The Studio shows it with the rest.
 
 `upgrade(saved)` (optional) reads params saved for an earlier version of the module: the core hands it a copy of a
 module's saved params before resolving them, in a layer and in `use()`, and uses the object it returns (the saved
@@ -120,7 +120,7 @@ layer as one row). Colours are
 
 A library module offering a choice of orientation (rising, falling, sweeping, opening from the middle) uses a
 `direction` choice param, `{ value: 'up', type: 'choice', options: DIRECTIONS, label: 'Direction' }`, its default
-the module's natural orientation, so the UI and the generators see one convention. Its options are the directions it
+the module's natural orientation, so the UI and the library share one convention. Its options are the directions it
 draws distinctly, in `DIRECTIONS` order: a list literal when that is fewer than all (clouds drift up, down, right
 or left). Fire always rises up and Lightning always strikes down; Rotate places them at other orientations.
 Streaks offers up, down and along; Angle tilts its fall. Scroll does not turn (Rotate's Spin does, as in
@@ -308,8 +308,7 @@ untouched; the pattern draws it.
 | `key` | ≤ 16 entries, one printable ASCII character → a colour: a role or slot (`body`, `accent2`: a role's first colour, a slot wrapping) or `#rrggbb`, with an optional brightness `' N%'` (`'high 25%'`). `.` and space are clear and never keys |
 | `frames` | 1–16 of `{ rows, hold? }`: ≤ 128 rows of ≤ 128 characters, each in the key or clear; `hold` 1–64 ticks (default 1) |
 
-At most 32,768 characters as JSON. Each LED or pane takes the character at its centre. A look stores the picture in the module's params; a generator's composition gives
-its key as a list, `[{ char, colour }]`, which expansion makes the object.
+At most 32,768 characters as JSON. Each LED or pane takes the character at its centre. A look stores the picture in the module's params.
 
 ## Spatial modules
 
@@ -414,7 +413,7 @@ frame per layer and held to the param's min..max (`from`/`to` default to them):
 - `{ mod: 'global', name, from, to }`: `from + (to − from) × g`, `g` the macro or modulator (SPEC "Globals") as 0..1
   of its range.
 - `{ mod: 'envelope', from, to }`: by the layer's clip envelope (1 with no clips). Read only: the Studio does
-  not offer it and generators never write it.
+  not offer it.
 - `{ mod: 'beats', per = 1 }` (a speed's beat clock): `per × bpm / 60`, so a speed counts per beat at the look's
   tempo (120 unset): a "rises a second" param bound to it rises `per` a beat. On a param with `unit: 'minute'` it is `per × bpm`.
 
@@ -436,7 +435,7 @@ T plus dt × its rate at T, so an instance's motion runs on its own time without
 
 The look's palette (`G.palette`) has four roles: `low` for big surfaces, `body` for the bulk, `accent` for
 punctuation, `high` sparingly, each a list of colours whose slots are named `low1`, `body2`, … (TD's palette CSVs). A
-colour param's value is a **pick** of them, which a user, a preset or a generator can point anywhere on this ladder:
+colour param's value is a **pick** of them, which a user or a preset can point anywhere on this ladder:
 
 | Pick | Meaning |
 |---|---|

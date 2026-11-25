@@ -1,8 +1,7 @@
 // What visits move over the wire, against the real server and the app as Vite builds it (test/fixtures/browser.js
 // keeps an HTTP cache the way a browser does). A cold Studio load (the shell, its styles and modules, the
 // Studio's lazy modules and styles, the sandbox, rig.json and the API calls) stays within COLD; a reload, even
-// a day later, sends only the shell and the API calls, each a 304; an idea session polls little, and lists
-// carry no code.
+// a day later, sends only the shell and the API calls, each a 304; and lists carry no code.
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -31,8 +30,7 @@ beforeAll(async () => {
   const dist = await builtApp();
   manifest = JSON.parse(await readFile(path.join(dist, '.vite/manifest.json'), 'utf8'));
   dir = await mkdtemp(path.join(os.tmpdir(), 'studio-transfer-'));
-  app = await createServer({ dataDir: dir, distDir: dist, generator: { enqueue() {} }, log: quiet, generators: true,
-    admins: 'wire', models: { env: { PATH: path.join(import.meta.dirname, 'fixtures/generate/bin') } } });
+  app = await createServer({ dataDir: dir, distDir: dist, log: quiet, admins: 'wire' });
   port = (await app.listen(0)).port;
   const res = await request(port, '/api/signup', { method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ username: 'wire', password: 'correct horse' }) });
@@ -90,25 +88,9 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
   }
 });
 
-test('an idea session: polls back off and answer 304s; lists carry metadata, not code', async () => {
+test('lists carry metadata, not code', async () => {
   const b = browser(port, { cookie, manifest });
-  await b.load('/ideas', { view: 'js/ui/pages.tsx', api: ['/api/me', '/api/ideas', '/api/models'] });
-  const body = { text: 'Rising embers drift up the spires', model: 'sol' };
-  const { idea } = JSON.parse((await b.call('POST', '/api/ideas', body)).text);
-  app.store.ideas.update(idea.id, { status: 'generating' });
-  // ui/pages.tsx long-polls; where the server answers at once (this queue cannot be watched), it asks after 2 s, then
-  // 1.5× as long each time, up to 10 s; ready after 60 s here. (models-api.test.js holds the long poll itself.)
-  const from = b.log.length;
-  let polls = 0;
-  for (let t = 0, wait = 2; ; t += wait, wait = Math.min(10, wait * 1.5)) {
-    b.tick(wait);
-    if (t + wait >= 60) app.store.ideas.update(idea.id, { status: 'ready', lookId: 'x' });
-    polls++;
-    if (JSON.parse((await b.fetch(`/api/ideas/${idea.id}`)).text).idea.status === 'ready') break;
-  }
-  const poll = b.total(from);
-  assert.ok(polls <= 10, `${polls} polls`);
-  assert.ok(b.log.slice(from + 1, -1).every((r) => r.status === 304), 'an unchanged idea answers 304');
+  await b.load('/looks', { view: 'js/ui/pages.tsx', api: ['/api/me'] });   // the shell and the page's module
   const lists = b.log.length;
   await b.load('/looks', { shell: false, view: 'js/ui/pages.tsx', api: ['/api/looks?scope=mine'] });
   await b.load('/gallery', { shell: false, view: 'js/ui/pages.tsx', api: ['/api/looks?scope=gallery'] });
@@ -118,7 +100,6 @@ test('an idea session: polls back off and answer 304s; lists carry metadata, not
     assert.equal(looks.length, 12);
     assert.ok(looks.every((l) => !('layers' in l) && l.layerCount === 3), 'no layers in a list');
   }
-  console.info(`${polls} polls over 60 s: ${kb(poll.bytes)}; My looks + Gallery: ${kb(listed.bytes)}; `
-    + `the whole session ${kb(b.total().bytes)}`);
+  console.info(`My looks + Gallery: ${kb(listed.bytes)}; the whole session ${kb(b.total().bytes)}`);
   assert.ok(listed.bytes <= 8 * KB, kb(listed.bytes));
 });
