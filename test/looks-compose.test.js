@@ -9,7 +9,6 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { layersHash, renderFields } from '../src/bake.ts';
-import { MARKER } from '../src/library-only-data.ts';
 import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -122,8 +121,6 @@ test('looks stored before the rule are converted once at start: their versions t
   await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
     layers: [OLD], versions: [{ layers: [OLD], savedAt: at }], bake, reviewed: true, shared: true, createdAt: at,
     updatedAt: at }]));
-  // Its looks' code is not the library's: this is about the chain rule, so the library-only step has run.
-  await writeFile(path.join(dataDir, MARKER), JSON.stringify({ 'library-only': at }));
   const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
   const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
   assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, true]);

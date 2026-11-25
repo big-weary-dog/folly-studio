@@ -1,5 +1,5 @@
-// The library-only step on a data folder (SPEC-looks "Library only"), once: the server runs it at start, before the
-// store opens; `tools/library-only.ts` runs it by hand, or with --dry-run to say what it would do and change nothing.
+// The library-only step on a data folder (SPEC-looks "Library only"), once, by hand alone (`tools/library-only.ts`):
+// the server never changes stored looks at start. A dry run says what it would do and changes nothing.
 // It copies looks.json and users.json beside themselves first and stops if that fails, then writes the looks kept and
 // the users without the AI's grants, removes the frames of the looks dropped or whose code changed (their previews
 // and wire folders go at start, as no bake names them), and last writes the marker that makes it done.
@@ -47,9 +47,9 @@ export const dropLine = (d: Dropped) => `${d.version ? `version ${d.version} of 
 
 /**
  * Runs the step on `dataDir` against the library in `patternsDir`: { done } when it already had, else { dropped,
- * changed, backups } (none written when `dryRun`). A folder without the library is left for later.
+ * changed, backups } (none written when `dryRun`). Without the library it changes nothing.
  */
-export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = false, now = new Date(), log = console }: {
+export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = true, now = new Date(), log = console }: {
   dataDir: string, patternsDir: string, dryRun?: boolean, now?: Date, log?: Log }) {
   const marker = path.join(dataDir, MARKER);
   const steps = await fsp.readFile(marker, 'utf8').then(JSON.parse, missing) as Node | null;
