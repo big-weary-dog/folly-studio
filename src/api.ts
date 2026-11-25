@@ -26,6 +26,11 @@ import type { Store } from './store.ts';
 
 type Stored = NonNullable<ReturnType<Auth['authenticate']>>['user'];
 
+export const newestBy = (field: string) => (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  const x = String(a[field] ?? a.createdAt ?? ''), y = String(b[field] ?? b.createdAt ?? '');
+  return x < y ? 1 : x > y ? -1 : 0;
+};
+
 /** The /api plugin. */
 export function apiRoutes(o: { store: Store, auth: Auth, log: Log,
   loaders: ReturnType<typeof createLoaders>, framesDir: string,

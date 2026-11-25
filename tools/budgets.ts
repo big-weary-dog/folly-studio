@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const BUDGET_FILE = 'tools/budgets.json';
+export const BUDGET_FILE = 'tools/budgets.json';
 const KB = 1024;
 const MAX_BYTES = 64 * KB, MAX_LINE = 120;
 // generated, committed data
@@ -28,7 +28,7 @@ type Report = (line: number, rule: string, message: string) => void;
 const kb = (n: number) => `${(n / KB).toFixed(1)} KB`;
 const maxLines = (rel: string) => (rel.startsWith('public/patterns/') ? 150 : rel.startsWith('test/') ? 600 : 400);
 /** The area a file counts toward: its top folder, or public/<folder>; '.' for files at the root. */
-const areaOf = (rel: string) => {
+export const areaOf = (rel: string) => {
   const p = rel.split('/');
   return p.length < 2 ? '.' : p[0] === 'public' && p.length > 2 ? `public/${p[1]}` : p[0];
 };

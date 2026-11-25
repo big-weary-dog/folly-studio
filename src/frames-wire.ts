@@ -1,4 +1,4 @@
-// Baked frames as the browser streams them (SPEC "Baked frames"; public/js/frames-stream.ts decodes). Chunks
+// Baked frames as the browser streams them (SPEC "Baked frames"; public/js/frames-wire.js decodes). Chunks
 // of 80 frames (2 s): a layout byte, then the frames in whichever layout compresses smallest (MODES: frame
 // after frame, frame deltas mod 256, planar, planar deltas). A chunk's first frame is stored as is, so a
 // seek fetches one chunk. Brotli picks the layout at quality 5 (what 9 picks) and compresses at the

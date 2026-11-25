@@ -1,4 +1,4 @@
-// Baked frames as the server streams them (SPEC "Baked frames"; src/frames-wire.ts encodes), decoded and played
+// Baked frames as the server streams them (SPEC "Baked frames"; src/frames-wire.js encodes), decoded and played
 // while they download. A chunk is a layout byte (MODES), then its frames; each decodes alone. Playback starts with
 // the first chunk, two come ahead, a seek fetches its own. Nothing is allocated per frame.
 import type { Rig } from '../../shared/schemas/rig.ts';

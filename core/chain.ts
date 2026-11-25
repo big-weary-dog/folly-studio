@@ -31,11 +31,11 @@ const BLEND = { over: OVER, add: ADD, max: MAX, multiply: MULTIPLY, under: UNDER
 const KIND: Record<string, number> = { source: SOURCE, warp: WARP, filter: FILTER, composite: COMPOSITE };
 const isSourceBlend = (b: unknown): b is SourceBlend => SOURCE_BLENDS.includes(b as SourceBlend);
 /** How deep composites nest: a composite may hold one, which may not. */
-const MAX_DEPTH = 2;
+export const MAX_DEPTH = 2;
 
 type Fn = (...a: unknown[]) => unknown;
 /** A compiled composite: each sub-layer's modules compiled (null where disabled). */
-type CompiledComposite = { kind: 'composite', subs: (Compiled | CompiledComposite | null)[][] };
+export type CompiledComposite = { kind: 'composite', subs: (Compiled | CompiledComposite | null)[][] };
 export type CompiledLink = Compiled | CompiledComposite;
 const isComposite = (c: CompiledLink): c is CompiledComposite => c.kind === 'composite';
 

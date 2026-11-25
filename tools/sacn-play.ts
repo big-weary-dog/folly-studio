@@ -27,7 +27,7 @@ import { CHANNELS_PER_UNIVERSE, MAX_CHANNELS, parseFseq } from '../src/frames.ts
 import { inflateBlock } from '../src/fseq-codec.ts';
 
 /** ANSI E1.31-2018 data packet layout: byte offsets, sizes and the fixed values. */
-const E131 = Object.freeze({
+export const E131 = Object.freeze({
   PORT: 5568,
   SLOTS: 512,                     // DMX slots after the start code; we fill 510 and zero the last two
   LENGTH: 638,                    // 126-byte header + 512 slots

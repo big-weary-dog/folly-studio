@@ -4,10 +4,10 @@
 export type Picture = Readonly<{ grid: 'rose' | 'square', repeat: number, key: Readonly<Record<string, string>>,
   frames: readonly Readonly<{ rows: readonly string[], hold: number }>[] }>;
 
-const PICTURE_LIMITS = Object.freeze({ rows: 128, columns: 128, frames: 16, keys: 16, hold: 64, repeat: 16,
+export const PICTURE_LIMITS = Object.freeze({ rows: 128, columns: 128, frames: 16, keys: 16, hold: 64, repeat: 16,
   bytes: 32768 });
 // A key's colour: a role or slot of the palette, or '#rrggbb', and a brightness ('body2 40%').
-const PICTURE_COLOUR = /^(?:(?:low|body|accent|high)(?:[1-9]|1[0-6])?|#[0-9a-f]{6})(?: (?:100|[1-9]?\d)%)?$/i;
+export const PICTURE_COLOUR = /^(?:(?:low|body|accent|high)(?:[1-9]|1[0-6])?|#[0-9a-f]{6})(?: (?:100|[1-9]?\d)%)?$/i;
 const CHAR = /^[!-~]$/;   // one printable ASCII character; '.' and space are always clear
 const CLEAR = '. ';
 

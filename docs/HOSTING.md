@@ -9,8 +9,8 @@ have not been run here. Check them against the tool's own docs.
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (in a sandboxed Worker), playback of baked frames | Its own CPU and battery |
 | Your computer (`npm start`) | Accounts, the JSON store, the API, static files, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most three at once) |
-| Render box (its own process; library looks only) | One bake at a time, at low priority (`STUDIO_BAKE_NICE`; Admin → Baking: throttled, or off; spec/frames "Where bakes run"), in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
-| Encoder thread | Brotli for streaming, at low priority, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
+| Render box (its own process; library looks only) | One bake at a time, `nice 10` (Admin → Baking: throttled is `nice 19` with 30 s between renders, or off), in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
+| Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
 
 Bakes and encodes yield to everything else: the API and your desktop stay responsive. Baked frames
 take about 0.6 MB per second on disk. `STUDIO_FRAMES_MAX_BYTES` (default 2GB, roughly an hour of

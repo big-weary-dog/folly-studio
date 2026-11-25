@@ -12,7 +12,7 @@ import { ADD, COMPOSITE, type Link, MULTIPLY, OVER, SOURCE, UNDER, WARP } from '
 export const PASS: { at: Link | null } = { at: null };
 
 /** v (number, '#hex', [r, g, b, a?], nothing) into out as [r, g, b, a], alpha default `da`. False on NaN. */
-function toColour(v: unknown, out: number[], da: number) {
+export function toColour(v: unknown, out: number[], da: number) {
   let r, g, b, al;
   if (v === undefined || v === null) { r = g = b = al = 0; }
   else if (typeof v === 'number') { r = g = b = v; al = da; }
@@ -27,7 +27,7 @@ function toColour(v: unknown, out: number[], da: number) {
 }
 
 /** o into c (straight alpha) by blend, alpha scaling values and add summing their light; onto nothing it is o. */
-function blendInto(c: number[], o: number[], mode: number) {
+export function blendInto(c: number[], o: number[], mode: number) {
   const a = o[3], ca = c[3];
   if (mode === MULTIPLY) {
     for (let i = 0; i < 3; i++) c[i] *= 1 - a + o[i] * a;

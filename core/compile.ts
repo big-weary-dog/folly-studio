@@ -11,7 +11,7 @@ import { STAGES } from './warps.ts';
 import { paramControls, type ParamControls } from './param-controls.ts';
 
 /** A pattern's params as its controls show them (SPEC "Pattern code"). */
-type ParamSpec = { label?: string, help?: string } & ParamControls & (
+export type ParamSpec = { label?: string, help?: string } & ParamControls & (
   { type: 'number', value: number, min: number, max: number, soft?: [number, number], step?: number, unit?: 'minute' }
   | { type: 'toggle', value: boolean } | { type: 'color', value: string, blend?: PickBlend }
   | { type: 'choice', value: string, options: string[] } | { type: 'picture', value: Picture }
@@ -19,7 +19,7 @@ type ParamSpec = { label?: string, help?: string } & ParamControls & (
 export type ParamSchema = Record<string, ParamSpec>;
 type RGBA = number[];
 /** The longest `help` a param keeps (SPEC "Pattern code"). */
-const HELP_MAX = 300;
+export const HELP_MAX = 300;
 /** What each kind defines (SPEC "Modules"); a module compiled: its function, `frame`, params, colours (picks), and
  * for a spatial filter its op (SPEC "Spatial modules"); for one that keeps the frames above it, their buffer. */
 export type Compiled = { kind: ModuleKind, params: ParamSchema, frame?: (t: number, P: Values, G: G) => void,

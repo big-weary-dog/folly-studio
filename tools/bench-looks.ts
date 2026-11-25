@@ -12,7 +12,7 @@ import { type Automation, automationFor, Bpm, Duration, Globals } from '../share
 
 type Entry = { name: string, kind: string, code: string };
 /** A look of library modules by ref. */
-type BenchLook = { id: string, title: string, duration?: number, bpm?: number, globals?: Globals | null,
+export type BenchLook = { id: string, title: string, duration?: number, bpm?: number, globals?: Globals | null,
   automation?: Automation | null, layers: LayerInput[] };
 
 const here = (p: string) => new URL(p, import.meta.url);

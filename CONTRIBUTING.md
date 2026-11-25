@@ -191,7 +191,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box, its own process under limits; what a box hands back, read as data; the core from its source for the boxes |
 | `src/baking.ts`, `library-gate.ts` | `spec/frames "Where bakes run"`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (each module a library ref) |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
-| `src/frames-worker.ts` | The encoder thread, at low priority |
+| `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/stats.ts` | The request log and Admin → Stats (spec/http "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` in the render box; its frame loop |
@@ -311,8 +311,7 @@ cover.
   `out`; pattern code's colour calls, `hsv` or `mix`, return new arrays: the stdlib's contract), skips layers
   outside their clips before any pixel work, and sleeps when idle.
 - The sandbox answers every frame within 1.5 s or reports the layer as hung. Bakes run one at a
-  time, under CPU, memory and wall-clock limits, at low priority, never at the same time as a frame encode (spec/frames
-  "Baked frames").
+  time, under CPU, memory and wall-clock limits, at nice 10, never at the same time as a frame encode.
 - `npm run lint` takes well under a second; keep it that way.
 
 ## Branches

@@ -4,7 +4,7 @@
 // times blends the two around it and any render rate plays smoothly. Time going back, or a jump of more than JUMP,
 // starts it again; a reading before what it holds gets the oldest frame it has.
 
-const RATE = 40;            // grid frames a second: the render box's rate
+export const RATE = 40;            // grid frames a second: the render box's rate
 export const HISTORY_MAX = 8;      // seconds a filter may declare
 const JUMP = 0.5;                  // seconds: a longer step forward is a seek
 

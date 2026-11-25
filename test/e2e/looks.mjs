@@ -7,7 +7,7 @@ import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } f
 import { ledRanges, writeFseq } from '../../core/fseq.ts';
 
 const STUDIO = new URL('../../', import.meta.url);
-const rig = JSON.parse(readFileSync(new URL('public/data/rig-folly.json', STUDIO), 'utf8'));
+export const rig = JSON.parse(readFileSync(new URL('public/data/rig-folly.json', STUDIO), 'utf8'));
 const scene = prepareScene(rig);
 /** The rig as the harness reads it: each LED's zone and fixture index, its address and place; the views. */
 export const led = { count: rig.count, channelsPerUniverse: rig.output.channelsPerUniverse, zones: scene.zones,

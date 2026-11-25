@@ -9,7 +9,7 @@ import { flatModules } from '../../../../core/tree.ts';
 
 type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
 export interface State { kind: StateKind; message?: string }
-interface Problem { kind: 'compile' | 'runtime' | 'hung'; message: string; running?: boolean }
+export interface Problem { kind: 'compile' | 'runtime' | 'hung'; message: string; running?: boolean }
 export const ISSUE_LABELS: Record<string, string> = { compile: 'Compile error', runtime: 'Runtime error',
   hung: 'Hung' };
 const RUNTIME_ERROR_HOLD_MS = 1200;

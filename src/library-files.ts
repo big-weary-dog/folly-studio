@@ -7,7 +7,7 @@ import { isNode, type Node } from '../shared/look-modules.ts';
 
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
-type LibraryModule = { code: string, hash: string, kind: string, title: string };
+export type LibraryModule = { code: string, hash: string, kind: string, title: string };
 export type Library = { modules: Map<string, LibraryModule>, presets: Map<string, Node> };
 
 const NAME = /^[a-z0-9-]{1,64}$/;

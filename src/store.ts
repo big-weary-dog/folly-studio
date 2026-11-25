@@ -17,14 +17,14 @@ import { lockDataDir } from './store-lock.ts';
 
 type Doc = { id: string, createdAt: string, updatedAt: string };
 /** `list`'s `omit`: keys left out of the copies (a listing skips what it does not show, a look's versions). */
-type Collection<T extends Doc> = { get(id: string): T | null,
+export type Collection<T extends Doc> = { get(id: string): T | null,
   list(filter?: (x: T) => unknown, omit?: readonly (keyof T)[]): T[], count(filter?: (x: T) => unknown): number,
   /** The documents' size as stored (JSON, UTF-8). */ bytes(filter?: (x: T) => unknown): number,
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
 /** `role` is what People made it (the server's lists may raise it: auth's roleOf); `disabled` cannot sign in. */
 export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, disabled?: boolean };
 /** `guest`: a guest's name, and `userId` their `guest-…` id, which no account has (spec/http "Guests"). */
-type Session = Doc & { userId: string, expiresAt: string, guest?: string };
+export type Session = Doc & { userId: string, expiresAt: string, guest?: string };
 /** A look as stored: what GET /api/looks/:id answers (older looks may lack its defaults), its versions, and what its
  * own version is (look-versions.ts). */
 export type StoredLook = Doc & Pick<Look, 'owner' | 'title'>

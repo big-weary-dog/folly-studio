@@ -33,14 +33,14 @@ const CONTROL = /[\u0000-\u001f\u007f]/g;
 const text = (bytes: Bytes) => new TextDecoder('utf-8').decode(bytes.subarray(0,
   Math.min(bytes.indexOf(0) < 0 ? bytes.length : bytes.indexOf(0), 256))).replace(CONTROL, '');
 
-/** parseFseq's `decompress`: one block of `type`, inflated to exactly `size` bytes (or it throws). */
-type Decompress = (type: string, bytes: Bytes, size: number) => Bytes;
 /**
  * An FSEQ file parsed, or FseqError. Strict: header fields agree with each other and the file size; sparse ranges
  * ascend within maxChannels. The data is a view, not a copy. Compressed files need `decompress(type, bytes, size)` →
  * Uint8Array(size), which must refuse to make more than `size` bytes: each block is exactly its frames, the whole ≤
  * maxDataBytes.
  */
+/** parseFseq's `decompress`: one block of `type`, inflated to exactly `size` bytes (or it throws). */
+type Decompress = (type: string, bytes: Bytes, size: number) => Bytes;
 export function parseFseq(input: Bytes | ArrayBuffer, opts: { maxBytes?: number, maxChannels?: number,
   maxDataBytes?: number, decompress?: Decompress } = {}) {
   const { maxBytes = DEFAULT_MAX_BYTES, maxChannels = MAX_CHANNELS, maxDataBytes = maxBytes, decompress } = opts;
@@ -129,9 +129,8 @@ function parseFseqHeader(b: Bytes, { fileBytes, maxBytes = DEFAULT_MAX_BYTES,
     }
   }
   const sparse = rangeCount > 0;
-  const uniqueId = new DataView(b.buffer, b.byteOffset + 24, 8).getBigUint64(0, true);
   return { version: `2.${minor}`, channelCount, frameCount, stepMs, fps: 1000 / stepMs, ranges, sparse, variables,
-    uniqueId, compression, blocks, dataOffset };
+    compression, blocks, dataOffset };
 }
 
 // The block index (from byte 32: u32 first frame, u32 length), checked and inflated into one buffer.

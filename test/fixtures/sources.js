@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const beside = (name) => fileURLToPath(new URL(`../../../${name}`, import.meta.url));
-const LIGHTING = path.resolve(process.env.LIGHTING_DIR || beside('lighting'));
+export const LIGHTING = path.resolve(process.env.LIGHTING_DIR || beside('lighting'));
 export const SHOW_BUILDER = path.resolve(process.env.SHOW_BUILDER_DIR || beside('show-builder'));
 
 const why = (root, repo, env) => (...rels) => {

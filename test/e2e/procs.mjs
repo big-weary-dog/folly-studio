@@ -27,7 +27,7 @@ function running(id) {
 export const tagged = (env = process.env) => ({ ...env, [OWNER]: identity() });
 
 /** Every process carrying an owner: { pid, owner, cmd }. */
-function helpers() {
+export function helpers() {
   if (!PROC) return [];
   const found = [];
   for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
