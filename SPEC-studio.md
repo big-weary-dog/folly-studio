@@ -84,9 +84,9 @@ every edit here keeps them, so what the Studio saves the API accepts.
   visible control row in front; the remaining rows open under More settings. A paired petals/cells row stays together.
   Palette access stays in Look. Solo and Reset all sit in the layer menu.
   My looks and Gallery omit file import/export, layer counts, dates and introductions; Delete and Approve open
-  from each card's Actions. Admin uses a page selector: live modes, emergency baking and
+  from each card's Actions. Admin uses a page selector: emergency baking and
   compact health/queue status stay available. Light calibration/files, report investigation,
-  stats history/request investigation and Pi bundle deployment stay on laptop; baking details open on demand.
+  stats history/request investigation stay on laptop; baking details open on demand.
   Login keeps mode choice, fields, rules, feedback and actions, with a compact brand and no pitch or rose artwork.
   Layers lists one row a layer (name, mute, status); tapping one opens its settings in
   the same panel (‹ Layers back, its name, mute, the layer menu, plays on, module selector and params).

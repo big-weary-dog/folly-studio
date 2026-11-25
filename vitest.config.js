@@ -30,7 +30,7 @@ export default mergeConfig(viteConfig, defineConfig({
   // so a fresh checkout (a new worktree, the gate's) starts in that order too, not with the smallest files last.
   cacheDir: path.join(os.homedir(), '.cache', 'folly-studio', 'vitest'),
   test: {
-    include: ['test/**/*.test.{js,ts}', 'pi/test/**/*.test.{js,ts}'],
+    include: ['test/**/*.test.{js,ts}'],
     // Each file in a fresh process of its own: tests start servers, worker threads and render boxes, and read their
     // own threads' nice values from /proc/self. One file per spare CPU, at most 8 and at least 2, and no more than
     // the memory left fits: 15 forks peak at ~2.4 GB, 8 at ~1.8 GB, and more than 8 gain little on a shared machine.

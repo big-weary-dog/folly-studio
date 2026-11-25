@@ -1,5 +1,5 @@
-// My looks' and the Gallery's file buttons (SPEC-offline "Look files"): Export all as one file, and on My looks
-// Import from look files, so looks move between the hosted Studio and the Pi's.
+// My looks' and the Gallery's file buttons (SPEC-looks "Look files"): Export all as one file, and on My looks
+// Import from look files, so looks move between Studios.
 import { useRef, useState } from 'preact/hooks';
 
 import type { Listed } from '../../../shared/schemas/api.ts';

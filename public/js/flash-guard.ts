@@ -10,10 +10,10 @@ import { prepareScene } from './core/scene.ts';
 const HOLD_MS = 2500;        // stays on this long after the last flashing second, so it does not blink
 
 /**
- * new FlashGuard(rig, limits?, light?); guard.observe(rgb, ms, cap = 1) → true while a large area flashes more than
+ * new FlashGuard(rig, limits?, light?); guard.observe(rgb, ms) → true while a large area flashes more than
  * `perSecond` times a second (and for a moment after). rgb: Float32Array(count × 3), 0..1 encoded, as shown; each
  * channel is taken to its output byte and the light that byte gives (`light`, the light settings, LIGHT by default),
- * as a bake is checked, × `cap` (the Pi's master: linear light).
+ * as a bake is checked.
  */
 export class FlashGuard {
   watch: FlashWatch; count: number; until = -Infinity; lum: Float32Array; light: Float32Array;
@@ -30,10 +30,10 @@ export class FlashGuard {
     this.until = -Infinity;
   }
 
-  observe(rgb: Float32Array, now: number, cap = 1) {
+  observe(rgb: Float32Array, now: number) {
     const lum = this.lum, L = this.light;
     for (let k = 0; k < this.count; k++) {
-      lum[k] = cap * Math.max(L[byte(rgb[3 * k])], L[256 + byte(rgb[3 * k + 1])], L[512 + byte(rgb[3 * k + 2])]);
+      lum[k] = Math.max(L[byte(rgb[3 * k])], L[256 + byte(rgb[3 * k + 1])], L[512 + byte(rgb[3 * k + 2])]);
     }
     if (this.watch.frame(lum, now)) this.until = now + HOLD_MS;
     return now < this.until;

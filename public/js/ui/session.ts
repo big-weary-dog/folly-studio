@@ -9,15 +9,11 @@ export interface ViewProps { params: Record<string, string>; query: URLSearchPar
 export const user = signal<User | null>(null);
 /** The server's flash check: whether it runs, and its limits (GET /api/me's `flash`); null until known. */
 export const flash = signal<FlashSettings | null>(null);
-/** The server's profile (SPEC-offline): 'pi' runs the lights itself. */
-export const profile = signal<'hosted' | 'pi'>('hosted');
-export const onPi = () => profile.value === 'pi';
 /** Where a signed-in visitor starts: My looks; the Studio for a guest. */
 export const home = () => (user.value?.guest ? '/studio' : '/looks');
-type Me = { user: User | null, flash?: FlashSettings | null, profile?: 'hosted' | 'pi' };
+type Me = { user: User | null, flash?: FlashSettings | null };
 /** Who the server says is signed in (GET /api/me, or a sign-in's answer), and what follows from it. */
 export function signedIn(me: Partial<Me>) {
-  profile.value = me.profile ?? 'hosted';
   if (me.flash !== undefined) flash.value = me.flash ?? null;
   user.value = me.user ?? null;
 }

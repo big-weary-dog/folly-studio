@@ -3,6 +3,16 @@
 Part of `SPEC.md`'s contract: how an idea becomes a look, and which models people may pick (who may use the paid
 ones, and how much: SPEC-access).
 
+## No generators
+
+On every server no model registry is read and no generator runs; ideas left in the data stay as they are. The routes
+that make or read ideas, models and their access are not there (404): `/api/ideas…`, `POST /api/looks/:id/refine`,
+`/api/models`, `/api/admin/models`, `/api/admin/ideas/…`, `/api/invite` and `/api/admin/invites…`,
+`/api/admin/people…`. `GET /api/me` has no `access`, so the app has no Ideas tab, Refine panel, AI fixes or Models and
+Access tabs under Admin (`/admin` opens Light); its home is My looks, and `/ideas` leads there. The tutorial
+(SPEC-tutorial) leaves out its steps on Ideas. Nothing in the environment, the data or the API turns them on; the rest
+of this file is what they do where a test runs them.
+
 ## Generators (idea → look)
 
 `src/generate/index.ts` runs a small in-process queue. An adapter is

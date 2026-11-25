@@ -244,6 +244,5 @@ export async function playKeep(page, t) {
   }, 'keep-undo');
   await t.at('history').dispatchEvent('click');
   await step(t, 'Save', ['save'], () => t.at('save').click(), 'keep-save');
-  await step(t, 'Live', ['nav:live'], () => t.at('nav:live').click(), 'keep-live');
   await t.next();
 }

@@ -8,7 +8,6 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { createAuth } from '../src/auth.ts';
-import { controlFor } from '../src/live/routes.ts';
 import { client, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -58,12 +57,6 @@ describe('guests', () => {
     }
     assert.equal((await g.post('/api/logout', {})).status, 200);
     assert.equal((await g.get('/api/me')).status, 401);
-  });
-
-  test('a guest never controls the live stage, even where members do', () => {
-    const may = controlFor({ can: () => true }, { control: 'members' });
-    assert.equal(may({ id: 'guest-x', username: 'x', guest: true }), false);
-    assert.equal(may({ id: 'u', username: 'bob' }), true);
   });
 
   test('the name is checked, and guests are limited per address', async () => {

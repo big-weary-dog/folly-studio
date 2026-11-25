@@ -14,7 +14,7 @@ import {
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
-import { profile, user } from '../public/js/ui/session.ts';
+import { user } from '../public/js/ui/session.ts';
 import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
@@ -112,18 +112,6 @@ describe('routing', () => {
     try {
       assert.equal(where('/'), '→ /studio');
     } finally { user.value = null; }
-  });
-
-  test('on the Pi, home is My looks and the pages of what it does not run lead elsewhere', () => {
-    profile.value = 'pi';
-    try {
-      assert.equal(where('/'), '→ /looks');
-      assert.equal(where('/nowhere'), '→ /looks');
-      assert.equal(where('/admin/reports'), 'reports {}');
-      assert.equal(safeNext(null), '/looks');
-    } finally {
-      profile.value = 'hosted';
-    }
   });
 
   test('a guest\'s tutorial says an account saves', () => {

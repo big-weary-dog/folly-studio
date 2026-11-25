@@ -32,7 +32,7 @@ In order:
 - `time`, Time: BPM, the beat clock (on the rose's Spin), + Clip.
 - `moves`, Values that move (advanced): ∿ and an LFO, its rate and range, a square and a saw wave on other kinds of
   value, a macro, two values tied to it, the fader moved, an automation lane and points set on it.
-- `keep`, Keep it, show it: an edit, undo, save, Live.
+- `keep`, Keep it: an edit, undo, save.
   Guests instead learn that work stays in this browser and an account is needed to save, with Next available.
 
 Each step names one change from where its control starts (never already met when it opens) and says in a sentence

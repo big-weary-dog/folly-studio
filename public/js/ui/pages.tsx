@@ -8,14 +8,13 @@ import { useEffect, useState } from 'preact/hooks';
 import { api } from '../api.ts';
 import { can } from '../../../shared/policy.ts';
 import type { Listed } from '../../../shared/schemas/api.ts';
-import { onPi, setTitle, user, type ViewProps } from './session.ts';
+import { setTitle, user, type ViewProps } from './session.ts';
 import { Approve } from './approve.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
-import { cx, jewelGradient, lazy, timeAgo } from './kit.tsx';
+import { cx, jewelGradient, timeAgo } from './kit.tsx';
 import { LookFiles } from './look-files.tsx';
 import { PhoneDisclosure } from './phone/disclosure.tsx';
 
-const lights = lazy(() => import('./play-lights.tsx'));
 
 const studioHref = (id: string) => `/studio/${encodeURIComponent(id)}`;
 const previewHref = (l: Listed) => `/api/looks/${encodeURIComponent(l.id)}/preview/${l.preview}`;
@@ -98,8 +97,6 @@ function Card({ look, gallery, remove, approved }: {
         </div>
       </div>
       <div class="card-actions"><a class="btn small" href={href}>Open</a>
-        {onPi() && can(user.value, 'curate') && <button class="btn small" type="button"
-          onClick={() => lights().then((m) => m.openPlayLights(look))}>Play on the lights</button>}
         {(gallery && !reviewed && can(user.value, 'review', look) || mayDelete(user.value, look, gallery)) &&
         <PhoneDisclosure label="Actions">
         {gallery && !reviewed && can(user.value, 'review', look) && <Approve look={look} approved={approved} />}

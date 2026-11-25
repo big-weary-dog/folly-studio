@@ -1,4 +1,4 @@
-// Ship earlier library fingerprints for the save gate, including in Pi bundles without git history.
+// Ship earlier library fingerprints for the save gate, for checkouts without git history.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';

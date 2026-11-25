@@ -140,5 +140,5 @@ export function resumeAt(path: Path) {
   const at = progress.value.at;
   return at?.path === path.id ? Math.max(0, path.steps.findIndex((s) => s.id === at.step)) : 0;
 }
-/** The paths, as this Studio has them (the profile is known by the time the tutorial loads). */
+/** The paths, as this Studio has them (whether this is a guest is known by the time the tutorial loads). */
 export const PATHS = computed(() => pathsHere(!!user.value?.guest));

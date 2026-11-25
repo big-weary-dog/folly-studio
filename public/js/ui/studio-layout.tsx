@@ -3,7 +3,6 @@
 // dock on a wide screen; phones keep Layers, Look and More. Check & bake opens from Export on laptop.
 import { useId, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
-import { can } from '../../../shared/policy.ts';
 import { openBake } from './bake.tsx';
 import { ChainPane } from './chain.tsx';
 import { deleteLook, mayDelete } from './delete-look.ts';
@@ -15,7 +14,7 @@ import { LayersPane } from './layers.tsx';
 import { loadPalettes } from './model.ts';
 import type { Preview } from './preview.ts';
 import { PreviewPane } from './preview-view.tsx';
-import { navigate, onPi, user } from './session.ts';
+import { navigate, user } from './session.ts';
 import { onSideHead, SideDivider } from './side-panels.tsx';
 import type { Dock, Studio } from './studio-store.ts';
 import { Timeline } from './timeline.tsx';
@@ -25,11 +24,6 @@ import { createPhone, MorePane, openOnTap, phoneAttrs, PhoneTabs, SettingsHead }
 
 type Props = { st: Studio; pv: Preview; tl: TimelineState };
 const exporter = lazy(() => import('./export.tsx'));
-const lights = lazy(() => import('./play-lights.tsx'));
-/** Play on the lights: on the Pi, for those who may queue (SPEC-offline "Playing on the lights"). */
-const mayPlay = () => onPi() && can(user.value, 'curate');
-const playOnLights = (st: Studio) => lights().then((m) => m.openPlayLights(
-  { id: st.lookId.value ?? '', title: st.look.value.title }, !st.lookId.value || st.dirty.value));
 
 /** The panes. It reads only what rarely changes, so an edit redraws the panes that show it, not the Studio. */
 export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, HTMLElement> }) {
@@ -148,7 +142,6 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
       <div class="menu" role="menu" ref={menu} hidden={!open} onKeyDown={onKey}>
         {item('Export .fseq…', () => exporter().then((m) => m.exportFseq(st, pv)), 'wide-only')}
         {item('Check & bake…', () => openBake(st, pv))}
-        {mayPlay() && item('Play on the lights…', () => playOnLights(st))}
         {item('Export look JSON', () => exporter().then((m) => m.exportJson(st)))}
       </div>
     </div>);

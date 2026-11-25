@@ -12,7 +12,7 @@ import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { canReport, fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { here, home, leaveGuard, navigate, onPi, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
+import { here, home, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
 
 interface Route {
   re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
@@ -35,10 +35,6 @@ const ROUTES: Route[] = [
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery',
     load: () => pages().then((m) => m.Looks) },
-  { re: /^\/live\/?$/, name: 'live', title: 'Live', nav: '/live',
-    load: () => import('./live/live.tsx').then((m) => m.LivePage) },
-  { re: /^\/live\/control\/?$/, name: 'live-control', title: 'Live control', nav: '/live',
-    load: () => import('./live/control.tsx').then((m) => m.ControlPage) },
   { re: /^\/admin\/light\/?$/, name: 'light', title: 'Light', nav: '/admin',
     load: adminTab('light', () => import('./light.tsx').then((m) => m.LightPage)) },
   { re: /^\/admin\/baking\/?$/, name: 'baking', title: 'Baking', nav: '/admin',
@@ -47,8 +43,6 @@ const ROUTES: Route[] = [
     load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
   { re: /^\/admin\/stats\/?$/, name: 'stats', title: 'Stats', nav: '/admin',
     load: adminTab('stats', () => import('./stats.tsx').then((m) => m.StatsPage)) },
-  { re: /^\/admin\/pi-bundle\/?$/, name: 'pi-bundle', title: 'Pi bundle', nav: '/admin',
-    load: adminTab('pi-bundle', () => import('./pi-bundle.tsx').then((m) => m.PiBundlePage)) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
@@ -117,13 +111,10 @@ async function logout() {
   navigate('/login', { force: true, replace: true });
 }
 
-const NAV = [['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery'], ['/live', 'Live']];
+const NAV = [['/studio', 'Studio'], ['/looks', 'My looks'], ['/gallery', 'Gallery']];
 const ADMIN_NAV = [...NAV, ['/admin', 'Admin']];
-/** The header's links: no My looks for a guest; on the Pi, curators have the engine's control page (SPEC-offline). */
-function navOf(me: User) {
-  const nav = (can(me, 'admin') ? ADMIN_NAV : NAV).filter(([href]) => !(me.guest && href === '/looks'));
-  return onPi() && can(me, 'curate') ? [...nav, ['/pi/', 'Lights']] : nav;
-}
+/** The header's links: no My looks for a guest. */
+const navOf = (me: User) => (can(me, 'admin') ? ADMIN_NAV : NAV).filter(([href]) => !(me.guest && href === '/looks'));
 
 /** The user menu drops under its button at a desktop's width; on a phone it sits open in the nav panel. */
 function placeUserMenu(e: { newState: string; currentTarget: HTMLElement }) {
@@ -159,7 +150,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
         if ((e.target as Element).closest('a, .btn')) setOpen(false);
       }}>
         <nav class="main-nav" aria-label="Main">
-          {navOf(me).map(([href, text]) => <a href={href} data-native={href === '/pi/' ? '' : undefined}
+          {navOf(me).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
         <div class="user-box">
