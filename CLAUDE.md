@@ -38,9 +38,9 @@ model of the Gothic Folly. `SPEC.md` indexes the contract in the area files unde
   script.
 - **Bakes are deterministic.** No `Math.random` in `core/`, the render box or the
   library: use `rand`, `hash`, `noise` and `seed`.
-- **Frames are hot.** The render loop allocates nothing per frame (reuse typed arrays, pass
-  `out`), layers outside their clips are skipped before any pixel work, and the loop sleeps when
-  nothing plays or changes. 4,870 LEDs at 40 fps leave no room for garbage.
+- **Frames are hot.** The render loop allocates nothing per frame (reuse typed arrays, pass `out`; pattern code's
+  colour calls, `hsv` or `mix`, return new arrays: that is the stdlib's contract), layers outside their clips are
+  skipped before any pixel work, and the loop sleeps when nothing plays or changes. 4,870 LEDs at 40 fps leave no room for garbage.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"), and nothing else names the installation:
   code finds places by the rig's group tags, never by the Folly's ids, and takes the rig's file from
   `src/rig-choice.ts`. The default is the Folly's playa build, `public/data/rig-folly.json`, from the lighting repo's

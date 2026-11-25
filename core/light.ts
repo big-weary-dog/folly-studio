@@ -99,7 +99,7 @@ export function prepareLight(scene: Scene, light: Light = LIGHT) {
   }
   return { gamma: light.gamma, balance: light.balance, floor: light.floor, trim, cap: NaN, curves: [] as Curve[] };
 }
-export type PreparedLight = ReturnType<typeof prepareLight>;
+type PreparedLight = ReturnType<typeof prepareLight>;
 
 /** One channel's output byte: its light (v^gamma × `gain`) rounded in float, so the curve wastes no codes; a lit
  * value (its own byte ≥ 1) with any light sends at least `floor`. */

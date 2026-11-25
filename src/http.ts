@@ -12,7 +12,7 @@ import { scrubText } from '../core/scrub.ts';
 import type { StoredUser } from './store.ts';
 
 /** A route's needs (auth.ts's sessionHook): `public` needs no session; `role`, that role or above. */
-export type RouteConfig = { public?: boolean, role?: 'curator' | 'admin' };
+type RouteConfig = { public?: boolean, role?: 'curator' | 'admin' };
 declare module 'fastify' {
   interface FastifyRequest { user: StoredUser | null }
   interface FastifyContextConfig extends RouteConfig {}
@@ -51,7 +51,7 @@ export function parse<T extends z.ZodType>(schema: T, value: unknown): z.output<
 export const pickEncoding = (header: string | undefined, offered = ['br', 'gzip']) =>
   negotiate((header ?? '').toLowerCase(), offered) as 'br' | 'gzip' | null;
 /** A weak ETag for a body, and whether an If-None-Match header names it (weak comparison, lists and `*`). */
-export const etagOf = (body: string | Buffer) =>
+const etagOf = (body: string | Buffer) =>
   `W/"${createHash('sha1').update(body).digest('base64url').slice(0, 20)}"`;
 export function etagMatches(header: string | undefined, etag: string): boolean {
   const bare = (t: string) => t.trim().replace(/^W\//, '');
@@ -157,7 +157,7 @@ export function routes(app: FastifyInstance, table: Record<string, Entry>) {
   }
 }
 
-export type LogLine = { at: string, level: 'warn' | 'error', text: string };
+type LogLine = { at: string, level: 'warn' | 'error', text: string };
 const lineOf = (a: unknown) => {
   if (a instanceof Error) return a.stack ?? a.message;
   if (typeof a === 'string') return a;

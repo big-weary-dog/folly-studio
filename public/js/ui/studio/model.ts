@@ -39,7 +39,7 @@ export const KIND_LABELS: Record<Kind, string> = { source: 'Source', warp: 'Warp
 const isBlend = (b: unknown): b is Blend => BLEND_MODES.some((x) => x.value === b);
 
 /** A new module. */
-export function makeModule({ kind = 'source', title, code, ref, params = {} }: Partial<Module> = {}): Module {
+function makeModule({ kind = 'source', title, code, ref, params = {} }: Partial<Module> = {}): Module {
   return { id: randomId('m'), kind, title: title || `New ${kind}`, ...(ref ? { ref } : {}), code: code || '',
     params: { ...params } };
 }
@@ -127,7 +127,7 @@ function cleanModule(m: Partial<Module>): Module {
 }
 
 /** Only the fields a saved sub-layer keeps (spec/library "Composites"). */
-export const cleanSub = (l: SubLayer): SubLayer => ({ id: String(l.id), title: String(l.title || 'Sub-layer'),
+const cleanSub = (l: SubLayer): SubLayer => ({ id: String(l.id), title: String(l.title || 'Sub-layer'),
   modules: l.modules.map(cleanModule), ...(l.blend ? { blend: l.blend } : {}),
   ...(typeof l.level === 'number' ? { level: l.level } : {}), ...(l.groups ? { groups: [...l.groups] } : {}),
   ...(l.tags?.length ? { tags: [...l.tags] } : {}), ...(l.enabled === false ? { enabled: false } : {}) });

@@ -1,5 +1,5 @@
 // What a box hands back, as untrusted data (SPEC "Baked frames"): files read with care, its report cut to
-// small plain data (kept only as `boxStats`, labelled untrusted), its frames checked by src/frames.js.
+// small plain data (kept only as `boxStats`, labelled untrusted), its frames checked by src/frames.ts.
 // `ok` and `analysis` come from our own checks. Nothing here runs look code.
 
 import { createHash } from 'node:crypto';

@@ -16,7 +16,6 @@ import {
   automationFor, dropRemaps, type Globals, type Layer, Layers, playsChanged,
 } from '../shared/schemas/look.ts';
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
-import { newestBy } from './api.ts';
 import { stamp } from './clock.ts';
 import { type Action, approved } from '../shared/policy.ts';
 import type { Auth } from './auth.ts';
@@ -30,6 +29,12 @@ import { roomForLook, roomToGrow } from './look-cap.ts';
 import type { createPreviews } from './previews/index.ts';
 import { CACHE_IMMUTABLE } from './static.ts';
 import type { Store, StoredLook as Look, StoredUser as User } from './store.ts';
+
+/** Newest `field` first (its creation time when unset). */
+const newestBy = (field: string) => (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  const x = String(a[field] ?? a.createdAt ?? ''), y = String(b[field] ?? b.createdAt ?? '');
+  return x < y ? 1 : x > y ? -1 : 0;
+};
 
 const GALLERY_LIMIT = 200;
 

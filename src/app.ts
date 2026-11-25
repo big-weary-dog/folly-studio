@@ -33,7 +33,7 @@ import type { FlashSettings } from '../shared/schemas/api.ts';
 import type { RigName } from '../shared/schemas/rig.ts';
 
 export const DEFAULT_DATA_DIR = fileURLToPath(new URL('../data/', import.meta.url));
-export const MAX_BODY = 256 * 1024;
+const MAX_BODY = 256 * 1024;
 
 type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?: string,
   curators?: string | string[], admins?: string | string[], secureCookies?: boolean, trustProxy?: boolean, log?: Log,
