@@ -68,6 +68,15 @@ function switched(library: Library, m: Node, ref: string, ids: Set<string>, said
   return made;
 }
 
+/** A layer's or sub-layer's chain: its modules, or for one that is a source naming a retired pattern, a chain of it
+ * (`rest` the node without the source's fields); null when it has none to switch. */
+function chainOf(node: Node, ids: Set<string>) {
+  if (Array.isArray(node.modules)) return { modules: node.modules, rest: node };
+  if (!retiredRef(node)) return null;
+  const { code, params, ref, ...rest } = node, id = fresh(ids, 'm1');
+  return { modules: [{ id, kind: 'source', title: node.title, ref, code, params }] as unknown[], rest };
+}
+
 /** `modules` (a chain) with its retired modules switched, composites' sub-layers' too; or why it cannot be. */
 function switchChain(library: Library, modules: unknown[], ids: Set<string>, said: string[]): unknown[] | string {
   const out: unknown[] = [];
@@ -75,9 +84,11 @@ function switchChain(library: Library, modules: unknown[], ids: Set<string>, sai
     if (isNode(m) && m.kind === 'composite' && Array.isArray(m.layers)) {
       const layers: unknown[] = [];
       for (const sub of m.layers) {
-        const inner = isNode(sub) && Array.isArray(sub.modules) ? switchChain(library, sub.modules, ids, said) : null;
+        const own = isNode(sub) ? chainOf(sub, ids) : null, lines: string[] = [];
+        const inner = own ? switchChain(library, own.modules, ids, lines) : null;
         if (typeof inner === 'string') return inner;
-        layers.push(inner ? { ...sub as Node, modules: inner } : sub);
+        said.push(...lines);
+        layers.push(inner && lines.length ? { ...own!.rest, modules: inner } : sub);
       }
       out.push({ ...m, layers });
       continue;
@@ -107,19 +118,17 @@ export function switchRetired(library: Library, layers: unknown): { layers: unkn
       out.push(layer);
       continue;
     }
-    // A layer that is one source is a chain of it.
-    const { code, params, ref, ...rest } = layer;
-    const one = !Array.isArray(layer.modules) && retiredRef(layer);
-    const modules = one ? [{ id: 'm1', kind: 'source', title: layer.title, ref, code, params }] : layer.modules;
-    if (!Array.isArray(modules)) {
+    const ids = Array.isArray(layer.modules) ? idsOf(layer.modules) : new Set<string>();
+    const own = chainOf(layer, ids);
+    if (!own) {
       out.push(layer);
       continue;
     }
     const lines: string[] = [];
-    const chain = switchChain(library, modules, idsOf(modules), lines);
+    const chain = switchChain(library, own.modules, ids, lines);
     if (typeof chain === 'string') said.push(`${layerName(layer, i)} dropped: ${chain}`);
     else if (lines.length) said.push(...lines.map((line) => `${layerName(layer, i)}: ${line}`));
-    if (typeof chain !== 'string') out.push(lines.length ? { ...(one ? rest : layer), modules: chain } : layer);
+    if (typeof chain !== 'string') out.push(lines.length ? { ...own.rest, modules: chain } : layer);
   }
   return said.length ? { layers: out, said } : { layers, said };
 }

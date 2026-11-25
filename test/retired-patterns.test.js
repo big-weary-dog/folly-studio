@@ -38,7 +38,8 @@ const LOOKS = [
   { versions: [{ n: 1, layers: [{ id: 'l1', modules: [src('m1', 'plasma', { colours: 'low' })] }], reviewed: true }] }),
   look('disco3', 'Prismatic Disco v3', [{ id: 'l1', title: 'Mix', modules: [{ id: 'c1', kind: 'composite',
     title: 'Both', layers: [{ id: 's1', title: '', modules: [src('m1', 'butterfly-classic')] },
-      { id: 's2', title: '', modules: [src('m1-turbulence', 'noise')] }] }] }]),
+      { id: 's2', title: '', modules: [src('m1-turbulence', 'noise')] },
+      { id: 's3', title: 'One', ref: 'plasma-classic', params: { colours: 'low' } }] }] }]),
 ];
 
 let dataDir, n = 0;
@@ -69,6 +70,8 @@ test('the dry run lists each look changed and how, apart from edited copies, and
       + 'keeping colours',
     'disco3 "Prismatic Disco v3" (u1): Layer 1 (Mix): butterfly-classic is now the Butterfly preset (bars, '
       + 'turbulence, mirror)',
+    'disco3 "Prismatic Disco v3" (u1): Layer 1 (Mix): One is now the Plasma preset (bars, turbulence), keeping '
+      + 'colours',
   ]);
   assert.deepEqual(Object.values(stored()), LOOKS);
 });
@@ -99,7 +102,9 @@ test('applied: the switched modules, their params, the dropped layers, and fresh
   assert.equal(looks.disco2.versions[0].reviewed, undefined);
   const subs = looks.disco3.layers[0].modules[0].layers;
   assert.deepEqual(subs.map((s) => brief(s.modules)), [['m1 bars', 'm1-turbulence-2 turbulence m1',
-    'm1-mirror mirror m1'], ['m1-turbulence noise']], 'ids stay unique across the layer');
+    'm1-mirror mirror m1'], ['m1-turbulence noise'], ['m1-2 bars', 'm1-2-turbulence turbulence m1-2']],
+  'ids stay unique across the layer; a sub-layer that is one source becomes a chain');
+  assert.equal(subs[2].title, 'One');
   assert.deepEqual(await run(false), { done: true });
 });
 
