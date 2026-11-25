@@ -1,5 +1,6 @@
 // The library-only step on a data folder (SPEC-looks "Library only"), once, by hand alone (`tools/library-only.ts`):
-// the server never changes stored looks at start. A dry run says what it would do and changes nothing.
+// the server never changes stored looks at start. A dry run says what it would do and changes nothing. It runs again
+// on a folder that had it before retired patterns were switched (`migrations.json` without RETIRE).
 // It copies looks.json and users.json beside themselves first and stops if that fails, then writes the looks kept and
 // the users without the AI's grants, removes the frames of the looks dropped or whose code changed (their previews
 // and wire folders go at start, as no bake names them), and last writes the marker that makes it done.
@@ -8,11 +9,11 @@ import path from 'node:path';
 
 import { writeFileAtomic } from './atomic-file.ts';
 import { removeFrames } from './bake.ts';
-import { libraryFiles } from './library-history.ts';
-import { type Dropped, libraryOnly, withoutAccess } from './library-only.ts';
+import { libraryFiles } from './library-files.ts';
+import { type Changed, type Dropped, libraryOnly, withoutAccess } from './library-only.ts';
 import { lockDataDir } from './store-lock.ts';
 
-export const MARKER = 'migrations.json', STEP = 'library-only';
+export const MARKER = 'migrations.json', STEP = 'library-only', RETIRE = 'retired-patterns';
 type Node = Record<string, unknown>;
 type Log = { info?: (...a: unknown[]) => void, warn?: (...a: unknown[]) => void };
 
@@ -42,23 +43,27 @@ async function keep(file: string, bytes: Buffer) {
   }
 }
 
-export const dropLine = (d: Dropped) => `${d.version ? `version ${d.version} of ` : ''}${d.look} "${d.title}" `
-  + `(${d.owner || 'no owner'}): ${d.why}`;
+const whose = (d: Dropped | Changed) => `${d.version ? `version ${d.version} of ` : ''}${d.look} "${d.title}" `
+  + `(${d.owner || 'no owner'})`;
+export const dropLine = (d: Dropped) => `${whose(d)}: ${d.why}`;
+/** Each change to a kept look or version, a line each: its layers switched or dropped, then its edited copies. */
+export const changeLines = (c: Changed) => [...c.switched.map((s) => `${whose(c)}: ${s}`),
+  ...c.edited.map((e) => `${whose(c)}: ${e} held an edited or earlier copy; it plays as the library's`)];
 
 /**
  * Runs the step on `dataDir` against the library in `patternsDir`: { done } when it already had, else { dropped,
- * changed, backups } (none written when `dryRun`). Without the library it changes nothing.
+ * changes, changed, backups } (none written when `dryRun`). Without the library it changes nothing.
  */
 export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = true, now = new Date(), log = console }: {
   dataDir: string, patternsDir: string, dryRun?: boolean, now?: Date, log?: Log }) {
   const marker = path.join(dataDir, MARKER);
   const steps = await fsp.readFile(marker, 'utf8').then(JSON.parse, missing) as Node | null;
-  if (steps?.[STEP]) return { done: true as const };
-  const library = await libraryFiles(patternsDir, { retired: true });
-  if (!library.size) {
+  if (steps?.[STEP] && steps[RETIRE]) return { done: true as const };
+  const library = await libraryFiles(patternsDir, { strict: true });
+  if (!library.modules.size) {
     log.warn?.(`${STEP}: no library in ${patternsDir}; the data folder is left as it is`);
-    return { done: false as const, dropped: [] as Dropped[], changed: 0, rebaked: 0, grants: 0,
-      backups: [] as string[] };
+    return { done: false as const, dropped: [] as Dropped[], changes: [] as Changed[], changed: 0, rebaked: 0,
+      grants: 0, backups: [] as string[] };
   }
   if (!dryRun) await fsp.mkdir(dataDir, { recursive: true });
   const lock = dryRun ? null : await lockDataDir(dataDir);
@@ -68,9 +73,8 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = true, 
     const kept = libraryOnly(library, looks?.items ?? []);
     const plain = users?.items.map(withoutAccess);
     const grants = users ? plain!.filter((u, i) => u !== users.items[i]).length : 0;
-    const result = { done: false as const, dropped: kept.dropped, changed: kept.changed, rebaked: kept.rebaked.length,
-      grants,
-      backups: [] as string[] };
+    const result = { done: false as const, dropped: kept.dropped, changes: kept.changes, changed: kept.changed,
+      rebaked: kept.rebaked.length, grants, backups: [] as string[] };
     if (dryRun) return result;
     const stamp = now.toISOString().replace(/\.\d+Z$/, 'Z').replace(/:/g, '-');
     for (const [name, file] of [['looks', looks], ['users', users]] as const) {
@@ -87,7 +91,10 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = true, 
       if (!d.version) await removeFrames(framesDir, d.look);
       log.info?.(`${STEP}: dropped ${dropLine(d)}`);
     }
-    await writeFileAtomic(marker, `${JSON.stringify({ ...steps, [STEP]: now.toISOString() }, null, 2)}\n`);
+    for (const c of kept.changes) for (const line of changeLines(c)) log.info?.(`${STEP}: ${line}`);
+    const at = now.toISOString();
+    const done = { ...steps, [STEP]: steps?.[STEP] ?? at, [RETIRE]: at };
+    await writeFileAtomic(marker, `${JSON.stringify(done, null, 2)}\n`);
     return result;
   } finally {
     await lock?.release();

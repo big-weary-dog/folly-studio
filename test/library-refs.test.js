@@ -1,5 +1,5 @@
-// A stored module is its ref: reads fill the library's current file, writes keep no code, a module's ref follows its
-// exact file (hidden and renamed entries too), and every module the library-only step keeps resolves.
+// A stored module is its ref: reads fill the library's current file, writes keep no code, a module naming no library
+// module takes the ref of its exact file, and every module the library-only step keeps resolves.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import { layersHash, renderFields } from '../src/bake.ts';
-import { libraryFiles } from '../src/library-history.ts';
+import { libraryFiles } from '../src/library-files.ts';
 import { libraryRefs } from '../src/library-refs.ts';
 import { createLoaders } from '../src/static.ts';
 import { createStore } from '../src/store.ts';
@@ -22,7 +22,7 @@ const patterns = path.join(publicDir, 'patterns');
 const file = (name) => readFileSync(path.join(patterns, `${name}.js`), 'utf8');
 const git = (spec) => execFileSync('git', ['show', spec], { cwd: publicDir, encoding: 'utf8' });
 const { loadLibrary } = createLoaders(publicDir, { log: { warn() {} } });
-const refs = libraryRefs(loadLibrary, path.join(patterns, 'history.json'));
+const refs = libraryRefs(loadLibrary);
 const look = (...modules) => ({ layers: [{ id: 'l1', modules: modules.map((m, i) => ({ id: `m${i + 1}`, ...m })) }],
   versions: [{ layers: [{ id: 'l1', modules: [{ id: 'm1', ...modules[0] }] }] }] });
 const mods = (l) => [...l.layers[0].modules, ...l.versions[0].layers[0].modules];
@@ -34,18 +34,15 @@ test('a read fills each module from its ref, whatever was stored; a write keeps 
   assert.ok(mods(written).every((m) => !('code' in m) && m.ref === 'noise'));
 });
 
-test('a module takes the ref of its exact file: an earlier copy, no ref, a renamed entry', () => {
-  const oldWash = git('ab6dbd0d:public/patterns/colour-wash.js');
-  assert.equal(refs.write(look({ code: oldWash })).layers[0].modules[0].ref, 'colour-wash');
-  for (const plasma of [git('c3b574b0:public/patterns/plasma.js'), file('plasma-classic')]) {
-    const read = refs.read(look({ ref: 'plasma', code: plasma }));
-    const classic = ['plasma-classic', file('plasma-classic')];
-    assert.deepEqual(mods(read).map((m) => [m.ref, m.code]), [0, 1].map(() => classic));
-  }
+test('a module naming no library module takes the ref of its current file; one naming one keeps it', () => {
+  assert.equal(refs.write(look({ code: file('colour-wash') })).layers[0].modules[0].ref, 'colour-wash');
+  assert.equal(refs.write(look({ ref: 'plasma', code: file('noise') })).layers[0].modules[0].ref, 'noise');
+  const read = refs.read(look({ ref: 'fire', code: file('noise') }));
+  assert.deepEqual(mods(read).map((m) => [m.ref, m.code]), [0, 1].map(() => ['fire', file('fire')]));
 });
 
-test('a ref whose code is no known file keeps its ref: plasma stays the preset\'s name', () => {
-  const read = refs.read(look({ ref: 'plasma', code: `${file('plasma-classic')}\n// edited` }));
+test('a ref the library lacks, whose code is no current file, keeps its ref and plays nothing', () => {
+  const read = refs.read(look({ ref: 'plasma', code: `${file('noise')}\n// edited` }));
   assert.deepEqual(mods(read).map((m) => [m.ref, m.code]), [0, 1].map(() => ['plasma', '']));
 });
 
@@ -81,40 +78,32 @@ test('a bake of other code than the look\'s now is left out, with its review; a 
   });
 
 test('every module the library-only step keeps names a module a read fills', async () => {
-  const kept = [...await libraryFiles(patterns, { retired: true })].filter(([, f]) => f.code !== null);
+  const kept = (await libraryFiles(patterns, { strict: true })).modules;
   const modules = new Map(loadLibrary().filter((e) => e.kind !== 'preset').map((e) => [e.name, e.code]));
-  assert.deepEqual(kept.filter(([name, f]) => modules.get(name) !== f.code).map(([name]) => name), []);
-  for (const name of ['tendril', 'stained-glass', 'butterfly-classic', 'plasma-classic', 'lighthouse-classic']) {
-    assert.ok(kept.some(([n]) => n === name), `${name}, which prod's looks use`);
-  }
+  assert.deepEqual([...kept].filter(([name, f]) => modules.get(name) !== f.code).map(([name]) => name), []);
+  assert.deepEqual([...modules.keys()].filter((name) => !kept.has(name)), []);
 });
 
-test('hidden modules play stored looks but stay off the shelf', async () => {
+test('a stored module keeps no code; a ref alone saves when the library has it', async () => {
   const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'refs') });
   try {
-    const listed = (await (await fetch(`${app.base}/api/library`)).json()).patterns;
-    assert.equal(listed.find((e) => e.name === 'plasma-classic')?.hidden, true, 'marked, for the Studio to fill');
-    assert.equal(listed.find((e) => e.name === 'plasma')?.hidden, undefined);
     const ann = await signup(app, 'ann');
-    const old = git('c3b574b0:public/patterns/plasma.js');
-    const made = await ann.post('/api/looks', { title: 'Old plasma', chain: 2, layers: [{ id: 'l1', title: 'Plasma',
-      blend: 'add', level: 1, groups: ['cathedral'], modules: [{ id: 'm1', kind: 'source', ref: 'plasma', code: old,
-        title: 'Plasma', params: {} }] }] });
+    const old = git('1cfdcda6:public/patterns/noise.js');
+    const made = await ann.post('/api/looks', { title: 'Old noise', chain: 2, layers: [{ id: 'l1', title: 'Noise',
+      blend: 'add', level: 1, groups: ['cathedral'], modules: [{ id: 'm1', kind: 'source', ref: 'noise', code: old,
+        title: 'Noise', params: {} }] }] });
     assert.equal(made.status, 201, made.text);
     const m = (await ann.get(`/api/looks/${made.json.look.id}`)).json.look.layers[0].modules[0];
-    assert.deepEqual([m.ref, m.code], ['plasma-classic', file('plasma-classic')]);
+    assert.deepEqual([m.ref, m.code], ['noise', file('noise')]);
     await app.store.flush();
     const stored = JSON.parse(readFileSync(path.join(fx.tmp, 'refs', 'looks.json'), 'utf8'));
     assert.ok(!('code' in stored[0].layers[0].modules[0]), 'the stored module keeps no code');
-    // A module as a ref alone saves when the library has it (hidden ones too); an unknown one is refused.
     const refOnly = (ref) => ann.post('/api/looks', { title: ref, chain: 2, layers: [{ id: 'l1', title: 'L',
       blend: 'add', level: 1, groups: ['cathedral'], modules: [{ id: 'm1', kind: 'source', ref, title: 'M' }] }] });
-    for (const ref of ['noise', 'tendril']) {
-      const r = await refOnly(ref);
-      assert.equal(r.status, 201, r.text);
-      assert.equal(r.json.look.layers[0].modules[0].code, file(ref));
-    }
-    assert.equal((await refOnly('no-such-pattern')).status, 403);
+    const r = await refOnly('noise');
+    assert.equal(r.status, 201, r.text);
+    assert.equal(r.json.look.layers[0].modules[0].code, file('noise'));
+    for (const ref of ['tendril', 'no-such-pattern']) assert.equal((await refOnly(ref)).status, 403, ref);
   } finally {
     await app.close();
   }

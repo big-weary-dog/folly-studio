@@ -56,7 +56,7 @@ export function Studio({ params, query }: ViewProps) {
     const unreport = reportPage('studio', studioReport(st, pv, ctx.tl));
     // ?report=<id> (admins): a bug report's moment, replayed (report-studio.ts).
     const replay = query.get('report') ? loadReport(query.get('report')!) : null;
-    const untour = showToTour(st, pv), practice = query.get('tour'), unkeep = guest ? keepGuestWork(st) : () => {};
+    const untour = showToTour(st), practice = query.get('tour'), unkeep = guest ? keepGuestWork(st) : () => {};
     // ?new: New look, the Start a look picker over a blank look. Otherwise a blank Studio opens a guest's work kept in
     // this browser (guest-work.ts); an account takes it unsaved.
     const fresh = query.has('new') && !replay && !params.lookId && !practice;
