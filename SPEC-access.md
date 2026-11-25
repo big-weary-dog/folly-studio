@@ -104,7 +104,8 @@ shared, and whether it is disabled; a search narrows it by name.
   address is stored (Stats below). Behind the tunnel, the journal lines carry the visitor's country.
 - **Bug reports** (F8 and Report this look, SPEC-reports): the note, a screenshot when it is on, the page's state
   (the unsaved look, the page's errors and messages) and the server's last warn and error lines, with the account's
-  name; admins read them, and they go after `GET /api/privacy`'s `reportDays` (`STUDIO_REPORTS_DAYS`).
+  name. The state and log lines are scrubbed (SPEC-reports); the note and screenshot are kept as sent, so the page
+  asks people to leave secrets out of them. Admins read them, and they go after `GET /api/privacy`'s `reportDays` (`STUDIO_REPORTS_DAYS`).
 - **Cookies and storage**: one cookie, `studio_session`, the sign-in (30 days, a guest's 7), and nothing to track;
   the browser keeps a guest's work, the tutorial's place and view settings in its own storage.
 - **Deleting**: Account's Delete account removes the account, its sessions and every look it owns at once; a

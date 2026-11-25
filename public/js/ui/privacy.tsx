@@ -31,8 +31,9 @@ export function PrivacyPage() {
           <dt>Bug reports</dt>
           <dd>When you report a problem (F8) or a look, the report keeps your note, your username, a screenshot if you
             leave it on, the page's state (such as your unsaved look and its error messages) and the server's last
-            warning lines. Passwords and addresses are scrubbed out. Only admins read them, and each is deleted
-            after {days ?? 'a set number of'} days.</dd>
+            warning lines. Secrets and addresses are scrubbed from the page's state and the log lines, but not from
+            your note or the screenshot, so leave passwords and personal details out of those. Only admins read
+            reports, and each is deleted after {days ?? 'a set number of'} days.</dd>
         </dl>
       </section>
       <section class="models-panel privacy-part" aria-labelledby="p-cookies">
