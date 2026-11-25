@@ -1,6 +1,6 @@
-/* A drawer (js/ui/drawer.tsx): wide, a column of the Studio's grid between the 3D view and the side, its full height,
-   so the view shrinks beside it (studio.css opens the column while one is in the slot); only the top one of a stack
-   shows. On a phone a sheet over the foot of the screen. */
+/* A drawer (js/ui/studio/drawer.tsx): wide, a column of the Studio's grid between the 3D view and the side, its full
+   height, so the view shrinks beside it (studio.css opens the column while one is in the slot); only the top one of a
+   stack shows. On a phone a sheet over the foot of the screen. */
 .drawer-slot { grid-area: drawer; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
 .drawer { --tint: var(--violet); display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0;
   color: var(--text); background: var(--night-1); border-left: var(--came) solid var(--lead); outline: 0; }

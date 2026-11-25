@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef } from 'preact/hooks';
 
 import { cx } from '../kit.tsx';
-import type { Studio } from '../studio-store.ts';
+import type { Studio } from '../studio/store.ts';
 import type { Kind } from './steps.ts';
 
 const ICON: Record<Kind, string> = { open: '◷', add: '+', remove: '−', set: '~', move: '⇅', restore: '↺' };

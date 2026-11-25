@@ -1,9 +1,9 @@
-// Deleting an account waits for its looks to be counted, so the confirm can say what goes (SPEC-access "Your account").
+// Deleting an account waits for its looks to be counted, so the confirm can say what goes (spec/http "Your account").
 import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { deleting } from '../public/js/ui/account-delete.ts';
+import { deleting } from '../public/js/ui/account/delete.ts';
 
 test('Delete waits while the looks are counted, and stays off when they cannot be', () => {
   assert.deepEqual(deleting(null, 'ann'), { ready: false, note: 'Counting your looks…' });

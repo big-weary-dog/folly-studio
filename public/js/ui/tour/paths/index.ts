@@ -1,4 +1,4 @@
-// The tutorial's path (SPEC-tutorial): Getting around, which opens by itself.
+// The tutorial's path (spec/studio "Tutorial"): Getting around, which opens by itself.
 import { firstLook, guestKeep } from './first-look.ts';
 export const PATHS = [firstLook];
 

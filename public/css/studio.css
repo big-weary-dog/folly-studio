@@ -1,4 +1,4 @@
-/* The Studio (loaded by js/ui/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
+/* The Studio (loaded by js/ui/studio/studio.tsx): one window leaded into panes round the 3D view, clear dark glass
    so the LEDs carry the colour; wide, the side runs the window's full height (base.css stops the header at it).
    Phones: the view on top, the panes under it as tabs. */
 body[data-view=studio] { --side-w: clamp(340px, 25vw, 480px); --drawer-w: 0px; overflow: hidden; }
@@ -332,7 +332,7 @@ input.tree-box { width: 16px; height: 16px; margin: 0 4px 0 2px; flex: none; cur
 }
 @media (max-width: 360px) { .tp-time { display: none; } }
 
-/* Simple (SPEC-studio "Simple"): on a laptop, what Advanced editing adds stays out of sight. */
+/* Simple (spec/studio "Simple"): on a laptop, what Advanced editing adds stays out of sight. */
 .studio[data-detail=simple] :is(.history-btn, .param-mod, .plays-on, .sub-plays, .soften-field, .layer-bottom,
   .chain-group, .chain-add, .unlit-btn, .venue-btn, .view-modes, .globals-mods,
   [data-tour=macro-add], .globals-macros:not(:has(.macro-list > li))) {

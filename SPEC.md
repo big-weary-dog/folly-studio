@@ -4,8 +4,7 @@ The shared contract for everyone building Folly Studio. Code may refine details,
 **interfaces** below are what the pieces rely on; change them here first. Where each piece lives: CONTRIBUTING
 "Layout".
 
-This file is the entry point; the linked `SPEC-*.md` files are equally part of the contract.
-`SPEC "<section>"` means the section in the area file linked below.
+This file is the entry point; the area files in `spec/`, listed below, are equally part of the contract.
 
 Folly Studio is a web app where people log in, compose a show from the pattern library, see it on a browser model
 of the installation (the Gothic Folly; any other described by a rig file), edit it, and export it toward the real
@@ -20,83 +19,31 @@ installation.
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
   default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
-- **Only library patterns run.** They run in the sandbox's Worker (below) or the render box (its own process:
-  SPEC-baking), never in the app page or the server's own Node process (except in tests, on our own library
-  patterns). What a box returns is data.
+- **Only library patterns run.** They run in the sandbox's Worker (spec/library "Sandbox protocol") or the render box
+  (its own process: spec/frames "Where bakes run"), never in the app page or the server's own Node process (except
+  in tests, on our own library patterns). What a box returns is data.
 - Patterns see **x = depth** (front → back), **y = height**, **z = left → right** facing the front; the rig's
   `axes` map its own coordinates onto these (the Folly's are the repo's: front/playa −12 m → back +14 m, 0 →
   18.5 m, −9 → +8 m).
 - Frame rate, universes, channels per universe and colour order are the rig's `output`. The Folly: 40 fps,
   universes 1–80 of 510 channels (xLights networks), so a full frame is **40,800 channels**, RGB.
 
-## Rig (`public/data/rig-folly.json`)
+## The area files
 
-[The rig file, addressing, axes, fixtures and groups](SPEC-rig.md#rig-publicdatarig-follyjson), part of this contract.
+`spec/<area> "<section>"` means that section of `spec/<area>.md`; `SPEC "<section>"` means the section of that name
+in whichever area file holds it.
 
-## The 3D view
-
-[The viewer, rendering modes, quality and venue](SPEC-rig.md#the-3d-view), part of this contract.
-
-## Light and output
-
-[The output transform and shared light settings](SPEC-rig.md#light-and-output), part of this contract.
-
-## Pattern code and the library
-
-In `SPEC-library.md`, part of this contract: **Pattern code** (what the library is written in), **The pixel `p`**,
-**Stdlib**, **Directions**, **Modules** (a layer is a chain; the warp contract), **Composites**, **Attached
-modules**, **Library**, **Spatial modules**, **History**, **Globals**, **Param bindings**, **Integrated clocks** and
-**Palettes**. `SPEC "<one of those>"` means that file.
-
-## Looks (what gets saved)
-
-[The saved look schema, layers, modules, globals and automation](SPEC-looks.md#looks-what-gets-saved), part of this contract.
-
-[Library only: the one-time step on each data folder](SPEC-looks.md#library-only), part of this contract.
-
-### Timeline
-
-[Duration, tempo, clips, fades and transitions](SPEC-looks.md#timeline), part of this contract.
-
-## Sandbox protocol
-
-[The isolated runner, messages, core exports and FSEQ helpers](SPEC-sandbox.md#sandbox-protocol),
-part of this contract.
-
-## Static files
-
-[The build, static serving, caching and compression](SPEC-http.md#static-files), part of this contract.
-
-### Updates
-
-[How an open page picks up a new build](SPEC-http.md#updates), part of this contract.
-
-## HTTP API (JSON; cookie session)
-
-[Routes, request bodies, responses and session rules](SPEC-http.md#http-api-json-cookie-session), part of this contract.
-
-## Bug reports
-
-In `SPEC-reports.md`, part of this contract: F8 reports, what they hold, and where the server keeps them.
-
-## Accounts and access
-
-In `SPEC-access.md`, part of this contract: **Accounts** (roles, sign-in), **Admin** (its pages), **Stats**,
-**No AI** and their routes.
-
-## Look files
-
-[A look as JSON, export and import](SPEC-looks.md#look-files), part of this contract.
-
-## Gallery previews
-
-Each shared look's looping preview for its card: `SPEC-previews.md`, part of this contract.
-The gallery shows **approved** looks: shared, marked reviewed by a curator, and not hidden (SPEC-access
-"Moderation"). Curators see every shared look, and have an **Approved** toggle beside search that starts on; off, it
-shows the rest too, each tagged (Reviewed, Hidden), and the page says how many wait for review. Search and Approved
-apply together, and approving or hiding a card updates the list at once. Every card someone else shared has
-**Report this look** (SPEC "Bug reports").
-
-## Baked frames
-
-[The render box, checks, storage, wire format, playback and downloads](SPEC-frames.md#baked-frames), part of this contract.
+- [spec/rig.md](spec/rig.md): **Rig** (the rig file, addressing, axes, fixtures and groups), **The 3D view**, **Light
+  and output**.
+- [spec/library.md](spec/library.md): **Pattern code**, **The pixel `p`**, **Stdlib**, **Directions**, **Modules** (a
+  layer is a chain), **Composites**, **Attached modules**, **Library**, **Pictures**, **Spatial modules**, **The
+  neighbour map**, **History**, **Globals**, **Param bindings**, **Integrated clocks**, **Palettes**, **Sandbox
+  protocol** (the pattern Worker and its relay, `core/pattern-core.ts`'s exports).
+- [spec/looks.md](spec/looks.md): **Looks** (what gets saved), **Library only** (the one-time step on a data folder),
+  **Timeline**, **Look files**, **Versions and History**.
+- [spec/http.md](spec/http.md): **Static files**, **Updates**, **HTTP API** (every route), **Accounts and access**
+  (accounts, guests, visitors, roles, moderation, Admin, People, Privacy, Stats, No AI).
+- [spec/frames.md](spec/frames.md): **Baked frames** (the render box, checks, storage, wire, playback, downloads),
+  **Where bakes run** (verification, the bake setting, library only), **Gallery previews**.
+- [spec/studio.md](spec/studio.md): The Studio's editor (**Groups**, **Timeline**, **Composition**, **New look**,
+  **Simple**, **Phones**, **Colours**), **Tutorial**, **Bug reports**.

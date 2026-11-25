@@ -8,7 +8,7 @@ import { flatModules } from '../../core/tree.ts';
 import { fromLibrary } from './library-fill.ts';
 import type { LayerInput, Light } from '../../core/pattern-core.ts';
 import { openSandbox, type Sandbox } from './sandbox-relay.ts';
-import type { Layer } from './ui/model.ts';
+import type { Layer } from './ui/studio/model.ts';
 
 const INIT_MS = 1500;            // no `ready` by then: carry on (a look's `compiled` tells)
 const SILENT_MS = 4000;          // owed a reply and heard nothing this long: the relay is stuck (it answers in 1.5 s)

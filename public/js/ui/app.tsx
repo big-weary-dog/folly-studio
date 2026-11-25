@@ -9,9 +9,9 @@ import { api, statusOf } from '../api.ts';
 import { can } from '../../../shared/policy.ts';
 import type { User } from '../../../shared/schemas/api.ts';
 import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
-import { canReport, fileBugReport } from './bug-report.tsx';
+import { canReport, fileBugReport } from './bug-report/bug-report.tsx';
 import { Rose } from './rose.tsx';
-import { openTour, welcomeOnce } from './tour-view.ts';
+import { openTour, welcomeOnce } from './tour/view.ts';
 import { advanced, HOME, here, leaveGuard, navigate, router, setAdvanced, setTitle, signedIn, user,
   type ViewProps } from './session.ts';
 
@@ -21,9 +21,9 @@ interface Route {
   public?: boolean; open?: boolean;
   nav?: string; keys?: string[]; scope?: 'mine' | 'gallery';
 }
-const pages = () => import('./pages.tsx');
+const pages = () => import('./gallery/pages.tsx');
 /** An admin page, under the Admin tabs. */
-const adminTab = (tab: string, load: Route['load']) => () => Promise.all([import('./admin.tsx'), load()])
+const adminTab = (tab: string, load: Route['load']) => () => Promise.all([import('./admin/admin.tsx'), load()])
   .then(([m, Page]) => m.withTabs(Page, tab));
 // /admin opens its first tab; the admin pages' old URLs lead to theirs.
 const MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
@@ -31,30 +31,30 @@ const MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models
   '/reports': '/admin/reports' };
 const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
-    load: () => import('./auth.tsx').then((m) => m.Auth) },
+    load: () => import('./account/auth.tsx').then((m) => m.Auth) },
   { re: /^\/privacy\/?$/, name: 'privacy', title: 'Privacy', nav: '/privacy', open: true,
-    load: () => import('./privacy.tsx').then((m) => m.PrivacyPage) },
-  // A look's share link is open to visitors too; a new one is for the signed in (SPEC-access "Visitors").
+    load: () => import('./account/privacy.tsx').then((m) => m.PrivacyPage) },
+  // A look's share link is open to visitors too; a new one is for the signed in (spec/http "Visitors").
   { re: /^\/studio\/([^/]+)\/?$/, name: 'studio', title: 'Studio', nav: '/studio', keys: ['lookId'], open: true,
-    load: () => import('./studio.tsx').then((m) => m.Studio) },
+    load: () => import('./studio/studio.tsx').then((m) => m.Studio) },
   { re: /^\/studio\/?$/, name: 'studio', title: 'Studio', nav: '/studio',
-    load: () => import('./studio.tsx').then((m) => m.Studio) },
+    load: () => import('./studio/studio.tsx').then((m) => m.Studio) },
   { re: /^\/looks\/?$/, name: 'looks', title: 'My looks', nav: '/looks', scope: 'mine',
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/gallery\/?$/, name: 'gallery', title: 'Gallery', nav: '/gallery', scope: 'gallery', open: true,
     load: () => pages().then((m) => m.Looks) },
   { re: /^\/account\/?$/, name: 'account', title: 'Account', nav: '/account',
-    load: () => import('./account.tsx').then((m) => m.AccountPage) },
+    load: () => import('./account/account.tsx').then((m) => m.AccountPage) },
   { re: /^\/admin\/light\/?$/, name: 'light', title: 'Light', nav: '/admin',
-    load: adminTab('light', () => import('./light.tsx').then((m) => m.LightPage)) },
+    load: adminTab('light', () => import('./admin/light.tsx').then((m) => m.LightPage)) },
   { re: /^\/admin\/baking\/?$/, name: 'baking', title: 'Baking', nav: '/admin',
-    load: adminTab('baking', () => import('./baking.tsx').then((m) => m.BakingPage)) },
+    load: adminTab('baking', () => import('./admin/baking.tsx').then((m) => m.BakingPage)) },
   { re: /^\/admin\/people\/?$/, name: 'people', title: 'People', nav: '/admin',
-    load: adminTab('people', () => import('./people.tsx').then((m) => m.PeoplePage)) },
+    load: adminTab('people', () => import('./admin/people.tsx').then((m) => m.PeoplePage)) },
   { re: /^\/admin\/reports\/?$/, name: 'reports', title: 'Reports', nav: '/admin',
-    load: adminTab('reports', () => import('./reports.tsx').then((m) => m.ReportsPage)) },
+    load: adminTab('reports', () => import('./admin/reports.tsx').then((m) => m.ReportsPage)) },
   { re: /^\/admin\/stats\/?$/, name: 'stats', title: 'Stats', nav: '/admin',
-    load: adminTab('stats', () => import('./stats.tsx').then((m) => m.StatsPage)) },
+    load: adminTab('stats', () => import('./admin/stats.tsx').then((m) => m.StatsPage)) },
 ];
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */

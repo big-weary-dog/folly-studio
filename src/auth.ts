@@ -93,7 +93,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
   /** The role STUDIO_ADMINS or STUDIO_CURATORS gives `username`, if any. */
   const serverRole = (username: string): Role | undefined => (adminSet.has(username) ? 'admin'
     : curatorSet.has(username) ? 'curator' : undefined);
-  // The higher of the server's lists and People's; a guest is a member whatever their name says (SPEC-access).
+  // The higher of the server's lists and People's; a guest is a member whatever their name says (spec/http "Guests").
   const roleOf = (user: { username: string, guest?: true, role?: Role } | null): Role => {
     if (!user || user.guest) return 'member';
     const set = serverRole(user.username), kept = ROLES.includes(user.role!) ? user.role! : 'member';
@@ -139,7 +139,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     }
   };
 
-  /** Throws 403 unless `password` is `user`'s (SPEC-access "Your account"), and 409 unless `user` and `token`'s
+  /** Throws 403 unless `password` is `user`'s (spec/http "Your account"), and 409 unless `user` and `token`'s
    * session are still current once it is checked. */
   const confirm = (user: Stored, password: string, token?: unknown) => slot(async () => {
     if (!password || !await verifyPassword(password, user.passwordHash)) {
@@ -168,7 +168,7 @@ export function createAuth({ store, curators = [], admins = [], cost = SCRYPT, s
     for (const s of store.sessions.list((x) => x.userId === id)) store.sessions.remove(s.id);
   };
 
-  /** People's change to `id` (SPEC-access "People"): its kept role, or disabled (its sessions end) or not. */
+  /** People's change to `id` (spec/http "People"): its kept role, or disabled (its sessions end) or not. */
   function setAccount(id: string, change: { role?: Role, disabled?: boolean }) {
     const user = store.users.update(id, change);
     if (change.disabled) endSessions(id);

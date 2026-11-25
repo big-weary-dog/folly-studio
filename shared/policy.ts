@@ -14,12 +14,12 @@ export type Action =
 type Who = { id: string, role: Role } | null | undefined;
 type Owned = { owner: string, shared?: boolean, reviewed?: boolean, hidden?: boolean };
 
-/** Whether a look is in the gallery for everyone (SPEC-access "Moderation"). */
+/** Whether a look is in the gallery for everyone (spec/http "Moderation"). */
 export const approved = (look: Owned) => look.shared === true && look.reviewed === true && look.hidden !== true;
 
 /** Whether `user` (null: a visitor) may do `action` (on `look`, for the look actions; none is a new look, theirs). */
 export function can(user: Who, action: Action, look?: Owned): boolean {
-  if (!user) return action === 'see' && !!look && approved(look);   // a visitor (SPEC-access "Visitors")
+  if (!user) return action === 'see' && !!look && approved(look);   // a visitor (spec/http "Visitors")
   const curator = user.role !== 'member', mine = !look || look.owner === user.id;
   const seen = mine || (curator ? look?.shared === true : approved(look!));
   switch (action) {

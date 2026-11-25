@@ -101,7 +101,7 @@ the server alone: it saves and closes. Requests during the few seconds of the re
 
 - Another port: set `PORT` in the env file, run `npm run host`, and change the tunnel's URL to match.
 - Logs: `journalctl --user -u folly-studio -f`. Status: `systemctl --user status folly-studio`.
-  Requests are one line each (`[studio] [http] GET / 200 3ms 1.1KB v=1a2b3c4d NZ`, SPEC-access "Stats"): only them,
+  Requests are one line each (`[studio] [http] GET / 200 3ms 1.1KB v=1a2b3c4d NZ`, spec/http "Stats"): only them,
   `journalctl --user -u folly-studio -g '\[http\]'`; Admin → Stats has the day's counts. More in
   [Monitoring](#monitoring).
 - Stop: `systemctl --user stop folly-studio` (`disable` too, to keep it off at boot).
@@ -373,7 +373,7 @@ The archive's files replace those in the data folder; baked frames, previews and
 
 ### Library only
 
-The library-only step (SPEC-looks "Library only") drops stored looks and versions that hold code other than the
+The library-only step (spec/looks "Library only") drops stored looks and versions that hold code other than the
 library's, logging each one, after copying `looks.json` and `users.json` beside themselves. Only you run it, once
 per data folder: the server never does. First see what it would do (it writes nothing):
 `node tools/library-only.ts --data ~/folly-data`; then stop the server and add `--apply`.
@@ -385,7 +385,7 @@ per data folder: the server never does. First see what it would do (it writes no
   (`[studio] unhandled rejection: …`) is one request's: it is logged and the server carries on. A stop
   (`systemctl --user stop`, a deploy) exits 0 and is not restarted. Restarts:
   `journalctl --user -u folly-studio -g 'uncaught|Started'`.
-- **A line a day.** When a local day ends, the server writes its counts (SPEC-access "Stats"):
+- **A line a day.** When a local day ends, the server writes its counts (spec/http "Stats"):
   `[studio] [stats] 2026-11-24 visitors=12 people=3 views=40 requests=900 errors=0 slow=2 bakes=5/0/0 uptime=86400s
   rss=120MB`. All of them: `journalctl --user -u folly-studio -g '\[stats\]'`.
 - **From outside.** Nothing on this machine can say it is down, so let a free uptime service (UptimeRobot, Better

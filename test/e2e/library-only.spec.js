@@ -1,4 +1,4 @@
-// npm run smoke, too: library only, as on every server (SPEC-baking "Library only"): the Studio has no code to edit,
+// npm run smoke, too: library only, as on every server (spec/frames "Library only"): the Studio has no code to edit,
 // its pickers offer only the library, and custom code is refused.
 // Screenshots land in CODE_SHOTS when set, else the test's output folder.
 import path from 'node:path';

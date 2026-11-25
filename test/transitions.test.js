@@ -1,5 +1,5 @@
 // A clip's transition (SPEC "Timeline": fade or wipe), the timeline's edits keeping it, and speeds in beats
-// (SPEC-library "Param bindings": { mod: 'beats' }) through the core, the dialog and a bake's key.
+// (spec/library "Param bindings": { mod: 'beats' }) through the core, the dialog and a bake's key.
 import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
@@ -8,7 +8,7 @@ import { Layers } from '../shared/schemas/look.ts';
 import {
   compileLayer, normalizeClips, prepareLayer, prepareLook, prepareScene, renderFrame, transitionWeight,
 } from '../core/pattern-core.ts';
-import { editClip, fitClip, moveClip, setTransition, transitionKey } from '../public/js/ui/timeline-model.ts';
+import { editClip, fitClip, moveClip, setTransition, transitionKey } from '../public/js/ui/timeline/model.ts';
 import { cog } from './fixtures/rigs.js';
 
 const scene = prepareScene(cog);

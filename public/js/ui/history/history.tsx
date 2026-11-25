@@ -1,4 +1,4 @@
-// The History drawer beside the 3D view (SPEC-history "The History drawer"): Steps walks this session's edits;
+// The History drawer beside the 3D view (spec/looks "The History drawer"): Steps walks this session's edits;
 // Versions lists the look's saved versions, newest first, to preview one in place of the work (held until "Back to
 // my work") or restore it. Undo and Redo sit in its head.
 import '../../../css/history.css';
@@ -6,8 +6,8 @@ import '../../../css/history.css';
 import { signal } from '@preact/signals';
 import { useLayoutEffect } from 'preact/hooks';
 
-import { Drawer, type DrawerHandle } from '../drawer.tsx';
-import type { Studio } from '../studio-store.ts';
+import { Drawer, type DrawerHandle } from '../studio/drawer.tsx';
+import type { Studio } from '../studio/store.ts';
 import { StepsList } from './steps-list.tsx';
 import { Versions } from './versions.tsx';
 

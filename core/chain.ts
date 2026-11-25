@@ -1,5 +1,5 @@
 // A layer's chain made runnable (SPEC "Modules"): each enabled module as a link (its function, params, how it
-// combines, the slot of the pixel it reads), and a composite's sub-layers as chains of their own (SPEC-library
+// combines, the slot of the pixel it reads), and a composite's sub-layers as chains of their own (spec/library.md
 // "Composites"), each with its warps placed, its pixel slots, its colour and the LEDs it plays on. A source with
 // warps or filters attached to it (`on`) runs as a composite of one sub-layer: the source, then them.
 import type { Module, SubLayer } from '../shared/schemas/look.ts';
@@ -119,7 +119,7 @@ export function prepareChain(modules: Partial<Module>[], list: readonly (Compile
   return chain;
 }
 
-/** modules[i] and the run attached to it (i+1..end−1) as a composite of one sub-layer (SPEC-library "Attached
+/** modules[i] and the run attached to it (i+1..end−1) as a composite of one sub-layer (spec/library "Attached
  * modules"): the source combining over nothing, then the enabled attached ones; it joins the chain as the source
  * would. With a stage end attached it reads the pixel itself (fixed). */
 function attachRun(modules: Partial<Module>[], list: readonly (CompiledLink | null)[], i: number, end: number,

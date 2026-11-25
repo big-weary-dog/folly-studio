@@ -19,7 +19,7 @@ import { libraryCode } from './fixtures/patterns.js';
 
 const KB = 1024;
 const BUDGET = { total: 350 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
-const LOGIN_VIEW = 'js/ui/auth.tsx';                  // the shell imports it at once for a signed-out visitor
+const LOGIN_VIEW = 'js/ui/account/auth.tsx';                  // the shell imports it at once for a signed-out visitor
 let dist, manifest, dir, app, base;
 
 /** GET with raw headers back and the body decoded. */
@@ -66,7 +66,7 @@ describe('the built app', () => {
   });
 
   test('assets are kept for a year, compressed; the views and their styles load on first use', async () => {
-    const studio = manifest['js/ui/studio.tsx'];
+    const studio = manifest['js/ui/studio/studio.tsx'];
     assert.ok(studio?.isDynamicEntry && studio.css?.length, 'the Studio is its own chunk, with its own styles');
     for (const file of [studio.file, ...studio.css, manifest['data/rig-folly.json'].file]) {
       const r = await get(`/${file}`, { 'accept-encoding': 'br, gzip' });

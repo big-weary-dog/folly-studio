@@ -50,7 +50,7 @@ function compiled(layerId: string, m: ReturnType<typeof layerModules>[number], k
 type ModuleReport = { id?: string, ok: boolean, params: Record<string, unknown>, upgraded?: unknown,
   error?: string };
 /** A chain's modules compiled, a composite's sub-layers too; each module's report into `reports` (flat, depth
- * first: SPEC-library "Composites"); the first enabled module's error into first.error, leaving out a switched-off
+ * first: spec/library "Composites"); the first enabled module's error into first.error, leaving out a switched-off
  * composite's or sub-layer's. */
 function compileChain(layerId: string, mods: ReturnType<typeof layerModules>, keep: Set<string>,
   reports: ModuleReport[], first: { error: string, params: Record<string, unknown> | null }, modular: boolean) {

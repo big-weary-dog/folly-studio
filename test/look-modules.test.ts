@@ -1,4 +1,4 @@
-// The one walk over a look's modules (SPEC-looks "Modules"): what it meets and in what order, where the shape breaks,
+// The one walk over a look's modules (spec/looks "Modules"): what it meets and in what order, where the shape breaks,
 // the map the library-only step takes, and the save check and bake key that go through it.
 import assert from 'node:assert/strict';
 

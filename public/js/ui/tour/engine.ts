@@ -1,6 +1,6 @@
-// The tutorial's engine (SPEC-tutorial): which path and step is open, when a step is done, and the progress kept on
-// the account (PUT /api/me/tour, a copy in localStorage). It mounts the overlay in a root of its own and reads the
-// Studio only through tourView; it moves between pages only through navigate(), so unsaved edits are asked about.
+// The tutorial's engine (spec/studio "Tutorial"): which path and step is open, when a step is done, and the progress
+// kept on the account (PUT /api/me/tour, a copy in localStorage). It mounts the overlay in a root of its own and reads
+// the Studio only through tourView; it moves between pages only through navigate(), so unsaved edits are asked about.
 import '../../../css/tour.css';
 
 import { computed, effect, signal } from '@preact/signals';
@@ -9,9 +9,9 @@ import { h, render } from 'preact';
 import { api } from '../../api.ts';
 import type { Tour } from '../../../../shared/schemas/tour.ts';
 import { toast } from '../kit.tsx';
-import { loadLibrary } from '../model.ts';
+import { loadLibrary } from '../studio/model.ts';
 import { navigate, user } from '../session.ts';
-import { localTour, tourKey, tourView, WELCOMED } from '../tour-view.ts';
+import { localTour, tourKey, tourView, WELCOMED } from './view.ts';
 import { byName, tick, watchPage } from './anchors.ts';
 import { Overlay } from './overlay.tsx';
 import { pathsHere } from './paths/index.ts';

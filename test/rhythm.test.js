@@ -1,4 +1,4 @@
-// Rhythm (library-docs/rhythm.md) and the text param kind it reads (SPEC-library "Pattern code"): steps on the beat,
+// Rhythm (library-docs/rhythm.md) and the text param kind it reads (spec/library "Pattern code"): steps on the beat,
 // decay, swing, lines dealt to places, the busy-line dip that keeps it under the flash check, and the kind through
 // compile, resolve, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import {
   compileLayer, FlashWatch, normalizeParams, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
   resolveParams,
 } from '../core/pattern-core.ts';
-import { normaliseParam } from '../public/js/ui/bindings.ts';
+import { normaliseParam } from '../public/js/ui/params/bindings.ts';
 import { cog, mini } from './fixtures/rigs.js';
 import { libraryCode as lib } from './fixtures/patterns.js';
 

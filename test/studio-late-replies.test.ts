@@ -12,7 +12,7 @@ import type { Rig } from '../shared/schemas/rig.ts';
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
   document: { title: '' } });
 const { api } = await import('../public/js/api.ts');
-const { createStudio } = await import('../public/js/ui/studio-store.ts');
+const { createStudio } = await import('../public/js/ui/studio/store.ts');
 const { toastHistory } = await import('../public/js/ui/kit.tsx');
 
 const RIG = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8')) as Rig;

@@ -1,4 +1,4 @@
-// Pictures (SPEC-library "Pictures"): the core's check, the param kind through compile and resolve, the picture
+// Pictures (spec/library "Pictures"): the core's check, the param kind through compile and resolve, the picture
 // source on the rose, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -11,8 +11,8 @@ import {
   compileLayer, normalizeParams, pictureProblem, prepareLayer, prepareLook, prepareScene, readPicture, renderFrame,
   resolveParams,
 } from '../core/pattern-core.ts';
-import { normaliseParam } from '../public/js/ui/bindings.ts';
-import { keyColour } from '../public/js/ui/picture-row.tsx';
+import { normaliseParam } from '../public/js/ui/params/bindings.ts';
+import { keyColour } from '../public/js/ui/params/picture-row.tsx';
 import { libraryCode } from './fixtures/patterns.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));

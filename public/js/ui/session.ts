@@ -12,7 +12,7 @@ export const user = signal<User | null>(null);
 export const flash = signal<FlashSettings | null>(null);
 /** The rig the server shows, bakes and boxes (SPEC "Rig", GET /api/me's `rig`): the views load the same one. */
 export const rig = signal<RigName>('folly');
-/** The Studio's Advanced editing on a laptop (SPEC-studio "Simple"), as this browser chose it; null: not chosen. */
+/** The Studio's Advanced editing on a laptop (spec/studio "Simple"), as this browser chose it; null: not chosen. */
 const ADVANCED = 'studio.advanced';
 const chosen = signal<boolean | null>((() => {
   try { return { 1: true, 0: false }[localStorage.getItem(ADVANCED) ?? ''] ?? null; } catch { return null; }
@@ -23,7 +23,7 @@ export function setAdvanced(on: boolean) {
   chosen.value = on;
   try { localStorage.setItem(ADVANCED, on ? '1' : '0'); } catch { /* private mode: kept for this visit */ }
 }
-/** Where a signed-in visitor starts: the gallery (SPEC-access "Moderation"). */
+/** Where a signed-in visitor starts: the gallery (spec/http "Moderation"). */
 export const HOME = '/gallery';
 type Me = { user: User | null, flash?: FlashSettings | null, rig?: RigName };
 /** Who the server says is signed in (GET /api/me, or a sign-in's answer), and what follows from it. */

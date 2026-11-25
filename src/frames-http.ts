@@ -114,7 +114,7 @@ export function framesRoutes({ framesDir, cache, visibleLook }: { framesDir: str
   }
 
   const at = (path: string) => `GET /looks/:id/frames${path}`;
-  // A visitor's too, of approved looks (SPEC-access "Visitors").
+  // A visitor's too, of approved looks (spec/http "Visitors").
   return { [at('')]: forAnyone(download), [at('/wire')]: forAnyone(wire), [at('/:hash/manifest')]: forAnyone(manifest),
     [at('/:hash/:n')]: forAnyone(chunk) };
 }

@@ -1,11 +1,11 @@
-// A path's practice look (SPEC-tutorial): public/data/tutorial/<path>.json is the story so far, layers of library
-// modules with their settings, stacked bottom first; it makes a look with no id, so Save makes the person's own copy
-// and nothing of theirs changes.
+// A path's practice look (spec/studio "Tutorial"): public/data/tutorial/<path>.json is the story so far, layers of
+// library modules with their settings, stacked bottom first; it makes a look with no id, so Save makes the person's own
+// copy and nothing of theirs changes.
 import PALETTES from '../../../data/palettes.json' with { type: 'json' };
 import type { Look } from '../../../../shared/schemas/api.ts';
 import type { Globals } from '../../../../shared/schemas/look.ts';
 import type { LibraryEntry, PresetEntry, PresetLayer, Rig } from '../../../../shared/schemas/rig.ts';
-import { presetLayers } from '../model.ts';
+import { presetLayers } from '../studio/model.ts';
 
 type Clip = { start: number; end: number; fadeIn?: number; fadeOut?: number };
 /** A layer as a preset writes it, plus where it plays (the groups carrying a rig tag, or any of several) and its

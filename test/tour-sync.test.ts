@@ -1,8 +1,8 @@
-// The tutorial against the app (SPEC-tutorial): a step names controls, library entries, params, views and pages that
-// must exist, so a rename anywhere fails here rather than leaving a step pointing at nothing. Each `data-tour` name a
-// step uses is in the app's source (as written, or a `prefix:${…}` the source fills in, with a part that exists), each
-// `{preset:x}`, `{module:x}` and `{param:x.key}` names the library's, and each practice look is made from modules the
-// library has and saves as a look. tour.spec.js plays every path in the browser.
+// The tutorial against the app (spec/studio "Tutorial"): a step names controls, library entries, params, views and
+// pages that must exist, so a rename anywhere fails here rather than leaving a step pointing at nothing. Each
+// `data-tour` name a step uses is in the app's source (as written, or a `prefix:${…}` the source fills in, with a part
+// that exists), each `{preset:x}`, `{module:x}` and `{param:x.key}` names the library's, and each practice look is made
+// from modules the library has and saves as a look. tour.spec.js plays every path in the browser.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -10,11 +10,11 @@ import path from 'node:path';
 import { describe, test } from 'vitest';
 
 import { compileModule } from '../core/pattern-core.ts';
-import { layerFromPattern, presetLayers } from '../public/js/ui/model.ts';
+import { layerFromPattern, presetLayers } from '../public/js/ui/studio/model.ts';
 import { type Recipe, practiceLook } from '../public/js/ui/tour/practice.ts';
 import { PATHS } from '../public/js/ui/tour/paths/index.ts';
 import type { Ctx, Step } from '../public/js/ui/tour/types.ts';
-import { tourName, type TourView } from '../public/js/ui/tour-view.ts';
+import { tourName, type TourView } from '../public/js/ui/tour/view.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
 import { LibraryEntry, type ModuleEntry, type PresetEntry, type Rig } from '../shared/schemas/rig.ts';
 import { libraryIndex, withCode } from './fixtures/patterns.js';

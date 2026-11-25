@@ -1,12 +1,13 @@
-// The Studio's edits of a chain that holds composites (ui/composite-model.ts, SPEC-library "Composites"): a module
-// moved into a sub-layer and out (the sub-layer it empties going with it), a source made a sub-layer of its own,
+// The Studio's edits of a chain that holds composites (ui/chain/composite-model.ts, spec/library "Composites"): a
+// module moved into a sub-layer and out (the sub-layer it empties going with it), a source made a sub-layer of its own,
 // sub-layers reordered, a module grouped into a composite and back.
 import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
 import type { Module } from '../shared/schemas/look.ts';
-import { groupModule, moveModule, moveSub, moveToSub, removeModule, ungroup } from '../public/js/ui/composite-model.ts';
+import { groupModule, moveModule, moveSub, moveToSub, removeModule, ungroup }
+  from '../public/js/ui/chain/composite-model.ts';
 
 const m = (id: string): Module => ({ id, kind: 'source', title: id, code: '', params: {} });
 const CHAIN: Module[] = [{ id: 'c', kind: 'composite', title: 'C', code: '', params: {}, layers: [

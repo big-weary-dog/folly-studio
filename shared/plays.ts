@@ -4,7 +4,7 @@
 const DEFAULT_DURATION = 30;
 
 /**
- * What plays (SPEC-history "What plays"): the fields a bake renders, a version keeps, the stage plays, an export
+ * What plays (spec/looks "What plays"): the fields a bake renders, a version keeps, an export
  * carries and an undo puts back. Everything that asks "did what plays change" or "what played then" reads this
  * list. The title and the summary are the look's words, not what plays.
  */

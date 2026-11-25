@@ -1,4 +1,4 @@
-// The neighbour map (SPEC-library "The neighbour map"): chains along strands, links where strands touch, rungs to the
+// The neighbour map (spec/library "The neighbour map"): chains along strands, links where strands touch, rungs to the
 // next strand of a zone, pieces far apart left alone; links() as a layer's share of it, inside pattern code.
 import assert from 'node:assert/strict';
 

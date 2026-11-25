@@ -1,4 +1,4 @@
-// This session's steps (SPEC-history "Steps"): each edit of the look is a step, named for what it changed. The list
+// This session's steps (spec/looks "Steps"): each edit of the look is a step, named for what it changed. The list
 // is linear, like Photoshop's: jumping back greys the later steps, and a new edit drops them. Quick edits to one
 // thing (a drag, typing) fold into one step until a pause, a pointer up or a focus change seals it. A save marks its
 // step; undoing past it leaves the look unsaved. In the main bundle: undo works with the drawer closed.
@@ -7,8 +7,8 @@ import { signal } from '@preact/signals';
 import { PLAYS } from '../../../../shared/plays.ts';
 import type { Module } from '../../../../shared/schemas/look.ts';
 import { humanize } from '../kit.tsx';
-import type { Layer } from '../model.ts';
-import type { Draft } from '../studio-store.ts';
+import type { Layer } from '../studio/model.ts';
+import type { Draft } from '../studio/store.ts';
 
 export type Kind = 'open' | 'add' | 'remove' | 'set' | 'move' | 'restore';
 /** What an edit changed: its name, its kind (the icon), and `key`, the one thing it changed (edits fold by it). */

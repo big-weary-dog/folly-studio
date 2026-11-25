@@ -1,4 +1,4 @@
-// The library-only step on a data folder (SPEC-looks "Library only"), once, by hand alone (`tools/library-only.ts`):
+// The library-only step on a data folder (spec/looks "Library only"), once, by hand alone (`tools/library-only.ts`):
 // the server never changes stored looks at start. A dry run says what it would do and changes nothing. It runs again
 // on a folder that had it before retired patterns were switched (`migrations.json` without RETIRE).
 // It copies looks.json and users.json beside themselves first and stops if that fails, then writes the looks kept and

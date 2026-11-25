@@ -1,4 +1,4 @@
-// Smoke, Replay and Sort (SPEC-library "History", "Spatial modules"): a trail that drifts along the wire and fades,
+// Smoke, Replay and Sort (spec/library "History", "Spatial modules"): a trail that drifts along the wire and fades,
 // the last moments replayed (loop, reverse, bounce, hold, in beats), and colours sorted along each strand.
 import assert from 'node:assert/strict';
 

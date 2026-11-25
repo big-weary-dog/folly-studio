@@ -1,12 +1,12 @@
-// The Studio's light view on a phone (SPEC-studio "Phones"): the tabs under the 3D view, a layer's settings
+// The Studio's light view on a phone (spec/studio "Phones"): the tabs under the 3D view, a layer's settings
 // opened from its row in the same panel, and More: the 3D view's options.
 import '../../../css/phone.css';
 
 import { signal } from '@preact/signals';
 
 import { cx, humanize, Switch } from '../kit.tsx';
-import type { Preview } from '../preview.ts';
-import type { Studio, Tab } from '../studio-store.ts';
+import type { Preview } from '../studio/preview.ts';
+import type { Studio, Tab } from '../studio/store.ts';
 
 const TABS: Tab[] = ['layers', 'look', 'more'];
 

@@ -1,8 +1,8 @@
 // The toolbar's History button: it opens the History drawer (history.tsx, loaded on first use) beside the view.
 // Undo and redo need no drawer: they are the store's (steps.ts).
-import { useDrawer } from '../drawer.tsx';
+import { useDrawer } from '../studio/drawer.tsx';
 import { cx, useLazy } from '../kit.tsx';
-import type { Studio } from '../studio-store.ts';
+import type { Studio } from '../studio/store.ts';
 
 export function HistoryButton({ st }: { st: Studio }) {
   const d = useDrawer(), H = useLazy(() => import('./history.tsx'), d.open);
