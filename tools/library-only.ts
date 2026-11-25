@@ -28,8 +28,7 @@ try {
     for (const d of r.dropped) say(`${will} ${dropLine(d)}`);
     const lines = (edited: boolean) => r.changes.flatMap((c) => changeLines(edited ? { ...c, switched: [] }
       : { ...c, edited: [] }));
-    for (const line of lines(false)) say(`${dryRun ? 'would change' : 'changed'} ${line}`);
-    for (const line of lines(true)) say(`${dryRun ? 'would replay' : 'replayed'} ${line}`);
+    for (const line of [...lines(false), ...lines(true)]) say(`${dryRun ? 'would change' : 'changed'} ${line}`);
     say(`${dataDir}: ${r.dropped.filter((d) => !d.version).length} looks and `
       + `${r.dropped.filter((d) => d.version).length} versions ${will}; ${r.changed} kept looks `
       + `${dryRun ? 'would move' : 'moved'} to the current library, ${r.rebaked} of them onto new code, so their `
