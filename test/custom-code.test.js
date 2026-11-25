@@ -32,9 +32,7 @@ describe('as the server runs (no test options; the data and environment asking f
     writeFileSync(path.join(dataDir, 'baking.json'), JSON.stringify({ mode: 'on', customCode: true }));
     app = await startApp({ dataDir, admins: 'Olive', generators: undefined, customCode: undefined,
       models: { env: { STUDIO_PROFILE: 'hosted', STUDIO_GENERATOR: 'test', ANTHROPIC_API_KEY: 'k' } } });
-    admin = await signup(app, 'Olive');
-    ann = await signup(app, 'ann');
-    bob = await signup(app, 'bob');
+    [admin, ann, bob] = [await signup(app, 'Olive'), await signup(app, 'ann'), await signup(app, 'bob')];
   });
   afterAll(() => app?.close());
 

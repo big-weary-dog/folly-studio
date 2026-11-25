@@ -1,7 +1,7 @@
-// npm run smoke, too: custom code and the generators off, as every server runs (SPEC-baking "Custom code", SPEC-offline
-// "No generators"): no Ideas, Models or Access, Admin → Baking says library only, the Studio's code editor is read
-// only and says why, and a save of custom code is refused. Screenshots land in CODE_SHOTS when set, else the test's
-// output folder.
+// npm run smoke, too: custom code and generators off, as on every server (SPEC-baking "Custom code"): no Ideas, Models
+// or Access, Admin → Baking says library only, the code editor is read only and says why, and custom code is refused.
+// Screenshots land in CODE_SHOTS when set, else the test's output folder.
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from './studio.js';
@@ -22,9 +22,11 @@ for (const width of [390, 1366]) {
     const request = page.context().request;
     expect((await request.post(`${studio.origin}/api/signup`, { data: { username: `code-admin-${width}`,
       password: 'correct horse' } })).status()).toBe(201);
-    const wash = await (await request.get(`${studio.origin}/patterns/colour-wash.js`)).text();
-    const { look } = await (await request.post(`${studio.origin}/api/looks`, { data: { title: `Mine ${width}`,
-      layers: [{ id: 'l1', title: 'Sea', code: wash, groups: ['cathedral'], params: {} }] } })).json();
+    const wash = readFileSync(new URL('../../public/patterns/colour-wash.js', import.meta.url), 'utf8');
+    const made = await request.post(`${studio.origin}/api/looks`, { data: { title: `Mine ${width}`,
+      layers: [{ id: 'l1', title: 'Sea', code: wash, groups: ['cathedral'], params: {} }] } });
+    expect(made.status(), await made.text()).toBe(201);
+    const { look } = await made.json();
     await page.goto(`${studio.origin}/admin`);
     await expect(page).toHaveURL(/\/admin\/light$/);
     await expect(page.locator('a[href="/ideas"]')).toHaveCount(0);
