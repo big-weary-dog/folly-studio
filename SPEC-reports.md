@@ -19,7 +19,7 @@ size; `sources.live` the stage's rev, driver, look and blackout.
 **Report this look** (SPEC-access "Moderation") sends the same report without a screenshot or freeze, its note from
 a form asking "What is wrong with this look?", and `sources.look = { id, title, owner, ownerName }`; the Reports
 tab names the look and opens it. A reader that throws gives `{ unreadable }`; each
-piece is cut at 64,000 characters. Everything is scrubbed (`public/js/scrub.ts`): keys naming secrets blanked, IPs
+piece is cut at 64,000 characters. Everything is scrubbed (`core/scrub.ts`): keys naming secrets blanked, IPs
 masked, URLs without query or fragment; the path has no query or hash; no cookies.
 
 The server stores `<STUDIO_DATA>/reports/<stamp>-<id>/report.json` (adding `server: { user: { id, username },

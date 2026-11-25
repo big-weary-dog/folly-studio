@@ -7,8 +7,8 @@ import { describe, test } from 'vitest';
 
 import {
   compileLayer, compileModule, isStageEnd, prepareLayer, prepareScene, renderFrame, stageOf,
-} from '../public/js/pattern-core.ts';
-import { addLight } from '../public/js/core/light.ts';
+} from '../core/pattern-core.ts';
+import { addLight } from '../core/light.ts';
 import { libraryCode as lib } from './fixtures/patterns.js';
 
 const rig = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8'));

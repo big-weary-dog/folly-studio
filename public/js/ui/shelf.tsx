@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { LibraryEntry } from '../../../shared/schemas/rig.ts';
-import { DEFAULT_SOFTEN } from '../core/spatial.ts';
+import { DEFAULT_SOFTEN } from '../../../core/spatial.ts';
 import { GroupsTree } from './groups-drawer.tsx';
 import { cx, humanize, openDialog } from './kit.tsx';
 import type { Extra } from '../runtime.ts';

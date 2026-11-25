@@ -1,6 +1,6 @@
 // The look's globals as G (SPEC "Globals"): its palette, tempo and macros; automation per frame; param values and
 // bindings (SPEC "Param bindings").
-import type { Automation, Binding, Globals, Range } from '../../../shared/schemas/look.ts';
+import type { Automation, Binding, Globals, Range } from '../shared/schemas/look.ts';
 import type { ParamSchema } from './compile.ts';
 import { pickColour } from './picks.ts';
 import { type Picture, readPicture } from './picture.ts';

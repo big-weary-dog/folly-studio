@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { tagParts } from '../public/js/core/scene.ts';
+import { tagParts } from '../core/scene.ts';
 import { at, COG, layerOf, layerOn, litShare } from './fixtures/layers.js';
 
 describe('p.partUp', () => {

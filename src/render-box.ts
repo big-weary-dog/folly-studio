@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_BAKE_SECONDS, framesBytesFor } from './bake.ts';
 import { busEnv, scopeLimits } from './box-limits.ts';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.ts';
-import type { LayerInput } from '../public/js/pattern-core.ts';
+import type { LayerInput } from '../core/pattern-core.ts';
 import { type Config, configOf } from './config.ts';
 import { rigFileOf, rigOf } from './rig-choice.ts';
 import { bundle } from './core-script.ts';
@@ -69,10 +69,10 @@ export function createRenderBox(o: Options = {}) {
     files: {   // what the box sees beside render.ts, and where it comes from
       'package.json': path.join(STUDIO, 'render-box/package.json'),
       'renderer.ts': path.join(STUDIO, 'render-box/renderer.ts'),
-      'fseq.ts': o.fseqFile || path.join(publicDir, 'js/fseq.ts'),
+      'fseq.ts': o.fseqFile || path.join(STUDIO, 'core/fseq.ts'),
       'rig.json': o.rigFile || rigFileOf(publicDir, rigOf(c)),
     },
-    coreFile: o.coreFile || path.join(publicDir, 'js/pattern-core.ts'),
+    coreFile: o.coreFile || path.join(STUDIO, 'core/pattern-core.ts'),
     patternsDir: o.patternsDir || path.join(publicDir, 'patterns'),    // the library, for use()
     node: o.node || process.execPath, prlimit: o.prlimit || 'prlimit',
     systemdRun: o.systemdRun ?? 'systemd-run',

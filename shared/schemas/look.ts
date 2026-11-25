@@ -8,12 +8,12 @@ import {
   BLENDS, BLUR_MODES, DIRECTIONS, macroNameOk, MAX_CLIPS, MAX_DURATION, MAX_LANES, MAX_MACROS, MAX_POINTS, MAX_RADIUS,
   attachedTo, CHAIN_KINDS, flatModules, OLD_DIRECTIONS, OLD_GLOBALS, PALETTE_ROLES, type Picture, pictureProblem,
   SOURCE_BLENDS, TRANSITIONS, upgradeGlobals,
-} from '../../public/js/pattern-core.ts';
+} from '../../core/pattern-core.ts';
 
 export * from '../plays.ts';
 export {
   BLENDS as BLEND_MODES, MODULE_KINDS as KINDS, SOURCE_BLENDS as SOURCE_BLEND_MODES,
-} from '../../public/js/pattern-core.ts';
+} from '../../core/pattern-core.ts';
 export const MAX_LAYERS = 8;
 export const MAX_MODULES = 8;
 const MAX_CODE_BYTES = 20 * 1024;

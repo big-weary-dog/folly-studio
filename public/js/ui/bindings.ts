@@ -1,9 +1,9 @@
 // Pure: a module's params as controls (SPEC "Pattern code") and number params' bindings (SPEC "Param bindings"):
 // the schema entry a control shows, a binding in a few words, and the binding the modulate dialog makes.
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
-import { readText } from '../core/globals.ts';
-import { paramControls, type ParamControls } from '../core/param-controls.ts';
-import { type Picture, readPicture } from '../core/picture.ts';
+import { readText } from '../../../core/globals.ts';
+import { paramControls, type ParamControls } from '../../../core/param-controls.ts';
+import { type Picture, readPicture } from '../../../core/picture.ts';
 import { humanize } from './kit.tsx';
 
 export interface Param extends ParamControls { kind: 'number' | 'color' | 'toggle' | 'choice' | 'picture' | 'text';

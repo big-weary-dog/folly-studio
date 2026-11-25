@@ -11,9 +11,9 @@
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
-import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../public/js/pattern-core.ts';
-import type { LayerInput } from '../public/js/pattern-core.ts';
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../core/pattern-core.ts';
+import type { LayerInput } from '../core/pattern-core.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { parseFseq } from '../src/frames.ts';
 import { encodeWire } from '../src/frames-wire.ts';
 

@@ -39,7 +39,7 @@ without it and reports it as an error starting `Pattern hung`; it stays paused u
 changes. Every `frame` request is answered within 1.5 s. The app (runtime.ts) tears the iframe down and reloads it
 only if the page itself stops answering for 4 s (8 s during an export, while the page probes a hung layer).
 
-`pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
+`core/pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
 `PreparedLayer`, `PreparedLook`, `Compiled`, `ParamSchema`, `Pixel`, `G`, `LayerInput`, …):
 `STDLIB`, `compilePattern(code) → { kind, pixel, frame, params }` (throws on syntax error / no `pixel`),
 `compileModule(code, kind) → { kind, pixel | warp | filter, frame, params, picks }` (`picks`: the instance's colours,
@@ -73,7 +73,7 @@ bad and overlapping clips), `transitionWeight(…)` and `TRANSITIONS` (SPEC-look
 `lookDuration(look) → seconds`, `DEFAULT_DURATION` `MIN_DURATION`
 `MAX_DURATION` `MAX_CLIPS`.
 
-`fseq.ts` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })
+`core/fseq.ts` exports `writeFseq({ channelCount?, frames, stepMs = 25, data: Uint8Array, media?, ranges?, compression? })
 → Uint8Array` (FSEQ v2.0). `ranges: [[startChannel, count], …]` (0-based, ascending, ≤ 255) writes a
 sparse file: each frame holds only the ranged channels, so `channelCount` is their total.
 `writeFseqHeader` takes the same metadata without `data` or `compression` and returns just the uncompressed

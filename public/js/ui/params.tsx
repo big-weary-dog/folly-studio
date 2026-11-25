@@ -6,9 +6,9 @@ import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 
 import type { Binding, ParamValue } from '../../../shared/schemas/look.ts';
-import { readText, TEXT_MAX } from '../core/globals.ts';
-import type { Picture } from '../core/picture.ts';
-import { DEFAULT_PALETTE } from '../core/stdlib.ts';
+import { readText, TEXT_MAX } from '../../../core/globals.ts';
+import type { Picture } from '../../../core/picture.ts';
+import { DEFAULT_PALETTE } from '../../../core/stdlib.ts';
 import { BeatClock } from './beat-clock.tsx';
 import { automate } from './automation-edit.ts';
 import {

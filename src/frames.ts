@@ -2,8 +2,8 @@
 // APIs, no imports but types, nothing here runs code. The Fleet box runs a copy on its own bake (advisory; the server
 // repeats it). The rig arrives as the pattern core's scene, and the flash check as its FlashWatch (prepareScene).
 
-import type { Span } from '../public/js/fseq.ts';
-import type { FlashWatch, Scene } from '../public/js/pattern-core.ts';
+import type { Span } from '../core/fseq.ts';
+import type { FlashWatch, Scene } from '../core/pattern-core.ts';
 import type { Analysis } from '../shared/schemas/api.ts';
 
 export const CHANNELS_PER_UNIVERSE = 510; // a parsed file's default bounds: 80 universes of 510 (xLights, FPP)

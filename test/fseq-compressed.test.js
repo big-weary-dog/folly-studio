@@ -1,11 +1,11 @@
-// Compressed FSEQ v2 (zstd = type 1, zlib = type 2): public/js/fseq.ts writes the block index,
+// Compressed FSEQ v2 (zstd = type 1, zlib = type 2): core/fseq.ts writes the block index,
 // src/fseq-codec.ts compresses, and src/frames.ts parses strictly, refusing decompression bombs.
 import assert from 'node:assert/strict';
 import zlib from 'node:zlib';
 
 import { describe, test } from 'vitest';
 
-import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../public/js/fseq.ts';
+import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../core/fseq.ts';
 import { checkFrames } from '../src/box-output.ts';
 import { FseqError, parseFseq } from '../src/frames.ts';
 import { compressFseq, FSEQ_CODEC, HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';

@@ -8,7 +8,7 @@ import { describe, test } from 'vitest';
 import {
   compileLayer, FlashWatch, normalizeParams, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
   resolveParams,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { cog, mini } from './fixtures/rigs.js';
 import { libraryCode as lib } from './fixtures/patterns.js';

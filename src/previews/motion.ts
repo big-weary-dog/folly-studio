@@ -3,7 +3,7 @@
 // dark stretch loses), made to loop. A camera turns each sample into a picture: the Playa view's (./playa.ts) or,
 // without a browser, frontView's (the LEDs from the front, as the critique's stills are). Runs no look code.
 
-import { prepareScene } from '../../public/js/pattern-core.ts';
+import { prepareScene } from '../../core/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import { frameOffsets, parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';

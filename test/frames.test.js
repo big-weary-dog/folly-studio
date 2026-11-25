@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
 import {
   compileLayer, FlashWatch, ledLight, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { checkFrames, flashSettings } from '../src/box-output.ts';
 import { configOf } from '../src/config.ts';
 import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, parseFseq } from '../src/frames.ts';

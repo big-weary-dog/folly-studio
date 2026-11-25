@@ -8,7 +8,7 @@
 // carries c unclamped, exact) or, with two visible sources only, turned over (below). A stage after a stage end gets
 // copies of the warps it read. Over 8 modules, the warps stay in their stage, bending all of it, and a note says so.
 import { MAX_LAYER_CODE_BYTES, MAX_MODULES, type Module } from './schemas/look.ts';
-import { isStageEnd, stageOf } from '../public/js/pattern-core.ts';
+import { isStageEnd, stageOf } from '../core/pattern-core.ts';
 
 /** A look's `chain`: its chains follow the one rule. A look without it is converted once, on its way in. */
 export const CHAIN = 2;

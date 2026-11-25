@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { parseFseq } from '../src/frames.ts';
 import { compressFseq, HAS_ZSTD } from '../src/fseq-codec.ts';
 import {

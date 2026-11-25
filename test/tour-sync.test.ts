@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { describe, test } from 'vitest';
 
-import { compileModule } from '../public/js/pattern-core.ts';
+import { compileModule } from '../core/pattern-core.ts';
 import { layerFromPattern, presetLayers } from '../public/js/ui/model.ts';
 import { type Recipe, practiceLook } from '../public/js/ui/tour/practice.ts';
 import { PATHS } from '../public/js/ui/tour/paths/index.ts';

@@ -4,8 +4,8 @@
 // Loaded when the Look tab first shows.
 import { useId } from 'preact/hooks';
 
-import { macroNameOk } from '../core/globals.ts';
-import { PALETTE_ROLES } from '../core/stdlib.ts';
+import { macroNameOk } from '../../../core/globals.ts';
+import { PALETTE_ROLES } from '../../../core/stdlib.ts';
 import type { Globals, Palette } from '../../../shared/schemas/look.ts';
 import { Field, humanize, onSpan, Scrub } from './kit.tsx';
 import { renameMacro } from './look-globals-edit.ts';

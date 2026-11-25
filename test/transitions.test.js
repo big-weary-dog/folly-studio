@@ -7,7 +7,7 @@ import { describe, test } from 'vitest';
 import { Layers } from '../shared/schemas/look.ts';
 import {
   compileLayer, normalizeClips, prepareLayer, prepareLook, prepareScene, renderFrame, transitionWeight,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { editClip, fitClip, moveClip, setTransition, transitionKey } from '../public/js/ui/timeline-model.ts';
 import { cog } from './fixtures/rigs.js';
 

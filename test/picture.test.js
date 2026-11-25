@@ -10,7 +10,7 @@ import { describe, test } from 'vitest';
 import {
   compileLayer, normalizeParams, pictureProblem, prepareLayer, prepareLook, prepareScene, readPicture, renderFrame,
   resolveParams,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { normaliseParam } from '../public/js/ui/bindings.ts';
 import { keyColour } from '../public/js/ui/picture-row.tsx';
 import { libraryCode } from './fixtures/patterns.js';

@@ -7,7 +7,7 @@ import { describe, test } from 'vitest';
 
 import {
   compileLayer, layerEnvelope, prepareLayer, prepareLook, prepareScene, renderFrame,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { renderFields } from '../src/bake.ts';
 import { mini } from './fixtures/rigs.js';
 

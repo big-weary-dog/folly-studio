@@ -6,7 +6,7 @@ import type { ComponentChildren } from 'preact';
 
 import type { Module } from '../../../shared/schemas/look.ts';
 import { cx } from './kit.tsx';
-import { flatModules } from '../core/tree.ts';
+import { flatModules } from '../../../core/tree.ts';
 import { removalBlock } from './composite-model.ts';
 import { BLEND_MODES, KIND_LABELS, type Reach } from './model.ts';
 import type { TreeDrag } from './tree-drag.ts';

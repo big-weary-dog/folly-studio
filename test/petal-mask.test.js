@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { pickText, readPicks } from '../public/js/ui/bindings.ts';
 import { at, COG, layerOf, layerOn } from './fixtures/layers.js';
 import { cog, folly } from './fixtures/rigs.js';

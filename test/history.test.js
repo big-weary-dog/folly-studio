@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { compileModule } from '../public/js/pattern-core.ts';
+import { compileModule } from '../core/pattern-core.ts';
 import { at, layerOf } from './fixtures/layers.js';
 
 // White for a twentieth of a second from t = 1, else nothing.

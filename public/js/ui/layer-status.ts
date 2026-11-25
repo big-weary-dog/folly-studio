@@ -5,7 +5,7 @@ import { signal } from '@preact/signals';
 import type { Module } from '../../../shared/schemas/look.ts';
 import type { FrameError, Report } from '../runtime.ts';
 import type { Layer } from './model.ts';
-import { flatModules } from '../core/tree.ts';
+import { flatModules } from '../../../core/tree.ts';
 
 type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
 export interface State { kind: StateKind; message?: string }

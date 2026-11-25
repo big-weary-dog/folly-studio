@@ -1,7 +1,7 @@
 // The selected layer's Soften row (SPEC "Spatial modules"): a blur after its whole chain, so hard edges (bars, chases)
 // lose their stair-steps. Radius in metres (0: off) and where it reaches: along the wire, in space, or both.
 import type { Soften } from '../../../shared/schemas/look.ts';
-import { BLUR_MODES, MAX_RADIUS } from '../core/spatial.ts';
+import { BLUR_MODES, MAX_RADIUS } from '../../../core/spatial.ts';
 import { Field, Scrub } from './kit.tsx';
 import type { Layer } from './model.ts';
 import type { Studio } from './studio-store.ts';
