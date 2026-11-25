@@ -87,6 +87,22 @@ describe('npm run host: releases', () => {
     assert.match(unit, new RegExp(`^WorkingDirectory=${checkout}/current$`, 'm'));
     // The data folder is the checkout's, not the release's, as one argument; a retired setting is left alone.
     assert.ok(unit.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" /`), unit);
+    assert.match(unit, /^Restart=on-failure$/m);
+  });
+
+  test('writes and starts the daily backup timer, which runs the current release\'s backup', () => {
+    const r = ok([a()]);
+    const units = path.join(home, '.config', 'systemd', 'user');
+    const service = readFileSync(path.join(units, 'folly-studio-backup.service'), 'utf8');
+    assert.match(service, new RegExp(`^WorkingDirectory=${checkout}/current$`, 'm'));
+    assert.ok(service.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" `
+      + `"STUDIO_BACKUP_DIR=${checkout}/my data-backups" bash deploy/backup.sh\n`), service);
+    const timer = readFileSync(path.join(units, 'folly-studio-backup.timer'), 'utf8');
+    assert.match(timer, /^OnCalendar=\*-\*-\* 04:15$[\s\S]*^Persistent=true$/m);
+    assert.match(r.calls,
+      /enable --quiet folly-studio folly-studio-backup\.timer[\s\S]*restart folly-studio-backup\.timer/);
+    // Its own backup unit is not another instance's.
+    ok([b()]);
   });
 
   test('a refused setting leaves the live release and the service as they were', () => {

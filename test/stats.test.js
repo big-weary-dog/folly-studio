@@ -81,6 +81,29 @@ describe('the counts', () => {
       await stats.onResponse(req('/'), reply(5));
       s = stats.read();
       assert.deepEqual(s.days.map((d) => [d.day, d.requests]), [['2026-10-22', 1], ['2026-10-21', 13]]);
+      stats.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('a day that ends is one journal line, with no request to end it', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 21, 23, 58) });
+    try {
+      const stats = createStats({ log, store });
+      await stats.onResponse(req('/api/looks'), reply(1500, 500));
+      lines.length = 0;
+      vi.advanceTimersByTime(60_000);
+      assert.deepEqual(lines, [], 'not before the day ends');
+      vi.advanceTimersByTime(2 * 60_000);
+      assert.equal(lines.length, 1);
+      assert.match(lines[0], new RegExp('^\\[stats\\] 2026-10-21 visitors=0 people=0 views=0 requests=1 errors=1 '
+        + 'slow=1 bakes=0/0/0 uptime=\\d+s rss=\\d+MB$'));
+      vi.advanceTimersByTime(24 * 3_600_000);
+      assert.match(lines[1], /^\[stats\] 2026-10-22 .* requests=0 /, 'a quiet day too');
+      stats.stop();
+      vi.advanceTimersByTime(48 * 3_600_000);
+      assert.equal(lines.length, 2, 'stopped');
     } finally {
       vi.useRealTimers();
     }

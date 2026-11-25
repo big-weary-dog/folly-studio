@@ -55,8 +55,14 @@ read -r ref host port < <(set -a; . "$env_file"
 ref=${1:-$ref}
 # shellcheck disable=SC1090 # the data dir
 data=$(cd "$root"; set -a; . "$env_file"; realpath -m "${STUDIO_DATA:-$root/data}")
+# shellcheck disable=SC1090 # the daily backup's folder and off-site copy (docs/HOSTING.md "Backups")
+backups=$(cd "$root"; set -a; . "$env_file"; realpath -m "${STUDIO_BACKUP_DIR:-$data-backups}")
+# shellcheck disable=SC1090
+offsite=$(set -a; . "$env_file"; echo "${STUDIO_BACKUP_OFFSITE:-}")
+[ -z "$offsite" ] || command -v rsync >/dev/null \
+  || die "STUDIO_BACKUP_OFFSITE is set but there is no rsync: sudo apt install rsync"
 case $host in 127.0.0.1|localhost|::1) ;; *) die "HOST=$host: keep the studio on loopback, the tunnel reaches it";; esac
-# The other instances this machine has: never their port or their data.
+# The other instances this machine has: never their port, their data or their backups.
 for name in "${!PORTS[@]}"; do
   other=$settings/$name.env
   [ "$other" != "$env_file" ] && [ -r "$other" ] || continue
@@ -65,9 +71,15 @@ for name in "${!PORTS[@]}"; do
     echo "${PORT:-${PORTS[$name]}} ${STUDIO_DATA:+$(realpath -m "$STUDIO_DATA")}")
   [ "$other_port" != "$port" ] || die "PORT=$port is $other's too: give each studio its own port"
   [ "${other_data:-}" != "$data" ] || die "STUDIO_DATA=$data is $other's too: give each studio its own data"
+  # shellcheck disable=SC1090 # its backup folder, when its settings name one or its data
+  other_backups=$(set -a; . "$other"; [ -z "${STUDIO_DATA:-}${STUDIO_BACKUP_DIR:-}" ] \
+    || realpath -m "${STUDIO_BACKUP_DIR:-$STUDIO_DATA-backups}")
+  [ "$other_backups" != "$backups" ] \
+    || die "STUDIO_BACKUP_DIR=$backups is $other's too: give each studio its own backups"
 done
 for other in "$units"/*.service; do
-  [ -f "$other" ] && [ "$other" != "$units/$unit.service" ] || continue
+  [ -f "$other" ] && [ "$other" != "$units/$unit.service" ] && [ "$other" != "$units/$unit-backup.service" ] \
+    || continue
   # $root itself: a unit from before releases.
   ! grep -qxF -e "WorkingDirectory=$root/current" -e "WorkingDirectory=$root" "$other" \
     || die "$root is $(basename "$other" .service)'s checkout: give each studio its own"
@@ -130,12 +142,9 @@ fi
 
 node=$(command -v node)
 # The data folder (resolved above) is the checkout's, as when it was the working directory, never a release's.
-# As one systemd argument: quoted, with its own \, ", $ and % escaped.
-paths_args=
-for setting in "STUDIO_DATA=$data"; do
-  setting=${setting//\\/\\\\}; setting=${setting//\"/\\\"}; setting=${setting//\$/\$\$}
-  paths_args+="\"${setting//%/%%}\" "
-done
+# A setting as one systemd argument: quoted, with its own \, ", $ and % escaped.
+arg() { local s=${1//\\/\\\\}; s=${s//\"/\\\"}; s=${s//\$/\$\$}; printf '"%s"' "${s//%/%%}"; }
+path_env="PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 mkdir -p "$units"
 cat > "$units/$unit.service" <<EOF
 # Written by deploy/host.sh; run it again rather than editing this.
@@ -145,10 +154,11 @@ Description=Folly Studio${instance:+ ($instance)} ($root)
 [Service]
 WorkingDirectory=$root/current
 EnvironmentFile=$env_file
-Environment=PATH=$(dirname "$node"):$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=$path_env
 # Set here, as the env file would win over Environment=.
-ExecStart=/usr/bin/env $paths_args$node server.ts
-Restart=always
+ExecStart=/usr/bin/env $(arg "STUDIO_DATA=$data") $node server.ts
+# An uncaught exception exits 1 (docs/HOSTING.md "Monitoring"); a stop exits 0 and stays stopped.
+Restart=on-failure
 RestartSec=5
 TimeoutStopSec=20
 # A stop signals the server alone, which saves and closes itself.
@@ -157,9 +167,38 @@ KillMode=mixed
 [Install]
 WantedBy=default.target
 EOF
+# The daily backup (docs/HOSTING.md "Backups"), from whichever release is current when it runs.
+cat > "$units/$unit-backup.service" <<EOF
+# Written by deploy/host.sh; run it again rather than editing this.
+[Unit]
+Description=Folly Studio${instance:+ ($instance)} backup ($root)
+
+[Service]
+Type=oneshot
+WorkingDirectory=$root/current
+EnvironmentFile=$env_file
+Environment=$path_env
+ExecStart=/usr/bin/env $(arg "STUDIO_DATA=$data") $(arg "STUDIO_BACKUP_DIR=$backups") bash deploy/backup.sh
+Nice=10
+EOF
+cat > "$units/$unit-backup.timer" <<EOF
+# Written by deploy/host.sh; run it again rather than editing this.
+[Unit]
+Description=Folly Studio${instance:+ ($instance)} daily backup
+
+[Timer]
+OnCalendar=*-*-* 04:15
+# Missed while the machine was off: run at the next start.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+EOF
 systemctl --user daemon-reload
-systemctl --user enable --quiet "$unit"
+systemctl --user enable --quiet "$unit" "$unit-backup.timer"
 systemctl --user restart "$unit"
+systemctl --user restart "$unit-backup.timer"
 if [ -f "$units/$unit-pi.service" ]; then
   systemctl --user disable --now --quiet "$unit-pi" || true
   rm -f "$units/$unit-pi.service"

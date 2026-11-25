@@ -74,6 +74,7 @@ function settings() {
 /** STUDIO_ names read by the deploy script and the tests, not by the server; and the AI's, which an older env file
  * may still set and the server ignores (SPEC-access "No AI"). */
 const ELSEWHERE = new Set(['STUDIO_REF', 'STUDIO_UNIT', 'STUDIO_ENV_FILE', 'STUDIO_HOST_CHECKED_OUT', 'STUDIO_PW_OUT',
+  'STUDIO_BACKUP_DIR', 'STUDIO_BACKUP_KEEP', 'STUDIO_BACKUP_OFFSITE',
   'STUDIO_MODELS', 'STUDIO_GENERATOR', 'STUDIO_GENERATOR_FALLBACK', 'STUDIO_GENERATOR_CONCURRENCY', 'STUDIO_FOUNDRY',
   'STUDIO_FOUNDRY_WAIT', 'STUDIO_CRITIQUE_BUDGET_MS', 'STUDIO_IDEA_LOGS', 'STUDIO_IDEA_LOGS_MAX_BYTES',
   ...['MODEL', 'EFFORT', 'MAX_TOKENS', 'TIMEOUT_MS', 'FALLBACKS'].map((s) => `STUDIO_CLAUDE_${s}`),

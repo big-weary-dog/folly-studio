@@ -93,5 +93,22 @@ export function createStats({ log, store, trustProxy = false }: { log: Log, stor
       bakes };
   }
 
-  return { onResponse, read, routes: { 'GET /admin/stats': forAdmins(async () => read()) } };
+  // When a local day ends, its counts as one journal line. A timer that fires early waits again.
+  let timer: NodeJS.Timeout | undefined;
+  const atDayEnd = () => {
+    const ended = days[0]!;
+    if (today() !== ended) {
+      const { bakes, uptime, memory } = read();
+      log.info(`[stats] ${ended.day} visitors=${ended.visitors} people=${ended.people} views=${ended.views} `
+        + `requests=${ended.requests} errors=${ended.errors} slow=${ended.slow} `
+        + `bakes=${bakes.done}/${bakes.failed}/${bakes.waiting} uptime=${uptime}s `
+        + `rss=${Math.round(memory.rss / 1048576)}MB`);
+    }
+    wait();
+  };
+  const wait = () => { timer = setTimeout(atDayEnd, Math.max(1000, today().end - Date.now())).unref(); };
+  wait();
+  const stop = () => clearTimeout(timer);
+
+  return { onResponse, read, stop, routes: { 'GET /admin/stats': forAdmins(async () => read()) } };
 }

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // A dated backup of the studio's data dir as a .tar.gz, safe while the server runs.
 //
-//   node tools/backup.ts [--data <dir>] [--out <dir>] [--frames]
+//   node tools/backup.ts [--data <dir>] [--out <dir>] [--frames] [--keep <n>]
 //
-// --data: STUDIO_DATA, else data/ in the repo. --out: where the archive goes, default <data>/../backups/.
+// --data: STUDIO_DATA, else data/ in the repo. --out: where the archive goes, default <data>-backups/ beside it.
+// --keep: then remove all but the newest n archives there. The first line printed names the archive.
 // The store writes each JSON file whole and renames it into place, so one read is one version of it; the
 // files are listed and read until a pass finds the list the same and none replaced while it read, so the set is
 // from one moment. Any error but a file removed meanwhile fails the backup rather than leave a file out. Baked
@@ -102,7 +103,7 @@ async function* tarStream(root: string, files: File[], frames: string[], count: 
 }
 
 /** backup({ dataDir, outDir, frames = false, now }) → { file, entries, bytes } */
-export async function backup({ dataDir, outDir = path.join(path.dirname(path.resolve(dataDir)), 'backups'),
+export async function backup({ dataDir, outDir = `${path.resolve(dataDir)}-backups`,
   frames = false, now = new Date() }: { dataDir: string, outDir?: string, frames?: boolean, now?: Date }) {
   const files = await snapshot(dataDir);
   const framesDir = path.join(dataDir, 'frames');
@@ -127,6 +128,18 @@ export async function backup({ dataDir, outDir = path.join(path.dirname(path.res
   return { file, entries: count.entries, bytes: (await fs.stat(file)).size };
 }
 
+const ARCHIVE = /^folly-studio-\d{4}-\d\d-\d\dT\d\d-\d\d-\d\dZ\.tar\.gz$/;
+/** Removes all but the newest `keep` (≥ 1) archives in `outDir`, by their dated names; nothing else there. */
+const checkKeep = (keep: number) => {
+  if (!Number.isInteger(keep) || keep < 1) throw new Error(`backup: --keep ${keep}: a whole number, at least 1`);
+};
+export async function prune(outDir: string, keep: number) {
+  checkKeep(keep);
+  const old = (await fs.readdir(outDir)).filter((n) => ARCHIVE.test(n)).sort().slice(0, -keep);
+  for (const name of old) await fs.rm(path.join(outDir, name));
+  return old;
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -134,8 +147,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     || fileURLToPath(new URL('../data/', import.meta.url)));
   const out = opt('--out'), outDir = out ? path.resolve(out) : undefined;
   try {
+    const keep = opt('--keep') === undefined ? undefined : Number(opt('--keep'));
+    if (keep !== undefined) checkKeep(keep);
     const r = await backup({ dataDir, outDir, frames: args.includes('--frames') });
     process.stdout.write(`${r.file}: ${r.entries} files, ${(r.bytes / 1024).toFixed(1)} KB\n`);
+    if (keep !== undefined) {
+      for (const name of await prune(path.dirname(r.file), keep)) process.stdout.write(`removed ${name}\n`);
+    }
   } catch (err) {
     process.stderr.write(`${(err as Error).message}\n`);
     process.exit(1);
