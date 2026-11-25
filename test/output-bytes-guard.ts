@@ -4,7 +4,7 @@
 // (output-bytes-<rig>.test.ts), so the two run side by side.
 import { readFileSync } from 'node:fs';
 
-import { expect, test } from 'vitest';
+import { beforeAll, expect, test } from 'vitest';
 
 import { BYTES, outputBytes } from '../tools/output-bytes.ts';
 
@@ -13,13 +13,15 @@ const HOW = 'LED bytes moved. Intentional pattern, rig or output-default change:
 const recorded = JSON.parse(readFileSync(BYTES, 'utf8')).rigs;
 
 export function outputBytesOn(rig: string) {
-  test(`warming then seeking to zero preserves every look's LED bytes on ${rig}`, () => {
-    expect(outputBytes(rig, true)).toEqual(recorded[rig]);
-  });
+  let bytes: ReturnType<typeof outputBytes>;
+  beforeAll(() => { bytes = outputBytes(rig); });
   test(`every look sends the LED bytes recorded on ${rig}`, () => {
-    const now = outputBytes(rig), was = recorded[rig];
+    const was = recorded[rig], now = bytes.cold;
     const moved = Object.keys({ ...was, ...now }).filter((id) => now[id] !== was[id])
       .map((id) => `${id}: ${was[id] ?? 'new'} → ${now[id] ?? 'gone'}`);
     expect(moved.length ? `${HOW}\n${moved.join('\n')}` : '').toBe('');
+  });
+  test(`playing on, then seeking to zero, preserves every look's LED bytes on ${rig}`, () => {
+    expect(bytes.warm).toEqual(recorded[rig]);
   });
 }
