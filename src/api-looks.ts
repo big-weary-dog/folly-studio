@@ -53,29 +53,34 @@ function withoutRemaps(look: Look): Look {
   return changed ? { ...look, layers, ...(versions ? { versions } : {}) } : look;
 }
 
+/** What the start-up upgrade asks of the library (src/library-refs.ts): a look as a read gives it, its code filled;
+ * as a write keeps it, refs alone; and the hash of the code it was saved with, carried into its new order. */
+type Refs = { filled: (look: Look) => Look, write: (look: Look) => Look,
+  carryHash: (from: object, to: object) => void };
+
 /**
- * A stored look at start: role remaps dropped; from before the one rule, its layers and versions converted, marked. A
- * bake keeps its place when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
- * `refs` (src/library-refs.ts) gives a look as a read does, its code from the library (what a bake's hash is of), and
- * carries the hash of the code each was saved with into its new order.
+ * A stored look at start: role remaps dropped; from before the one rule, its layers and versions converted, marked, and
+ * kept as refs. The conversion goes by the code as played (a blur's stage end is in its code). A bake keeps its place
+ * when the conversion is exact (same frames); otherwise the look needs a fresh bake and review.
  */
-export function upgradeStored(stored: Look, refs: { filled: (look: Look) => Look,
-  carryHash: (from: object, to: object) => void } = { filled: (l) => l, carryHash: () => {} }): Look {
-  const { filled } = refs;
+export function upgradeStored(stored: Look, refs: Refs): Look {
   const look = withoutRemaps(stored);
   if (look.chain === CHAIN) return look;
-  const { look: up, exact } = upgradeLook(look);
-  const versions = look.versions?.map((v) => (Array.isArray(v.layers)
-    ? { ...v, layers: convertLayers(v.layers as Layer[]).layers } : v));
-  const out: Look = { ...up, ...(versions ? { versions } : {}) };
+  const read = refs.filled(look);
+  const { look: up, exact } = upgradeLook({ ...look, layers: read.layers });
+  const versions = look.versions?.map((v, i) => {
+    const layers = read.versions?.[i]?.layers;
+    return Array.isArray(layers) ? { ...v, layers: convertLayers(layers as Layer[]).layers } : v;
+  });
+  const out = refs.write(structuredClone({ ...up, ...(versions ? { versions } : {}) }));
   refs.carryHash(look, out);
-  versions?.forEach((v, i) => refs.carryHash(look.versions![i]!, v));
+  out.versions?.forEach((v, i) => refs.carryHash(look.versions![i]!, v));
   if (!exact) {
     delete out.reviewedBy;
     return { ...out, reviewed: false };
   }
-  if (look.bake?.layersHash === layersHash(renderFields(filled(look)))) {
-    out.bake = { ...look.bake, layersHash: layersHash(renderFields(filled(up))) };
+  if (look.bake?.layersHash === layersHash(renderFields(read))) {
+    out.bake = { ...look.bake, layersHash: layersHash(renderFields(refs.filled(out))) };
   }
   return out;
 }

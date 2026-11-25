@@ -108,10 +108,14 @@ export function libraryRefs(loadLibrary: () => readonly LibraryEntry[], historyF
       return doc;
     },
     /** `to` (changed in place), `from` with its modules converted (reordered), given the hash of the code `from` was
-     * saved with in its new order; the old hash kept when the library has changed that code since. */
+     * saved with (its stored hash, or its stored code's) in its new order; the old hash kept when the library has
+     * changed that code since, and none when nothing says what it was. */
     carryHash(from: object, to: object) {
-      const was = (from as Node).codeHash, lib = library();
-      if (typeof was !== 'string') return;
+      const was = (from as Node).codeHash ?? codeHash((from as Node).layers), lib = library();
+      if (typeof was !== 'string') {
+        delete (to as Node).codeHash;
+        return;
+      }
       const now = (layers: unknown) => {
         const copy = structuredClone(layers);
         filled(copy, lib);

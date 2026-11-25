@@ -68,7 +68,7 @@ export async function createServer(opts: Options = {}) {
   const views = { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
   const filled = (look: StoredLook) => views.looks.read(structuredClone(look));
   const store = await createStore(dataDir, { log, views,
-    upgrade: { looks: (l) => upgradeStored(l, { filled, carryHash: views.looks.carryHash }) } });
+    upgrade: { looks: (l) => upgradeStored(l, { ...views.looks, filled }) } });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
   const { loadRig } = loaders;
