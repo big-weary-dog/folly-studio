@@ -126,7 +126,7 @@ nothing. With it:
   code changes so plays differently: its bake, frames and review
   (`reviewed`, `reviewedBy`, `flashOverride`) go, to be baked and reviewed afresh; a version whose code changes loses
   its `reviewed`;
-- looks lose `ideaId` and users `access`, which nothing reads;
+- looks lose `ideaId` and users `access`, the AI's;
 - each look changed is listed, the dry run's too, by look id, title and owner: each layer switched or dropped and
   why, and apart, each module whose stored code was not its ref's current file (an edited or earlier copy, played as
   the library's). `migrations.json`'s `library-only` and `retired-patterns` (when it ran) mark it done, so it never
@@ -219,7 +219,7 @@ look's words, not what plays.
 
 A save that changes what plays keeps what was there as a version (`src/look-versions.ts`): `{ n, how, name?, from?,
 ideaId?, ask?, title, summary, layers, duration, bpm, globals?, automation?, savedAt, reviewed? }`. `n` counts up
-and is never reused; `how` is `auto` (a save), `ai` (an AI refinement: its `ideaId` and what it `ask`ed), `restore`
+and is never reused; `how` is `auto` (a save), `ai` (an AI refinement, kept from before Studio dropped the AI: its `ideaId` and what it `ask`ed), `restore`
 (of version `from`) or `import` (a look file overruling it: spec/looks "Look files"); `reviewed = { by,
 flashOverride? }` when a curator had reviewed it. The look holds its own
 number and making as `look.version` (`GET` answers its owner with the number alone). The last 20 unnamed versions

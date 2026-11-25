@@ -78,7 +78,7 @@ export function createStudio(me: User | null) {
   const data = { rig: null as Rig | null, index: null as GroupIndex | null, library: [] as LibraryEntry[] };
   const clock = { t: 0 };       // show time (per frame, not a signal)
   const playing = signal(!reducedMotion()), speed = signal(1), baked = signal(false);
-  /** The work's revision: one more at each change to it, so a reply that took a while (a save, say) can tell
+  /** The work's revision: one more at each change to it, so a reply that took a while (a save, a refinement) can tell
    * whether the work is still what it started from. */
   let rev = 0, open = true;
   const newest = new Map<string, number>();

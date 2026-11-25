@@ -73,13 +73,12 @@ function settings() {
   } as const;
 }
 
-/** STUDIO_ names read by the deploy script and the tests, not by the server. */
+/** STUDIO_ names read by the deploy script and the tests, not by the server; and the AI's, which an older env file
+ * may still set and the server ignores (spec/http "No AI"). */
 const ELSEWHERE = new Set(['STUDIO_REF', 'STUDIO_UNIT', 'STUDIO_ENV_FILE', 'STUDIO_HOST_CHECKED_OUT', 'STUDIO_PW_OUT',
-  'STUDIO_BACKUP_DIR', 'STUDIO_BACKUP_KEEP', 'STUDIO_BACKUP_OFFSITE']);
-/** Retired settings an older env file may still hold: ignored, so they start the server without a warning. */
-const RETIRED = new Set(['STUDIO_MODELS', 'STUDIO_GENERATOR', 'STUDIO_GENERATOR_FALLBACK',
-  'STUDIO_GENERATOR_CONCURRENCY', 'STUDIO_FOUNDRY', 'STUDIO_FOUNDRY_WAIT', 'STUDIO_CRITIQUE_BUDGET_MS',
-  'STUDIO_IDEA_LOGS', 'STUDIO_IDEA_LOGS_MAX_BYTES',
+  'STUDIO_BACKUP_DIR', 'STUDIO_BACKUP_KEEP', 'STUDIO_BACKUP_OFFSITE',
+  'STUDIO_MODELS', 'STUDIO_GENERATOR', 'STUDIO_GENERATOR_FALLBACK', 'STUDIO_GENERATOR_CONCURRENCY', 'STUDIO_FOUNDRY',
+  'STUDIO_FOUNDRY_WAIT', 'STUDIO_CRITIQUE_BUDGET_MS', 'STUDIO_IDEA_LOGS', 'STUDIO_IDEA_LOGS_MAX_BYTES',
   ...['MODEL', 'EFFORT', 'MAX_TOKENS', 'TIMEOUT_MS', 'FALLBACKS'].map((s) => `STUDIO_CLAUDE_${s}`),
   ...['BIN', 'TIMEOUT_MS', 'IDLE_MS', 'WORK', 'SCHEMA', 'USER_CONFIG'].map((s) => `STUDIO_CODEX_${s}`),
   ...['BIN', 'WORK', 'MODEL', 'TIMEOUT', 'POLL', 'DATA', 'TMUX', 'MAX_FRAMES'].map((s) => `STUDIO_FLEET_${s}`)]);
@@ -107,7 +106,7 @@ export function readConfig(env: NodeJS.ProcessEnv, { log, warned }: { log?: Logg
   const r = schemaOf().safeParse(env);
   if (!r.success) throw new ConfigError(r.error.issues.map((i) => ({ name: i.path.join('.'), message: i.message })));
   for (const name of Object.keys(env)) {
-    if (name.startsWith('STUDIO_') && !(name in r.data) && !ELSEWHERE.has(name) && !RETIRED.has(name)) {
+    if (name.startsWith('STUDIO_') && !(name in r.data) && !ELSEWHERE.has(name)) {
       warn(name, `${name} is not a setting the server reads (docs/HOSTING.md "Environment"); a typo?`);
     }
   }

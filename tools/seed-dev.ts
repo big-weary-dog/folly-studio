@@ -4,9 +4,9 @@
 //   node tools/seed-dev.ts --from <source data dir> --to <empty target dir>
 //
 // It copies the shared looks (each with its baked frames and gallery previews) and the light settings. Never users,
-// sessions or reports, which belong to people the dev studio does not have. A copied
+// sessions or reports, which belong to people the dev studio does not have, nor an older folder's AI files. A copied
 // look keeps its owner's id and name, so the gallery shows who made it, but no account in the dev studio owns it: it
-// is everyone's to open, play and remix, no one's to edit. A look's ideaId is dropped, since its idea stays
+// is everyone's to open, play and remix, no one's to edit. An older look's ideaId is dropped, since its idea stays
 // behind. Unshared looks stay behind too: in the dev studio no one could see them. The target must be empty (or not
 // exist) and must not be the source or inside it.
 

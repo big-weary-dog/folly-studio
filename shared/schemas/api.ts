@@ -92,8 +92,8 @@ export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.i
   hiddenBy?: string,
   flashOverride?: FlashOverride, chain?: 2, origin?: string };
 
-/** How a version was made (spec/looks "Versions"): a save, an AI refinement, a restore of version `from`, or a look
- * file overruling it. */
+/** How a version was made (spec/looks "Versions"): a save, an AI refinement (kept from before Studio dropped the
+ * AI), a restore of version `from`, or a look file overruling it. */
 export type VersionHow = 'auto' | 'ai' | 'restore' | 'import';
 /** What a version is besides its content: its number, how it was made, its name (named ones are kept), the round. */
 export type VersionMeta = { n: number, how?: VersionHow, name?: string, from?: number, ideaId?: string,

@@ -160,7 +160,7 @@ Set up, once:
    ```
 
    This copies the shared looks (with their baked frames and gallery previews) and the light settings; it only reads
-   the source. It never copies users, sessions or reports. A copied
+   the source. It never copies users, sessions or reports, nor an older folder's AI files. A copied
    look keeps its owner's name in the gallery, but no dev account owns it: anyone may open and play it once approved
    (curators any), no one edit it. Unshared looks stay behind. It refuses a target that is not empty, or that is the source or inside it; to seed
    again, stop the dev studio and empty its folder first.
@@ -201,8 +201,8 @@ node attribute). People reach it without installing Tailscale.
 (`src/config.ts`; all of them under "Every setting" below) and logs what is set. A value it cannot read stops it,
 naming the variable: on/off takes `1`, `true`, `on` or `yes`, or `0`, `false`, `off` or `no` (any case); a duration
 takes a unit (`500ms`, `90s`, `5m`, `2h`), and a bare number is in seconds; a size takes `k`, `m` or `g` (`2GB`). A
-`STUDIO_` name it does not read is warned of (a typo?), but for retired ones an older file may still hold, which it
-ignores. Unset, each setting has its default.
+`STUDIO_` name it does not read is warned of (a typo?), but for the AI's settings an older file may still hold, which
+it ignores. Unset, each setting has its default.
 
 ```sh
 HOST=127.0.0.1
