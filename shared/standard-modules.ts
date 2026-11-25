@@ -1,6 +1,6 @@
 // Standard modules (SPEC "Modules"): a module whose `ref` names a library module is that module, and keeps the
-// library's name; any other (written by the AI, or edited in the code editor, which drops the ref) is custom, and its
-// own to name. The one test the chain, the store and the server share.
+// library's name; one whose ref the library lacks keeps its own (a save refuses it: SPEC-baking "Library only"). The
+// one test the chain, the store and the server share.
 type Entry = { name: string, title?: string, kind?: string };
 type Named = { ref?: string, title: string };
 
