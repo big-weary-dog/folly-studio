@@ -1,14 +1,13 @@
 // npm run smoke, too: the privacy page (spec/http "Privacy") from sign-in, signed out, and from the user menu,
 // signed in, on a laptop and a phone. Screenshots land in the test's output folder.
+import { SIZES } from './sizes.js';
 import { expect, test } from './studio.js';
 
-const LAPTOP = { viewport: { width: 1366, height: 900 } };
-const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 const shot = (page, info, step) => page.screenshot({ path: info.outputPath(`${step}.png`), fullPage: true });
 
-for (const [size, options] of [['laptop', LAPTOP], ['phone', PHONE]]) {
+for (const [size, options] of Object.entries(SIZES)) {
   test(`Privacy from sign-in and the user menu, ${size}`, async ({ browser, studio }, info) => {
-    const ctx = await browser.newContext(options), page = await ctx.newPage();
+    const page = await (await browser.newContext(options)).newPage();
     await page.goto(`${studio.origin}/login`);
     await page.getByRole('link', { name: /Privacy/ }).click();
     await expect(page).toHaveURL(`${studio.origin}/privacy`);
@@ -30,6 +29,5 @@ for (const [size, options] of [['laptop', LAPTOP], ['phone', PHONE]]) {
     await expect(page.getByRole('heading', { name: 'Deleting your data' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to sign in' })).toHaveCount(0);
     await shot(page, info, `2-signed-in-${size}`);
-    await ctx.close();
   });
 }

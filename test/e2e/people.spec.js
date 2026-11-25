@@ -1,10 +1,10 @@
 // npm run smoke, too: Admin → People (spec/http "People") on a laptop and a phone: an account made a curator,
 // disabled and enabled, then deleted after a confirm. Screenshots land in the test's output folder.
+import { SIZES } from './sizes.js';
 import { expect, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'people-admin' } });
 
-const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true };
 const shot = (page, info, step) => page.screenshot({ path: info.outputPath(`${step}.png`), fullPage: true });
 
 /** Signs `username` up through the API, so People has someone to list. */
@@ -13,21 +13,20 @@ const signup = (request, origin, username) => request.post(`${origin}/api/signup
 
 /** A page of `options`' size signed in as the admin, on People. */
 async function people(browser, origin, options = {}) {
-  const ctx = await browser.newContext(options), page = await ctx.newPage();
+  const page = await (await browser.newContext(options)).newPage();
   const first = await signup(page.request, origin, 'people-admin');
   if (first.status() !== 201) {
     await page.request.post(`${origin}/api/login`, { data: { username: 'people-admin', password: 'correct horse' } });
   }
   await page.goto(`${origin}/admin/people`);
   await expect(page.getByRole('heading', { name: 'People' })).toBeVisible();
-  return { ctx, page };
+  return page;
 }
 
 test('People changes a role, disables and deletes an account', async ({ browser, studio }, info) => {
-  const { ctx, page } = await people(browser, studio.origin);
+  const page = await people(browser, studio.origin);
   const other = await browser.newContext();
   expect((await signup(other.request, studio.origin, 'moth')).status()).toBe(201);
-  await other.close();
   await page.reload();
   const row = page.locator('.people-row', { hasText: 'moth' });
   await expect(page.locator('.people-row', { hasText: 'people-admin' }).getByLabel('Role')).toBeDisabled();
@@ -45,12 +44,10 @@ test('People changes a role, disables and deletes an account', async ({ browser,
   await expect(row).toHaveCount(0);
   await page.reload();
   await expect(page.locator('.people-row', { hasText: 'moth' })).toHaveCount(0);
-  await ctx.close();
 });
 
 test('People on a phone', async ({ browser, studio }, info) => {
-  const { ctx, page } = await people(browser, studio.origin, PHONE);
+  const page = await people(browser, studio.origin, SIZES.phone);
   await expect(page.getByLabel('Admin page')).toHaveValue('people');
   await shot(page, info, '2-people-phone');
-  await ctx.close();
 });

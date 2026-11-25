@@ -24,7 +24,6 @@ for (const width of [390, 1366]) {
     await page.setViewportSize({ width, height: width < 600 ? 844 : 768 });
     const owner = await browser.newContext();
     await account(owner, studio.origin, `gallery-owner-${width}`, ['Ember drift', 'Rose bloom']);
-    await owner.close();
     await account(page.context(), studio.origin, `gallery-admin-${width}`);
 
     await page.goto(`${studio.origin}/gallery`);

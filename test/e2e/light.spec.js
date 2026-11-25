@@ -38,13 +38,7 @@ for (const [name, device] of Object.entries(SIZES)) {
       studio }, info) => {
       const errors = [];
       page.on('pageerror', (e) => errors.push(String(e)));
-      await page.goto(`${studio.origin}/login`);
-      await page.getByRole('button', { name: 'Sign up' }).click();
-      await page.fill('input[name=username]', `light-${name}`);
-      await page.fill('input[name=password]', 'correct horse');
-      await page.locator('form button[type=submit]').click();
-      await expect(page).toHaveURL(/\/gallery$/, { timeout: 20_000 });
-
+      await signupIn(page.request, studio.origin, `light-${name}`);
       await page.goto(`${studio.origin}/admin/light`);
       if (name === 'phone') {
         await expect(page.getByText('Light calibration and file tools are available on a laptop.')).toBeVisible();
