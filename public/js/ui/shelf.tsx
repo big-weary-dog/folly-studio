@@ -14,13 +14,16 @@ import type { Studio } from './studio-store.ts';
 type Kind = Module['kind'];
 export type Entry = LibraryEntry;
 type Audition = { pv: Preview; layer?: Pick<Layer, 'groups'> & Partial<Layer>;
-  layers?: (e: Entry) => Layer[] | null; insert?: (mods: Module[], m: Module) => Module[] };
+  layers?: (e: Entry) => Layer[] | null; insert?: (mods: Module[], m: Module) => Module[]; replace?: boolean };
 type Tab = Kind | 'preset';
-const TABS: Record<'module' | 'layer', [Tab, string, string][]> = {
+type Mode = 'module' | 'layer' | 'look';
+const TABS: Record<Mode, [Tab, string, string][]> = {
   module: [['source', 'Sources', 'Draw onto what is above them.'], ['warp', 'Warps', 'Bend everything above them.'],
     ['filter', 'Filters', 'Rework everything above them, some by another source (their input).']],
   layer: [['source', 'Sources', 'Start a layer from one source.'],
     ['preset', 'Presets', 'Layers of modules put together, ready to play.']],
+  look: [['preset', 'Presets', 'Looks ready to play: pick one to start from, then make it yours.'],
+    ['source', 'Sources', 'Start from one source.']],
 };
 const TRY = '~audition';
 const remembered = (mode: string): Tab | null => {
@@ -41,8 +44,9 @@ function clearOf(canvas: HTMLElement, dlg: HTMLElement) {
   return best.w >= 120 && best.h >= 120 ? { ...best, w: Math.round(best.w), h: Math.round(best.h) } : null;
 }
 
-/** The audition: the look the app sent is kept, and put back unless something was picked. */
-export function auditioner({ pv, layer, layers, insert }: Partial<Audition> = {}) {
+/** The audition: the look the app sent is kept, and put back unless something was picked. With `replace`, what is
+ * auditioned plays in place of the look's layers, not above them. */
+export function auditioner({ pv, layer, layers, insert, replace }: Partial<Audition> = {}) {
   let saved: { layers: Layer[]; extra: object } | null = null, mine: Layer[] | null = null, timer = 0;
   let shown: Entry | null = null, groups: string[] | undefined;    // a new layer's groups, once picked
   const show = (e: Entry) => {
@@ -50,14 +54,15 @@ export function auditioner({ pv, layer, layers, insert }: Partial<Audition> = {}
     shown = e;
     if (!r?.ready || !layer) return;
     if (!saved || r.layers !== mine) saved = { layers: r.layers, extra: r.extra };   // the look as the app sent it
+    const under = replace ? [] : saved.layers;
     if (isPreset(e)) {
       const made = layers?.(e);
       if (!made) return;
-      mine = [...saved.layers, ...made.map((l, i) => ({ ...l, id: `${TRY}${i}`, ...(groups ? { groups } : {}) }))];
+      mine = [...under, ...made.map((l, i) => ({ ...l, id: `${TRY}${i}`, ...(groups ? { groups } : {}) }))];
     } else {
       const m = { ...moduleFromLibrary(e), id: TRY };
       mine = m.kind === 'source' && !insert
-        ? [...saved.layers, { id: TRY, title: m.title, groups: groups ?? layer.groups, blend: 'over', level: 1,
+        ? [...under, { id: TRY, title: m.title, groups: groups ?? layer.groups, blend: 'over', level: 1,
           modules: [m], soften: { ...DEFAULT_SOFTEN } }]                // as a new layer would be
         : saved.layers.map((l) => (l.id !== layer.id ? l : { ...l,
           modules: insert!(l.modules, m) }));
@@ -81,16 +86,17 @@ export function auditioner({ pv, layer, layers, insert }: Partial<Audition> = {}
   };
 }
 
-/** Add a module (`mode: 'module'`) or Add a layer (`'layer'`; given `st`, with the new layer's groups, handed to
- * `onPick`). */
+/** Add a module (`mode: 'module'`), Add a layer (`'layer'`; given `st`, with the new layer's groups, handed to
+ * `onPick`) or Start a look (`'look'`: presets first, no groups). */
 export function openShelf({ library, onPick, audition, mode, st, sourcesOnly = false }: { library: LibraryEntry[];
-  onPick: (e: Entry, groups?: string[]) => void; audition?: Audition; mode: 'module' | 'layer'; st?: Studio;
+  onPick: (e: Entry, groups?: string[]) => void; audition?: Audition; mode: Mode; st?: Studio;
   sourcesOnly?: boolean }) {
   const A = auditioner(audition), tabs = sourcesOnly ? TABS.module.slice(0, 1) : TABS[mode];
   const root = st?.data.index?.root;
   const where = mode === 'layer' && st && root ? st : null;
   let picked = false;
-  const title = mode === 'layer' ? 'Add a layer' : sourcesOnly ? 'Add a source' : 'Add a module';
+  const title = mode === 'look' ? 'Start a look' : mode === 'layer' ? 'Add a layer'
+    : sourcesOnly ? 'Add a source' : 'Add a module';
   if (where) { where.newGroups.value = [root!]; A.regroup([root!]); }
   return openDialog({ title, className: cx('library-dialog shelf-dialog', where && 'has-groups'),
     onClose: () => {

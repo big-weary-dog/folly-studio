@@ -68,7 +68,7 @@ export function Looks({ scope }: ViewProps) {
             aria-pressed={approvedOnly} onClick={() => setApprovedOnly((on) => !on)}>Approved</button>}
           <LookFiles looks={looks} gallery={gallery} approvedOnly={approvedOnly || !curator}
             reload={() => setLoads((n) => n + 1)} />
-          {!gallery && <a class="btn primary" href="/studio">New look</a>}
+          {!gallery && <a class="btn primary" href="/studio?new">New look</a>}
         </div>
       </div>
       <ul class="card-grid" aria-busy={!looks && !error}>

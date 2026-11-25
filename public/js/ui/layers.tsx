@@ -28,6 +28,20 @@ function insertLayer(st: Studio, layer: Layer, at?: number, o?: EditOptions) {
   st.select(layer.id);
 }
 
+/** New look (SPEC-studio): the Start a look picker; what is picked becomes the look, in one step. */
+export const startLook = (st: Studio, pv: Preview) => import('./shelf.tsx').then(({ openShelf }) => {
+  const made = (e: Entry) => (isPreset(e) ? presetLayers(e, st.data.library, st.data.rig)
+    : [layerFromPattern(e, st.data.rig)]);
+  return openShelf({ mode: 'look', library: st.data.library, audition: { pv, layer: {}, layers: made, replace: true },
+    onPick: (e) => {
+      const layers = made(e);
+      if (!layers) return toast(`${e.title} needs a module this library lacks.`, { kind: 'warn' });
+      st.edit((L) => ({ title: e.title || L.title, layers, ...(isPreset(e) && e.globals
+        ? { globals: withPresetGlobals(L.globals, e) } : {}) }), { step: `Started from “${e.title}”`, kind: 'add' });
+      st.select(layers.at(-1)!.id);
+    } });
+}).catch(loadFailed);
+
 export function LayersPane({ st, pv }: Props) {
   const layers = st.look.value.layers, l = st.selected.value, i = l ? layers.indexOf(l) : -1;
   const icon = (label: string, title: string, text: string, disabled: boolean, onClick: () => void) =>
