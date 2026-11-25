@@ -26,8 +26,9 @@ function pixel(p, t, P) {          // every LED, every frame
 ```
 
 `P` holds each param's current value (`color` params arrive as `[r,g,b]`). Param kinds:
-number `{ value, min, max, soft?: [lo, hi], step?, unit? }` (`unit: 'minute'`: a speed counted a minute,
-"Param bindings"), `{ value: bool, type: 'toggle' }`,
+number `{ value, min, max, soft?: [lo, hi], step?, unit? }` (`min ≤ value ≤ max`, else the pattern does not compile;
+a saved value is held to `min..max`, so no setting runs a pattern beyond its range, and one that is not a finite number
+takes the default; `unit: 'minute'`: a speed counted a minute, "Param bindings"), `{ value: bool, type: 'toggle' }`,
 `{ value: pick, type: 'color', blend? }`: a pick names palette colours or literals ("Palettes" below), such as
 `'all'`, `'accent'` or `'#rrggbb'`; `{ value: 'name', type: 'choice', options: ['name', …] }` (≤ 16
 options, each `[a-z][a-z0-9-]{0,31}`; a value not among them takes the default); `{ value: picture, type: 'picture' }`
