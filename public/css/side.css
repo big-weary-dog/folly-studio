@@ -1,6 +1,6 @@
-/* The Studio's side on a wide screen (js/ui/side-panels.tsx): Layers over Settings with a divider between them, or
-   one panel taking the column and the other folded to its head. Its title folds it, the tinted mark turned a chevron;
-   ⤢ ends its head. Phones keep their tabs. */
+/* The Studio's side on a wide screen (js/ui/studio/side-panels.tsx): Layers over Settings with a divider between them,
+   or one panel taking the column and the other folded to its head. Its title folds it, the tinted mark turned a
+   chevron; ⤢ ends its head. Phones keep their tabs. */
 .side-fold { display: flex; align-items: center; gap: 8px; margin: -4px -6px; padding: 4px 6px; color: inherit;
   font: inherit; letter-spacing: inherit; text-transform: inherit; background: none; border: 0; border-radius: 4px;
   cursor: pointer; }

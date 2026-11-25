@@ -12,9 +12,9 @@ import type { Rig } from '../shared/schemas/rig.ts';
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
   document: { title: '' }, history: { replaceState() {} }, location: { pathname: '/', search: '' } });
 const { api } = await import('../public/js/api.ts');
-const { createStudio } = await import('../public/js/ui/studio-store.ts');
-const { savesFirst } = await import('../public/js/ui/bake.tsx');
-const { approve, nextStep } = await import('../public/js/ui/approve.tsx');
+const { createStudio } = await import('../public/js/ui/studio/store.ts');
+const { savesFirst } = await import('../public/js/ui/studio/bake.tsx');
+const { approve, nextStep } = await import('../public/js/ui/gallery/approve.tsx');
 
 const RIG = JSON.parse(readFileSync(new URL('../public/data/rig.json', import.meta.url), 'utf8')) as Rig;
 const LOOK = { id: 'k1', owner: 'ana', ownerName: 'ana', title: 'Disco', summary: '', duration: 30, shared: true,

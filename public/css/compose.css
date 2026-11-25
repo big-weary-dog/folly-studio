@@ -1,5 +1,5 @@
-/* Composition (loaded by js/ui/studio.tsx): module chains, dragging rows to reorder, param modulation, the look's
-   globals and automation lanes.
+/* Composition (loaded by js/ui/studio/studio.tsx): module chains, dragging rows to reorder, param modulation, the
+   look's globals and automation lanes.
    A module's kind is its glass: warps cobalt, sources amber, filters ruby. */
 [data-kind=warp] { --kind: var(--cobalt-t); }
 [data-kind=source] { --kind: var(--amber); }
@@ -210,7 +210,7 @@ select.tl-auto-add { min-height: 20px; padding: 0 22px 0 6px; font-size: 11.5px;
 .tl-auto-del { padding: 0 4px; color: var(--text-3); background: none; border: 0; cursor: pointer; }
 .tl-auto-del:hover { color: var(--ruby); }
 .tl-auto-lane { cursor: crosshair; touch-action: none; }
-/* modulator lanes (timeline-mods.tsx): what each modulator does over the show, the group folding to its head */
+/* modulator lanes (timeline/mods.tsx): what each modulator does over the show, the group folding to its head */
 button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor: pointer; }
 .tl-mods-count { color: var(--text-3); font-size: 11px; white-space: nowrap; }
 .tl-mod-row { --tl-row: 30px; }
@@ -248,7 +248,7 @@ button.tl-mods-fold { gap: 4px; color: var(--sand); white-space: nowrap; cursor:
   .tl[data-mode=narrow] .tl-mod-lane { height: 32px; }
   .tl[data-mode=narrow] .tl-mod-label { min-height: 36px; }
 }
-/* composites (chain-tree.tsx): a composite's sub-layers one step in under its row, a source each (its row) or, for
+/* composites (chain/tree.tsx): a composite's sub-layers one step in under its row, a source each (its row) or, for
    several, a head over their chain */
 .chain-acts { display: flex; gap: 4px; }
 /* a line under a row's name: what a shut composite holds, where a sub-layer of one source plays */
@@ -301,6 +301,6 @@ textarea.chain-rename:is(:hover, :focus) { border-color: var(--lead); background
 .sub-chain > .chain-row:last-of-type::before { bottom: auto; height: var(--j); }
 .sub-chain > .chain-row:only-of-type::before { display: none; }
 .sub-add { align-self: flex-start; margin: 3px 0 0 14px; min-height: 22px; padding: 1px 8px; font-size: 12px; }
-/* attached modules (chain-tree.tsx): one step in under their module, as a sub-layer's chain; none, no room taken */
+/* attached modules (chain/tree.tsx): one step in under their module, as a sub-layer's chain; none, no room taken */
 .attach-list { margin-top: 4px; }
 .attach-list:not(:has(> .chain-row)) { margin: 0; }

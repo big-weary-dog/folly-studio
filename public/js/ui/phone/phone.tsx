@@ -5,8 +5,8 @@ import '../../../css/phone.css';
 import { signal } from '@preact/signals';
 
 import { cx, humanize, Switch } from '../kit.tsx';
-import type { Preview } from '../preview.ts';
-import type { Studio, Tab } from '../studio-store.ts';
+import type { Preview } from '../studio/preview.ts';
+import type { Studio, Tab } from '../studio/store.ts';
 
 const TABS: Tab[] = ['layers', 'look', 'more'];
 

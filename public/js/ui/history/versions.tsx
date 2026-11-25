@@ -6,7 +6,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { VersionListed } from '../../../../shared/schemas/api.ts';
 import { api } from '../../api.ts';
 import { cx, timeAgo, toast } from '../kit.tsx';
-import type { Studio } from '../studio-store.ts';
+import type { Studio } from '../studio/store.ts';
 import { rename, saveNamed } from './named.tsx';
 
 const quoted = (s: string) => `“${s.length > 48 ? `${s.slice(0, 47)}…` : s}”`;

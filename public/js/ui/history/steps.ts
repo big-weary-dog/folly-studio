@@ -7,8 +7,8 @@ import { signal } from '@preact/signals';
 import { PLAYS } from '../../../../shared/plays.ts';
 import type { Module } from '../../../../shared/schemas/look.ts';
 import { humanize } from '../kit.tsx';
-import type { Layer } from '../model.ts';
-import type { Draft } from '../studio-store.ts';
+import type { Layer } from '../studio/model.ts';
+import type { Draft } from '../studio/store.ts';
 
 export type Kind = 'open' | 'add' | 'remove' | 'set' | 'move' | 'restore';
 /** What an edit changed: its name, its kind (the icon), and `key`, the one thing it changed (edits fold by it). */

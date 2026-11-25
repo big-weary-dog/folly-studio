@@ -9,7 +9,7 @@ import SANDBOX_URL from '../sandbox.html?sandbox';
 import { flatModules } from '../../core/tree.ts';
 import { fromLibrary } from './library-fill.ts';
 import type { LayerInput, Light } from '../../core/pattern-core.ts';
-import type { Layer } from './ui/model.ts';
+import type { Layer } from './ui/studio/model.ts';
 
 const LOAD_MS = 6000, INIT_MS = 1500;  // no `ready` by then: init anyway; then carry on (a look's `compiled` tells)
 const SILENT_MS = 4000;          // owed a reply and heard nothing this long: the page is gone (it answers in 1.5 s)

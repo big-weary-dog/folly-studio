@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { computed, signal } from '@preact/signals';
 import { afterEach, beforeEach, test, vi } from 'vitest';
 
-import { adoptGuestWork, guestWork } from '../public/js/ui/guest-work.ts';
+import { adoptGuestWork, guestWork } from '../public/js/ui/studio/guest-work.ts';
 import { user } from '../public/js/ui/session.ts';
 
 const KEY = 'folly-guest-work', work = { title: 'Mine', layers: [{ id: 'a' }] };

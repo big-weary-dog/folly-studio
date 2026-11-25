@@ -1,7 +1,8 @@
-/* A module's params (loaded by js/ui/studio.tsx; js/ui/params.tsx): a row each, its field, then its buttons (a
-   speed's beat clock, ∿ to modulate, ⓘ for its help on a touch screen, ↺ to reset), and the help itself under the
-   row. The boxes (a number, its chip, a pick, a choice) share one width and the buttons their columns, a row without
-   one keeping its place (.param-slot), so they line up; a label keeps its words whole, the controls wrapping under. */
+/* A module's params (loaded by js/ui/studio/studio.tsx; js/ui/params/params.tsx): a row each, its field, then its
+   buttons (a speed's beat clock, ∿ to modulate, ⓘ for its help on a touch screen, ↺ to reset), and the help itself
+   under the row. The boxes (a number, its chip, a pick, a choice) share one width and the buttons their columns, a row
+   without one keeping its place (.param-slot), so they line up; a label keeps its words whole, the controls wrapping
+   under. */
 .params-wrap, .params { display: flex; flex-direction: column; gap: 10px; }
 .params { --param-w: 112px; }
 .field.param > label:first-child { min-width: min-content; }

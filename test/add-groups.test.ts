@@ -5,13 +5,13 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'vitest';
 
 import type { Module } from '../shared/schemas/look.ts';
-import type { Layer } from '../public/js/ui/model.ts';
-import type { Preview } from '../public/js/ui/preview.ts';
+import type { Layer } from '../public/js/ui/studio/model.ts';
+import type { Preview } from '../public/js/ui/studio/preview.ts';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) });
-const { createStudio } = await import('../public/js/ui/studio-store.ts');
-const { auditioner } = await import('../public/js/ui/shelf.tsx');
-const { addAfter, addSub, withList } = await import('../public/js/ui/composite-model.ts');
+const { createStudio } = await import('../public/js/ui/studio/store.ts');
+const { auditioner } = await import('../public/js/ui/shelf/shelf.tsx');
+const { addAfter, addSub, withList } = await import('../public/js/ui/chain/composite-model.ts');
 
 const SOURCE = { name: 'glow', title: 'Glow', kind: 'source' as const, code: 'function pixel() {}', summary: '',
   category: 'other', tags: [] };

@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 
 import { flatModules } from '../core/tree.ts';
-import { automationEdit } from '../public/js/ui/automation-edit.ts';
-import { renameMacro } from '../public/js/ui/look-globals-edit.ts';
-import { macroUses } from '../public/js/ui/mod-uses.ts';
-import { makeLayer } from '../public/js/ui/model.ts';
+import { automationEdit } from '../public/js/ui/params/automation-edit.ts';
+import { renameMacro } from '../public/js/ui/globals/look-globals-edit.ts';
+import { macroUses } from '../public/js/ui/globals/mod-uses.ts';
+import { makeLayer } from '../public/js/ui/studio/model.ts';
 import { Layers } from '../shared/schemas/look.ts';
 
 const binding = { mod: 'global', name: 'storm', from: 0, to: 1 };

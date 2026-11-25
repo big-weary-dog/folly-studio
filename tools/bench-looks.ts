@@ -53,7 +53,7 @@ const one = (id: string, modules: BenchLook['layers'][number]['modules']) => ({ 
 export function libraryLooks(noSoften = false): BenchLook[] {
   const looks: BenchLook[] = of('source').map((e) => one(e.name, [{ ref: e.name }]));
   for (const p of of('preset')) {
-    // As the Studio adds it (ui/model.ts presetLayers): add at full level, softened unless it says.
+    // As the Studio adds it (ui/studio/model.ts presetLayers): add at full level, softened unless it says.
     const layers = p.layers!.map((l) => ({ blend: 'add', level: 1, ...l,
       soften: noSoften ? undefined : (l.soften ?? { ...DEFAULT_SOFTEN }) }));
     looks.push({ id: `preset:${p.name}`, title: p.name, layers, globals: p.globals ?? null });
