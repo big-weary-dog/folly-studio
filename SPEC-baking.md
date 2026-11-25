@@ -28,12 +28,12 @@ refuse the code. `GET /api/baking`'s `box` says which box this is.
 
 Admin → Baking (`/admin/baking`) sets how the render box runs, kept in `<STUDIO_DATA>/baking.json` as `{ mode }`
 (a `customCode` there is ignored: "Custom code") and read at each bake, so it takes effect without a restart (a
-missing or broken file is `on`). **On**: as SPEC "Baked frames" says. **Throttled**: still one at a time, at `nice` 19 whatever
-`STUDIO_BAKE_NICE` says, and each render (a bake's or a gallery preview's) starts at least 30 s after the last one
-ended, waiting outside the lane so wire encodes go on. **Off**: no render-box renders; a bake is refused (503: "An
-admin turned baking off."), Check & bake's button says so, and previews come only from bakes already made. Bakes
-under way finish; ones still queued fail with that reason. The page also shows what the render box can do here
-(bubblewrap, library only and why, or unavailable and why).
+missing or broken file is `on`). **On**: as SPEC "Baked frames" says. **Throttled**: still one at a time, at `nice` 19
+whatever `STUDIO_BAKE_NICE` says, and each render (a bake's or a gallery preview's) starts at least 30 s after the
+last one ended, waiting outside the lane so wire encodes go on. **Off**: no render-box renders; a bake is refused
+(503: "An admin turned baking off."), Check & bake's button says so, and previews come only from bakes already made.
+Bakes under way finish; ones still queued fail with that reason. The page also shows what the render box can do here
+(bubblewrap, or without it and why, or unavailable and why).
 
 ```
 POST   /api/looks/:id/bake          → 202 { bake } (SPEC "HTTP API"); 503 while baking is off or there is no render

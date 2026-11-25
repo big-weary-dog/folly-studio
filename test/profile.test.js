@@ -72,8 +72,7 @@ describe('hosted', () => {
   test('says so, with no access (no generators, as on the Pi), and keeps /pi for admins', async () => {
     const pi = await controlServer({ engine: engineOn().engine, state: () => ({ looks: [], out: {} }), pin: '',
       port: 0, host: '127.0.0.1', base: '/pi' });
-    const app = await start({ admins: 'ada', curators: 'cara', generators: false,
-      piPreview: `http://127.0.0.1:${pi.port}` });
+    const app = await start({ curators: 'cara', generators: false, piPreview: `http://127.0.0.1:${pi.port}` });
     const cara = await signup(app, 'cara');
     const me = (await cara.get('/api/me')).json;
     assert.equal(me.profile, 'hosted');
