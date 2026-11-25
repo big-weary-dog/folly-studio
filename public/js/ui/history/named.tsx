@@ -5,7 +5,7 @@ import { useState } from 'preact/hooks';
 import type { VersionListed } from '../../../../shared/schemas/api.ts';
 import { api } from '../../api.ts';
 import { Field, openDialog, toast } from '../kit.tsx';
-import type { Studio } from '../studio-store.ts';
+import type { Studio } from '../studio/store.ts';
 
 /** Ask for a name: the trimmed name, '' to unname (when `clear`), or undefined when cancelled. */
 function askName({ title, ok, value = '', text, clear = false }: { title: string, ok: string, value?: string,

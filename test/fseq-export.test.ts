@@ -12,7 +12,7 @@ import { test } from 'vitest';
 
 import { exportShape, packFrames, writeFseq, writeFseqHeader } from '../core/fseq.ts';
 import * as core from '../core/pattern-core.ts';
-import { presetLayers, withPresetGlobals } from '../public/js/ui/model.ts';
+import { presetLayers, withPresetGlobals } from '../public/js/ui/studio/model.ts';
 import { bakeId, bakeLoop, readLibrary, renderer } from '../render-box/renderer.ts';
 import type { ModuleEntry, PresetEntry, Rig } from '../shared/schemas/rig.ts';
 import { parseFseq } from '../src/frames.ts';

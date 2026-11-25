@@ -19,7 +19,7 @@ const KB = 1024;
 // owner's caps for a desktop-first builder, with room to grow: mindful of size, but no trimming for a KB.
 // The rig is 29 KB of that with br (43 KB gzip): the LEDs, and the 3D view's rose cells, floods and scaffold.
 const COLD = { 'br, gzip': 360 * KB, gzip: 400 * KB };
-const STUDIO = { view: 'js/ui/studio.tsx', api: ['/api/me', '/api/library'] };
+const STUDIO = { view: 'js/ui/studio/studio.tsx', api: ['/api/me', '/api/library'] };
 // Both rigs ship; the browser fetches the one /api/me names, the Folly's here, never City of Gods' rig.json.
 const unfetched = /^\/assets\/rig-(?!folly-)[\w-]{8}\.json$/;
 const PLAYA = { view: 'js/playa/renderer.ts', shell: false };   // the 3D view's default mode, imported on show
@@ -85,10 +85,10 @@ test('a reload, a minute or a day later, sends only the shell and the API calls:
 
 test('lists carry metadata, not code', async () => {
   const b = browser(port, { cookie, manifest });
-  await b.load('/looks', { view: 'js/ui/pages.tsx', api: ['/api/me'] });   // the shell and the page's module
+  await b.load('/looks', { view: 'js/ui/gallery/pages.tsx', api: ['/api/me'] });   // the shell and the page's module
   const lists = b.log.length;
-  await b.load('/looks', { shell: false, view: 'js/ui/pages.tsx', api: ['/api/looks?scope=mine'] });
-  await b.load('/gallery', { shell: false, view: 'js/ui/pages.tsx', api: ['/api/looks?scope=gallery'] });
+  await b.load('/looks', { shell: false, view: 'js/ui/gallery/pages.tsx', api: ['/api/looks?scope=mine'] });
+  await b.load('/gallery', { shell: false, view: 'js/ui/gallery/pages.tsx', api: ['/api/looks?scope=gallery'] });
   const listed = b.total(lists);
   for (const scope of ['mine', 'gallery']) {
     const { looks } = JSON.parse((await b.fetch(`/api/looks?scope=${scope}`)).text);

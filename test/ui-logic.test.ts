@@ -8,25 +8,25 @@ import { computed, signal } from '@preact/signals';
 import { describe, test } from 'vitest';
 
 import { resolve, safeNext } from '../public/js/ui/app.tsx';
-import { mayDelete } from '../public/js/ui/delete-look.ts';
+import { mayDelete } from '../public/js/ui/gallery/delete-look.ts';
 import {
   beatsAt, bindingForm, bindingText, fmt, keepsTime, makeBinding, normaliseParam, type Param, perBeat, shownValue,
   upgradedOf,
-} from '../public/js/ui/bindings.ts';
+} from '../public/js/ui/params/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
 import { advanced, setAdvanced, user } from '../public/js/ui/session.ts';
 import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
-import { createLayerStatus } from '../public/js/ui/layer-status.ts';
+import { createLayerStatus } from '../public/js/ui/studio/layer-status.ts';
 import {
   addColour, CUSTOM_MAX, editText, editValue, readEdit, toggleRole, toggleSlot, toggleToken,
-} from '../public/js/ui/pick-model.ts';
-import type { Preview } from '../public/js/ui/preview.ts';
-import type { Draft, Studio } from '../public/js/ui/studio-store.ts';
-import { createTimeline } from '../public/js/ui/timeline-state.ts';
-import { automationLevel } from '../public/js/ui/timeline-auto.tsx';
-import { laneNow } from '../public/js/ui/look-globals.tsx';
-import { automationEdit } from '../public/js/ui/automation-edit.ts';
-import { chainWires, isStageEnd, type Layer } from '../public/js/ui/model.ts';
+} from '../public/js/ui/params/pick-model.ts';
+import type { Preview } from '../public/js/ui/studio/preview.ts';
+import type { Draft, Studio } from '../public/js/ui/studio/store.ts';
+import { createTimeline } from '../public/js/ui/timeline/state.ts';
+import { automationLevel } from '../public/js/ui/timeline/auto.tsx';
+import { laneNow } from '../public/js/ui/globals/look-globals.tsx';
+import { automationEdit } from '../public/js/ui/params/automation-edit.ts';
+import { chainWires, isStageEnd, type Layer } from '../public/js/ui/studio/model.ts';
 import type { Module } from '../shared/schemas/look.ts';
 
 const where = (path: string, search = '', signedIn = true) => {

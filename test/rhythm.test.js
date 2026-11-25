@@ -9,7 +9,7 @@ import {
   compileLayer, FlashWatch, normalizeParams, pixelsForGroups, prepareLayer, prepareLook, prepareScene, renderFrame,
   resolveParams,
 } from '../core/pattern-core.ts';
-import { normaliseParam } from '../public/js/ui/bindings.ts';
+import { normaliseParam } from '../public/js/ui/params/bindings.ts';
 import { cog, mini } from './fixtures/rigs.js';
 import { libraryCode as lib } from './fixtures/patterns.js';
 

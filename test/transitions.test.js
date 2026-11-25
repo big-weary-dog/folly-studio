@@ -8,7 +8,7 @@ import { Layers } from '../shared/schemas/look.ts';
 import {
   compileLayer, normalizeClips, prepareLayer, prepareLook, prepareScene, renderFrame, transitionWeight,
 } from '../core/pattern-core.ts';
-import { editClip, fitClip, moveClip, setTransition, transitionKey } from '../public/js/ui/timeline-model.ts';
+import { editClip, fitClip, moveClip, setTransition, transitionKey } from '../public/js/ui/timeline/model.ts';
 import { cog } from './fixtures/rigs.js';
 
 const scene = prepareScene(cog);

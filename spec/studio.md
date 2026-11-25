@@ -5,7 +5,7 @@ Part of the [build contract](../SPEC.md).
 How the Studio edits a look. The look's own rules are SPEC "Looks" and "Timeline"; every edit here keeps them, so
 what the Studio saves the API accepts.
 
-- **Groups.** A layer's groups are picked in its Groups drawer (`ui/groups-drawer.tsx`, opened from "Plays on" in its
+- **Groups.** A layer's groups are picked in its Groups drawer (`ui/shelf/groups-drawer.tsx`, opened from "Plays on" in its
   settings; a drawer as Modulate's): a tree that ticks a group with every group under it and stores the outermost
   ticked ones; a parent with some of its subgroups ticked shows partly ticked, and one with all of them ticked is
   ticked itself. While it is open the 3D view shows where the layer plays (and the group pointed at) as it is, and
@@ -13,9 +13,9 @@ what the Studio saves the API accepts.
   the same tree beside its list (on a phone, behind its "Plays on" button): it starts on the rig's root, the audition
   plays on the groups ticked, the view focuses them, and the layer (each of a preset's layers) is added on them;
   closing the picker forgets them.
-- **Timeline** (`ui/timeline*.tsx`): docked under the 3D view beside Look on a wide screen (drag, trim, fade, zoom,
-  snap to ¼ s or beats), unavailable on phone. Its edits (`ui/timeline-model.ts`,
-  pure) keep SPEC "Timeline". Under the layers, a lane per modulator (`ui/timeline-mods.tsx`): its
+- **Timeline** (`ui/timeline/`): docked under the 3D view beside Look on a wide screen (drag, trim, fade, zoom,
+  snap to ¼ s or beats), unavailable on phone. Its edits (`ui/timeline/model.ts`,
+  pure) keep SPEC "Timeline". Under the layers, a lane per modulator (`ui/timeline/mods.tsx`): its
   value over the show (0..1 of its range, as it plays: pace, swing and lanes in), its name and what it drives in the
   lane's head, which opens it on the Look panel; the group folds to its head (kept per browser). Under those, a lane per
   automated macro: choose a macro in the Automate picker to create its lane. New automation… makes a new macro
@@ -34,10 +34,10 @@ what the Studio saves the API accepts.
   the description (the look's `summary`,
   what its gallery card shows) on a line under it; on a phone, the description is under Look → Share details.
 - **Reorder.** a layer row moves by its ↑ ↓ buttons, a module row (into and out of composites too) by Alt+↑/↓ on its
-  controls, either by dragging its grip (`ui/drag-order.ts`, a module's `ui/tree-drag.ts`; any pointer), which marks
+  controls, either by dragging its grip (`ui/layers/drag-order.ts`, a module's `ui/chain/tree-drag.ts`; any pointer), which marks
   where it lands, the drop one edit; Escape cancels. Composites in the panel (each source a sub-layer of its own, in
   its row): spec/library "Composites".
-- **Composition** (`ui/chain.tsx`, `ui/params.tsx`, `ui/shelf.tsx`, `ui/look-globals.tsx`): the selected layer's
+- **Composition** (`ui/chain/chain.tsx`, `ui/params/params.tsx`, `ui/shelf/shelf.tsx`, `ui/globals/look-globals.tsx`): the selected layer's
   module chain (a line a module: kind badge, the library's name, a source's blend or a filter's
   input, enable, delete; wide, the selected one's settings open under it,
   a click on it closing or opening them, ▾ ▸), its Soften row (radius and mode; new layers
@@ -47,11 +47,11 @@ what the Studio saves the API accepts.
   module auditions use the same chain insertion as Add), the
   params on the selected module (each number param can be modulated), and a Look panel of globals, the palette
   (its theme line under the menu; each swatch titled by its slot, `body2 · #fd7f40`), its modulators and its faders
-  (macros without a mod; `ui/look-mods.tsx`), with + Macro on laptop. A modulator is a card:
+  (macros without a mod; `ui/globals/look-mods.tsx`), with + Macro on laptop. A modulator is a card:
   its name to rename, how it moves, its value now, ∿ to edit it, × to delete it, and a chip for each param it drives
   (layer › param), which selects that layer and
   module and opens the param's ∿; a fader's row lists what it drives, paces or swings the same way. Modulating is in
-  place (`ui/modulate.tsx`, `ui/mod-live.tsx`): ∿ opens a drawer (`ui/drawer.tsx`), a panel the Studio's full
+  place (`ui/params/modulate.tsx`, `ui/params/mod-live.tsx`): ∿ opens a drawer (`ui/studio/drawer.tsx`), a panel the Studio's full
   height between the 3D view and the side, which shrinks the view beside it and fits a 1366×768 screen unscrolled
   (a sheet on a phone); one drawer shows at a time, one opened from inside another stacks over it, Escape or ×
   closes it. Kinds LFO (its wave over two cycles in the param's range with the playhead, shape, rate in beats a
@@ -109,7 +109,7 @@ what the Studio saves the API accepts.
   3D view's style buttons. More holds the 3D view's Show unlit, LEDs
   and quality. On a phone the preview starts without
   Show unlit, the Playa view drops the scaffold lines, and Points draws at a pixel ratio of 1.
-- **Colours** (`ui/picks.tsx`, `ui/pick-model.ts`; spec/library "Palettes"): a colour param is one row like a number's: its pick in
+- **Colours** (`ui/params/picks.tsx`, `ui/params/pick-model.ts`; spec/library "Palettes"): a colour param is one row like a number's: its pick in
   a field the size of a number's (`kit.tsx` Scrub), its text over the colours it plays (the field opens the pick
   tile), ∿ to move its rotate (the same popover), ↺. The tile is TD's pick: a row per role (a box for the whole
   role, a cell per slot), a custom row (its colours, each a cell whose × removes it; below 4, a swatch that opens
@@ -130,7 +130,7 @@ and arches (the rose window blooming ring by ring, comets on the arches, a starf
 clips? }], palette?, macros?, automation?, bpm?, view? }`, `tag` (one or several) playing a layer on the rig's groups
 with that tag, `view` the rig view the preview opens on) as an unsaved copy, so nothing a person owns changes until
 they save. Every step's control shows in Simple as well as Advanced (spec/studio "Simple").
-A step waits on the Studio's state through a read-only view (`ui/tour-view.ts`) and finds its control by
+A step waits on the Studio's state through a read-only view (`ui/tour/view.ts`) and finds its control by
 `data-tour="<name>"`; the tour writes nothing but the user's `tour`, and moves between pages only as the app's own
 links do: over unsaved edits the app asks first, and keeping them leaves Tutorials open.
 Replay: the user menu's Tutorials.

@@ -1,13 +1,13 @@
-// The groups tree's edits (ui/groups-model.ts): a group ticks and unticks with everything under it, a parent shows
-// partly ticked, all its children ticked tick it, and none ticked is a layer's valid pick; the Studio keeps it so.
-// While they are picked, the view lights where the layer plays (the index's layer mask).
+// The groups tree's edits (ui/shelf/groups-model.ts): a group ticks and unticks with everything under it, a parent
+// shows partly ticked, all its children ticked tick it, and none ticked is a layer's valid pick; the Studio keeps it
+// so. While they are picked, the view lights where the layer plays (the index's layer mask).
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { groupChecked, groupPartial, toggleGroup, type Tree } from '../public/js/ui/groups-model.ts';
-import { buildGroupIndex, cleanLayer, makeLayer, normaliseLayers } from '../public/js/ui/model.ts';
+import { groupChecked, groupPartial, toggleGroup, type Tree } from '../public/js/ui/shelf/groups-model.ts';
+import { buildGroupIndex, cleanLayer, makeLayer, normaliseLayers } from '../public/js/ui/studio/model.ts';
 
 // all ─┬ arches ─┬ a1
 //      │         └ a2 ─ a2x

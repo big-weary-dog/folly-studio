@@ -222,7 +222,7 @@ stored by `ref` as any other. A sub-layer holds no stage end (its colours are at
 composites nest two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by
 its own id. Each sub-layer's modules count toward its own limit of 8.
 
-In the Studio's chain (`ui/chain-tree.tsx`) a composite is a violet row marked ⧉: its ▸ opens and shuts its
+In the Studio's chain (`ui/chain/tree.tsx`) a composite is a violet row marked ⧉: its ▸ opens and shuts its
 sub-layers, one step in under it as attached modules are; shut, a line under its name says what it holds ("2
 sub-layers · 3 modules"). Its name is renamed in place and shown in full: a long one wraps beside the ▸, the row's
 controls under it. Each sub-layer of one source (first, the rest warps and filters, and on) is that source's row:

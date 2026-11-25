@@ -8,7 +8,7 @@ import { describe, test, vi } from 'vitest';
 
 Object.assign(globalThis, { matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }) });
 const { api, onSignedOut, statusOf } = await import('../public/js/api.ts');
-const { createStudio } = await import('../public/js/ui/studio-store.ts');
+const { createStudio } = await import('../public/js/ui/studio/store.ts');
 const { lazy, toastHistory } = await import('../public/js/ui/kit.tsx');
 const { leaveGuard } = await import('../public/js/ui/session.ts');
 

@@ -9,7 +9,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 
 import { approvedOnly, createBody, fileText, fullLooks, importFiles, lookFile, looksIn, manyName } from
-  '../public/js/ui/look-file.ts';
+  '../public/js/ui/gallery/look-file.ts';
 import { signup } from './fixtures/app.js';
 import { layer, startApp, useFixture } from './fixtures/server.js';
 
