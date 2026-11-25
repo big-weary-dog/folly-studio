@@ -2,13 +2,12 @@
 // use it. It lives in a JSON file an admin edits (src/generate/models.ts reads it); the admin API takes the same shape.
 import { z } from 'zod';
 
+import { ROLES, type Role } from '../policy.ts';
 import { GlobalLimits, PersonLimits } from './access.ts';
 
 /** How a model is reached: the Messages API, the Codex CLI, or the Fleet foundry. */
 export const TRANSPORTS = ['claude', 'codex', 'fleet'] as const;
 export type Transport = typeof TRANSPORTS[number];
-export const ROLES = ['member', 'curator', 'admin'] as const;
-export type Role = typeof ROLES[number];
 /** The effort levels each transport takes (Claude: output_config.effort; Codex: model_reasoning_effort). */
 export const EFFORTS: Record<Transport, readonly string[]> = { claude: ['low', 'medium', 'high', 'xhigh', 'max'],
   codex: ['minimal', 'low', 'medium', 'high', 'xhigh'], fleet: [] };

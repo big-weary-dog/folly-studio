@@ -396,4 +396,3 @@ textarea.code:disabled, textarea.code:read-only { color: var(--text-3); }
 .refine-error { color: var(--error); margin: 0; font-size: 13px; }
 .refine-done p { margin: 0 0 4px; }
 .refine-changes { margin: 0 0 8px; padding-left: 18px; font-size: 13px; }
-.refine-fix { margin-left: 6px; }

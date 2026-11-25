@@ -11,7 +11,6 @@ import { user } from './session.ts';
 import { askWhy } from './ask-why.tsx';
 import { cx, openDialog, Switch, toast } from './kit.tsx';
 import type { Preview } from './preview.ts';
-import { FixButton } from './refine.tsx';
 import { mb } from './preview-view.tsx';
 import type { Studio } from './studio-store.ts';
 
@@ -175,8 +174,8 @@ function BakePanel({ st, pv }: { st: Studio; pv: Preview }) {
         {hasFrames && url && <div class="field"><dt>Download</dt><dd><a href={url} download="">.fseq</a> · <a
           href={`${url}?compress=1`} download="">compressed</a></dd></div>}</>}</dl>
       <p class="bake-reason" role="status" hidden={!reason}>{reason}</p>
-      {threw && !dirty && <p class="bake-reason" role="status">{`${threw.title} threw while baking: ${threw.error} `}
-        <FixButton st={st} layer={threw.title} error={threw.error} /></p>}
+      {threw && !dirty && <p class="bake-reason" role="status">
+        {`${threw.title} threw while baking: ${threw.error}`}</p>}
       <p class="bake-warning" role="status" hidden={!warning}>{warning}</p>
       <div class="bake-actions">
         <button type="button" class="btn small wide-only" hidden={!canBake} disabled={busy || active || off}
