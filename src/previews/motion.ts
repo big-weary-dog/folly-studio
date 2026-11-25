@@ -5,6 +5,7 @@
 
 import { prepareScene } from '../../core/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
+import { MAX_FRAMES_BYTES } from '../bake.ts';
 import { frameOffsets, parseFseq } from '../frames.ts';
 import { inflateBlock } from '../fseq-codec.ts';
 
@@ -41,7 +42,8 @@ export function bestWindow(change: Float64Array, bright: Float64Array, n: number
  */
 function pickWindow(bytes: Uint8Array, rig: Rig, loop: Loop) {
   const scene = prepareScene(rig);
-  const parsed = parseFseq(bytes, { maxChannels: scene.frameChannels, decompress: inflateBlock });
+  const parsed = parseFseq(bytes, { maxBytes: MAX_FRAMES_BYTES, maxChannels: scene.frameChannels,
+    decompress: inflateBlock });
   const [oR, oG, oB] = frameOffsets(parsed, scene);
   const { data, channelCount: cc, frameCount: F, stepMs } = parsed, N = scene.count;
   const step = Math.max(1, Math.round(1000 / TARGET_FPS / stepMs)), delayMs = step * stepMs;

@@ -11,7 +11,8 @@ import { promisify } from 'node:util';
 import { Worker } from 'node:worker_threads';
 import zlib from 'node:zlib';
 
-import { createLane, framesBytesFor, framesPath } from './bake.ts';
+import { createLane, framesPath, MAX_FRAMES_BYTES } from './bake.ts';
+import { createFailures } from './failures.ts';
 import { WIRE_QUALITY, wireHash } from './frames-wire.ts';
 import type { Jobs } from './frames-worker.ts';
 import type { Codec } from './fseq-codec.ts';
@@ -22,7 +23,6 @@ const HASH = /^[0-9a-f]{32}$/;
 const DEFAULT_FRAMES_MAX_BYTES = 2 * 1024 ** 3;
 const TOUCH_MS = 10 * 60_000;
 const MIN_GAP_MS = 5000; // between two looks at the whole folder
-const MAX_FRAMES_BYTES = framesBytesFor(600); // the longest bake there can be
 const unbrotli = promisify(zlib.brotliDecompress);
 const exists = (file: string) => fs.stat(file).then((st) => st.isFile(), () => false);
 const shaOf = (look: StoredLook | null | undefined) => {
@@ -39,7 +39,7 @@ export function createFramesCache({ framesDir, store, log = console, quality = W
   quality = Math.min(11, Math.max(1, Math.round(Number(quality) || WIRE_QUALITY))); // brotli's 1..11
   type Job = { promise?: Promise<unknown>, sha: string | null, done?: number, chunks?: number };
   const encoding = new Map<string, Job>(); // hash → { promise, done, chunks, sha }: encodes queued or running
-  const failed = new Set<string>();       // hashes whose frames could not be encoded (until a restart)
+  const failed = createFailures();       // hashes whose frames could not be encoded (retried after a while)
   const making = new Map<string, Job>();  // file → { promise, sha }: gzip chunks and .fseq downloads being made
   const dir = (hash: string) => path.join(framesDir, hash);
   const hashOf = (look: StoredLook | null | undefined) => (shaOf(look) ? wireHash(shaOf(look)!) : null);
@@ -268,16 +268,19 @@ export function createFrameJobs({ nice = 10, idleMs = 30_000, log = console }: {
   const lane = createLane();
   type Progress = (p: { done: number, chunks: number }) => void;
   type Waiting = { resolve(r: unknown): void, reject(e: Error): void, onProgress?: Progress };
-  const waiting = new Map<number, Waiting>(); // job id → { resolve, reject, onProgress }
-  let worker: Worker | null = null, seq = 0;
+  // Each thread has its own jobs (id → { resolve, reject, onProgress }): a stopped thread's exit, which can come
+  // after its replacement took a job, fails only its own.
+  type Thread = { w: Worker, waiting: Map<number, Waiting> };
+  let worker: Thread | null = null, seq = 0;
   let timer: NodeJS.Timeout | undefined;
 
-  function start() {
+  function start(): Thread {
     if (worker) return worker;
     const w = new Worker(new URL('./frames-worker.ts', import.meta.url), { workerData: { nice } });
     w.unref(); // never keeps the process alive
+    const waiting = new Map<number, Waiting>(), thread = { w, waiting };
     const fail = (err: Error) => {
-      if (worker === w) worker = null;
+      if (worker === thread) worker = null;
       for (const job of waiting.values()) job.reject(err);
       waiting.clear();
     };
@@ -294,12 +297,12 @@ export function createFrameJobs({ nice = 10, idleMs = 30_000, log = console }: {
       fail(err);
     });
     w.on('exit', (code) => fail(new Error(`the encoder thread stopped (exit ${code})`)));
-    return (worker = w);
+    return (worker = thread);
   }
 
   function stop() {
     clearTimeout(timer);
-    const w = worker;
+    const w = worker?.w;
     worker = null;
     return w ? w.terminate().then(() => {}, () => {}) : Promise.resolve();
   }
@@ -308,8 +311,9 @@ export function createFrameJobs({ nice = 10, idleMs = 30_000, log = console }: {
     clearTimeout(timer);
     return lane.run(() => new Promise<Awaited<ReturnType<Jobs[K]>>>((resolve, reject) => {
       const id = ++seq;
+      const { w, waiting } = start();
       waiting.set(id, { resolve: resolve as Waiting['resolve'], reject, onProgress });
-      start().postMessage({ id, kind, args });
+      w.postMessage({ id, kind, args });
     })).finally(() => {
       if (!lane.size) (timer = setTimeout(stop, idleMs)).unref();
     });

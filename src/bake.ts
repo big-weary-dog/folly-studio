@@ -40,6 +40,8 @@ export function createLane() {
 export function framesBytesFor(seconds: number) {
   return Math.max(DEFAULT_MAX_BYTES, Math.ceil(seconds * BYTES_PER_SECOND) + 1024 * 1024);
 }
+/** Room for the longest bake there can be: the cap on reading a bake's frames back. */
+export const MAX_FRAMES_BYTES = framesBytesFor(600);
 
 /** The seconds a bake of `look` renders: its duration (default 30), at most `max`. */
 export function bakeSeconds(look: { duration?: unknown } | null | undefined, max = DEFAULT_BAKE_SECONDS) {
