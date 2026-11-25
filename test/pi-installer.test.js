@@ -232,9 +232,11 @@ sudo() {
     *) echo "unexpected sudo: $*" >&2; return 1 ;;
   esac
 }
+# Studio that never answers after activation: wait_http's polls need no pause, the outcome is already known.
+sleep() { [ -n "\${never:-}" ] || command sleep "$@"; }
 curl() {
   case "$*" in
-    *:8780/*) return ${fails ? 1 : 0} ;;
+    *:8780/*) ${fails ? 'never=1; return 1' : 'return 0'} ;;
     *:4043/*) return 0 ;;
     *) command curl "$@" ;;
   esac

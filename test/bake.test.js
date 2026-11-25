@@ -104,10 +104,11 @@ describe('render box (bubblewrap)', () => {
     }
     assert.deepEqual(left, [], 'nothing from the box keeps running');
     // A spinning frame is stopped by the VM wall backstop and reported against its CPU budget.
-    const guarded = createRenderBox({ customCode: true, seconds: 2, log: quiet });
+    // A short budget, so the backstop (ten times it) comes in 2 s, not 20.
+    const guarded = createRenderBox({ customCode: true, seconds: 2, frameTimeoutMs: 200, log: quiet });
     const hang = layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }');
     await assert.rejects(guarded.render({ layers: [hang] }),
-      (e) => /took over 2000 ms of CPU on the frame at t = 0\.5\d s/.test(e.reason));
+      (e) => /took over 200 ms of CPU on the frame at t = 0\.5\d s/.test(e.reason));
   });
 
   test('runtime errors fail the bake instead of producing a passing black sequence (M5)', async () => {

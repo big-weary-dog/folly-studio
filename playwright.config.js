@@ -23,7 +23,8 @@ export default defineConfig({
   testDir: 'test/e2e',
   outputDir: process.env.STUDIO_PW_OUT,
   // Before and after: helpers whose worker has gone are killed, and ended runs' folders removed (test/e2e/procs.mjs).
-  globalSetup: './test/e2e/procs.mjs',
+  // Before, the app is built once for the run (test/e2e/setup.mjs).
+  globalSetup: './test/e2e/setup.mjs',
   globalTeardown: './test/e2e/procs.mjs',
   // One test at a time: the perf check measures the machine, and software GL (SwiftShader) takes every CPU it gets.
   workers: 1,
