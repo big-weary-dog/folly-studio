@@ -190,6 +190,19 @@ describe('sending', () => {
     }
   });
 
+  test('packets the socket could not send are counted, with the first error', () => {
+    const sends = [];
+    const socket = { send: (...args) => sends.push(args.at(-1)) };
+    const sender = new SacnSender({ socket, cid: CID, universes: [1, 2] });
+    sender.send(patternFrame());
+    sends[0](new Error('EHOSTUNREACH'));
+    sends[1](null);
+    sender.send(patternFrame());
+    sends[2](new Error('ENETDOWN'));
+    assert.deepEqual([sender.packets, sender.failed, sender.error], [4, 2, 'EHOSTUNREACH']);
+    assert.equal(sender.streams[0].free.length, 1, 'a failed packet still goes back to its pool');
+  });
+
   test('play: once through then terminate, or hold one frame', async () => {
     const data = Uint8Array.from({ length: 24 }, (_, i) => i);
     const show = readShow(writeFseq({ channelCount: 6, frames: 4, data }));

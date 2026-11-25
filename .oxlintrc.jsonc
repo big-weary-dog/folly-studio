@@ -70,9 +70,8 @@
             { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
               "message": "browser code imports only from public/ and packages" },
             { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
-            // All of shared/ but plays.ts, policy.ts and standard-modules.ts, which are pure (the regex has no
-            // look-ahead: "not pl…, not po…, not st…").
-            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^ps]|p[^lo]|s[^t])", "allowTypeImports": true,
+            // All of shared/ but plays.ts, policy.ts and standard-modules.ts, which are pure.
+            { "group": ["**/shared/**", "!**/shared/plays.ts", "!**/shared/policy.ts", "!**/shared/standard-modules.ts"], "allowTypeImports": true,
               "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident; shared/plays.ts, shared/policy.ts and shared/standard-modules.ts are pure" }
           ]
         }]
@@ -88,7 +87,7 @@
             { "regex": "^\\.{1,2}/(?:.*/)?(?:public|src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
               "message": "the core imports only itself, shared/ and packages" },
             { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
-            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^ps]|p[^lo]|s[^t])", "allowTypeImports": true,
+            { "group": ["**/shared/**", "!**/shared/plays.ts", "!**/shared/policy.ts", "!**/shared/standard-modules.ts"], "allowTypeImports": true,
               "message": "the core takes shared/ schemas as types (import type), so zod is not shipped by accident" }
           ]
         }]
