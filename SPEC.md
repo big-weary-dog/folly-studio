@@ -12,11 +12,9 @@ installation.
 
 ## Ground rules
 
-- **Dependencies when they make life easier**, pinned exactly in `package.json` with `package-lock.json` committed
-  (CONTRIBUTING "Dependencies" says why each is there). They are installed at setup (the browser's bundled at build
-  time), never fetched at run time and never from a CDN, so the app, the sandbox and the boxes work offline on the
-  playa. ES modules everywhere (`"type": "module"`), TypeScript or JavaScript: Node ≥ 22.18 runs the server's, the
-  boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
+- **Offline on the playa**: dependencies are installed at setup, never fetched at run time (CONTRIBUTING
+  "Dependencies"). ES modules everywhere (`"type": "module"`), TypeScript or JavaScript: Node ≥ 22.18 runs the
+  server's, the boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
   default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
 - **Only library patterns run.** They run inside the sandbox page (spec/library "Sandbox protocol") or the render box

@@ -1,8 +1,8 @@
-// The flash check (SPEC "Baked frames" > Checks, DESIGN §6): WCAG 2.3.1's three flashes a second, for a sculpture,
-// on big swings only. The bake check (src/frames.ts) and the preview's guard (flash-guard.ts) both run it, on the light
-// the LEDs give (light.ts's ledLight), each LED's brightest channel: luminance would make a full red or blue strobe a
-// small swing, and saturated red flashing is a known trigger (WCAG's separate red flash rule). Pure; nothing allocated
-// per frame unless it records a report.
+// The flash check (SPEC "Baked frames" > Checks, docs/DESIGN.md §6): WCAG 2.3.1's three flashes a second, for a
+// sculpture, on big swings only. The bake check (src/frames.ts) and the preview's guard (flash-guard.ts) both run it,
+// on the light the LEDs give (light.ts's ledLight), each LED's brightest channel: luminance would make a full red or
+// blue strobe a small swing, and saturated red flashing is a known trigger (WCAG's separate red flash rule). Pure;
+// nothing allocated per frame unless it records a report.
 //
 // Regions (the whole rig, each top-level group) watch their mean light for swings: a change of ≥ delta that then
 // turns back by ≥ delta, a transition as WCAG counts one. A swing is credited to the parts that made it (the region's

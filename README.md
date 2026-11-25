@@ -31,8 +31,7 @@ npm run check          # typecheck, lint, then every test: green before anything
 
 | Document | For |
 |---|---|
-| [DESIGN.md](DESIGN.md) | What is built, why, the trade-offs and the limits |
+| [docs/DESIGN.md](docs/DESIGN.md) | Why it is built this way, the trade-offs, the limits and the roadmap |
 | [SPEC.md](SPEC.md) | The contract: ground rules, and the index of the area files in `spec/` |
 | [docs/HOSTING.md](docs/HOSTING.md) | Running it at home: what runs where, tunnels, settings, backups |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Layout, dependencies, TypeScript, the rules and why, security invariants, budgets, adding an installation |
-| [IDEAS.md](IDEAS.md) | Where it could go next |
