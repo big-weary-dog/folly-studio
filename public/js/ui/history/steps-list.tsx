@@ -6,7 +6,7 @@ import { cx } from '../kit.tsx';
 import type { Studio } from '../studio-store.ts';
 import type { Kind } from './steps.ts';
 
-const ICON: Record<Kind, string> = { open: '◷', add: '+', remove: '−', set: '~', move: '⇅', code: '✎', restore: '↺' };
+const ICON: Record<Kind, string> = { open: '◷', add: '+', remove: '−', set: '~', move: '⇅', restore: '↺' };
 const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export function StepsList({ st }: { st: Studio }) {

@@ -197,8 +197,7 @@ export function createPreview(st: Studio) {
           else if (state === 'warning' && detail) toast(detail, { kind: 'warn' });
         },
       });
-      runtime.start(rig, library.filter((e) => (e.kind || 'source') === 'source')
-        .map(({ name, code }) => ({ name, code })));
+      runtime.start(rig, library.filter((e) => e.kind !== 'preset'));
       // What the sandbox runs follows the look.
       disposers.push(effect(() => {
         void st.sandboxLook.value;

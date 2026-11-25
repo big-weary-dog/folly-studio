@@ -38,43 +38,9 @@ export const KIND_LABELS: Record<Kind, string> = { source: 'Source', warp: 'Warp
   composite: 'Composite' };
 const isBlend = (b: unknown): b is Blend => BLEND_MODES.some((x) => x.value === b);
 
-const BLANK: Record<Kind, string> = { source: `// A new layer. Describe what it does here.
-const params = {
-  color: { value: '#5b8cff', type: 'color' },
-  speed: { value: 0.5, min: 0, max: 2 },
-  width: { value: 0.25, min: 0.02, max: 1 },
-};
-
-function pixel(p, t, P) {
-  // a soft band of light climbing what this layer lands on
-  const v = pulse(fract(p.ly - t * P.speed), P.width);
-  return scale(P.color, v);
-}
-`, warp: `// A new warp: it moves each pixel for everything above it.
-const params = {
-  speed: { value: 0.1, min: -1, max: 1 },
-};
-
-function warp(q, t, P, G) {
-  // slide what is above across the layer
-  q.lz = fract(q.lz + t * P.speed);
-}
-`, filter: `// A new filter: it reworks the chain's colour so far.
-const params = {
-  amount: { value: 0.5, min: 0, max: 1 },
-};
-
-function filter(c, q, t, P, G, x) {
-  // c is [r, g, b, a]: change it and hand it back (x: the input's colour)
-  const v = max(c[0], c[1], c[2]);
-  for (let i = 0; i < 3; i++) c[i] = mix(c[i], v, P.amount);
-  return c;
-}
-`, composite: '' };
-
 /** A new module. */
 export function makeModule({ kind = 'source', title, code, ref, params = {} }: Partial<Module> = {}): Module {
-  return { id: randomId('m'), kind, title: title || `New ${kind}`, ...(ref ? { ref } : {}), code: code || BLANK[kind],
+  return { id: randomId('m'), kind, title: title || `New ${kind}`, ...(ref ? { ref } : {}), code: code || '',
     params: { ...params } };
 }
 
