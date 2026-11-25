@@ -14,7 +14,7 @@ import {
   upgradedOf,
 } from '../public/js/ui/bindings.ts';
 import { decimals, exact, onSpan, places, scrubTo, snap } from '../public/js/ui/kit.tsx';
-import { user } from '../public/js/ui/session.ts';
+import { advanced, setAdvanced, user } from '../public/js/ui/session.ts';
 import { pathsHere } from '../public/js/ui/tour/paths/index.ts';
 import { createLayerStatus } from '../public/js/ui/layer-status.ts';
 import {
@@ -118,6 +118,18 @@ describe('routing', () => {
     const save = (guest: boolean) => pathsHere(guest).find((p) => p.id === 'keep')!.steps.find((s) => s.id === 'save')!;
     assert.match(save(true).text, /log in or sign up/);
     assert.doesNotMatch(save(false).text, /log in or sign up/);
+  });
+
+  test('Advanced editing: an account starts with it, a guest or visitor without; the browser\'s choice wins', () => {
+    const as = (u: typeof user.value) => { user.value = u; return advanced.value; };
+    try {
+      assert.deepEqual([as(null), as({ id: 'g', username: 'Wren', role: 'member', guest: true }),
+        as({ id: 'a', username: 'ann', role: 'member' })], [false, false, true]);
+      setAdvanced(false);
+      assert.equal(advanced.value, false, 'turned off by an account');
+      setAdvanced(true);
+      assert.equal(as(null), true, 'turned on in this browser');
+    } finally { user.value = null; }
   });
 
   test('`next` stays on this app', () => {
