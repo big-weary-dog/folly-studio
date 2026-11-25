@@ -184,4 +184,5 @@ than `STUDIO_REPORTS_DAYS` (default 90 days): a save, the server's start and an 
 first. Deleting an account leaves its reports to age out like the rest. The privacy page (spec/http "Privacy")
 reads the days from `GET /api/privacy`. Admins read them on Admin's Reports tab; "Open as captured" opens `/studio?report=<id>`: the captured
 draft in an unsaved editor, at the captured time, view, quality, selection and layout, paused, so a browser run
-reproduces it. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.
+reproduces it. Each of those is checked and bounded first (a known tab, a time within 600 s, at most 500 ids, …); one
+that does not fit is left as the admin's. `node tools/reports.ts list | get <id>` reads them from `STUDIO_DATA` directly.

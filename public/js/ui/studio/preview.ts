@@ -18,7 +18,7 @@ import { pref, toast } from '../kit.tsx';
 import type { Studio } from './store.ts';
 
 type Frames = Awaited<ReturnType<typeof openFrameStream>>;
-const QUALITY = ['auto', 'full', 'lite', 'low'];
+export const QUALITY = ['auto', 'full', 'lite', 'low'];
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)');
 const DIM = 0.15;
 const seenFlashing = new Set<string>();     // looks whose flashing someone chose to see, this session
