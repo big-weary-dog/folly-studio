@@ -27,7 +27,6 @@ export const EXPECTED_APP_CSP = "default-src 'self'; script-src 'self'; style-sr
   + "img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; worker-src 'self'; object-src 'none'; "
   + "base-uri 'none'; frame-ancestors 'none'";
 export const EXPECTED_WORKER_CSP = "default-src 'none'; script-src 'unsafe-eval'";
-export const PATTERN_WORKER = '/assets/sandbox-worker-0123abcd.js';
 export const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
 /** The fixture library's embers.js: library code, so it saves. */
 export const EMBERS = `// Rising embers\n${PIXEL}\n`;
@@ -39,13 +38,11 @@ const RIG = JSON.stringify({
   groups: [{ id: 'cathedral', name: 'Cathedral', parent: null, zones: ['z'] }],
 });
 
-/** What a build leaves in dist/: the shell, files, a hashed pattern worker, and a dotfile that must not be served. */
+/** What a build leaves in dist/: the shell, files, and a dotfile that must not be served. */
 async function writeBuilt(dir) {
   await mkdir(path.join(dir, 'js'), { recursive: true });
   await mkdir(path.join(dir, 'data'), { recursive: true });
-  await mkdir(path.join(dir, 'assets'), { recursive: true });
   await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>Folly Studio</title><p>APP SHELL</p>');
-  await writeFile(path.join(dir, PATTERN_WORKER), 'self.ok = 1;');
   await writeFile(path.join(dir, 'js', 'main.js'), 'console.log("main");');
   await writeFile(path.join(dir, 'app.css'), 'body { color: red }');
   await writeFile(path.join(dir, 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');

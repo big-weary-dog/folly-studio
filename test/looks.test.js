@@ -226,9 +226,7 @@ describe('looks', () => {
     assert.equal(blocked.status, 409);
     assert.match(blocked.json.error, /flash/);
 
-    // Frames: owner and those who see it download them (a curator, the shared look unapproved); the private look's
-    // only its owner.
-    assert.equal((await bob.get(`/api/looks/${strobe.id}/frames`)).status, 404, 'not approved');
+    // The frames download as an FSEQ (who may fetch them: frames-http.test.js).
     const res = await fetch(`${app.base}/api/looks/${strobe.id}/frames`, { headers: { cookie: carol.cookie } });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'application/octet-stream');
@@ -237,8 +235,6 @@ describe('looks', () => {
     assert.equal(parsed.frameCount, 80);
     assert.deepEqual(parsed.ranges, [[0, 6]]);
     assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 200);
-    assert.equal((await bob.get(`/api/looks/${calm.id}/frames`)).status, 404);
-    assert.equal((await fetch(`${app.base}/api/looks/${strobe.id}/frames`)).status, 404, 'a visitor: not approved');
 
     // Editing the code drops the bake and its frames.
     assert.equal((await alice.get(`/api/looks/${calm.id}`)).json.look.bake.ok, true);
