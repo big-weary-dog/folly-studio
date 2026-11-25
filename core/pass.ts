@@ -1,6 +1,6 @@
 // One pixel through a run of a chain's links (SPEC "Modules"): sources draw and combine into c, filters rework it,
 // and a composite runs each of its sub-layers at its own pixel into the sub-layer's colour, blends them, and joins c
-// as a source would (SPEC-library "Composites"). Nothing here allocates: colours and pixels are the links' own.
+// as a source would (spec/library "Composites"). Nothing here allocates: colours and pixels are the links' own.
 import type { G } from './globals.ts';
 import { addLight } from './light.ts';
 import { copyPixel, type Pixel } from './pixel.ts';

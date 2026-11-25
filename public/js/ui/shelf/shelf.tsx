@@ -1,4 +1,4 @@
-// Library pickers (SPEC-studio "Composition"). Audition and Add share insertion and groups; closing restores
+// Library pickers (spec/studio "Composition"). Audition and Add share insertion and groups; closing restores
 // the look and view and forgets the groups. Tabs are remembered for the session; groups start on the whole rig.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 

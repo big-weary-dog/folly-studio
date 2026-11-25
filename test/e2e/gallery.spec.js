@@ -1,4 +1,4 @@
-// npm run smoke, too: an admin deletes someone's look from the gallery (SPEC-access "Who may do what"): its card's
+// npm run smoke, too: an admin deletes someone's look from the gallery (spec/http "Who may do what"): its card's
 // Delete asks, naming the look and its owner, and the card goes; the Studio's gallery notice has the same Delete.
 // Screenshots land in GALLERY_SHOTS when set, else the test's output folder.
 import path from 'node:path';

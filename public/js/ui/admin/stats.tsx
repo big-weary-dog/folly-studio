@@ -1,4 +1,4 @@
-// The Stats page, for admins (SPEC-access "Stats"): today's visits and requests, the last days', the slowest
+// The Stats page, for admins (spec/http "Stats"): today's visits and requests, the last days', the slowest
 // requests, the work done in the last day, and the server's memory and load; counted since the server started.
 import '../../../css/pages.css';
 

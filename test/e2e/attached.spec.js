@@ -1,4 +1,4 @@
-// Attached modules in the Studio's chain (SPEC-library "Attached modules"), at a laptop's size and a phone's: a warp
+// Attached modules in the Studio's chain (spec/library "Attached modules"), at a laptop's size and a phone's: a warp
 // attached to one of two sources drawn one step in under it, detached with Alt+↓ (it then bends both) and attached
 // again by its grip; a filter attached; the preview running them without an error. Screenshots in the run's output
 // folder, or ATTACHED_SHOTS.

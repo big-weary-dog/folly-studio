@@ -1,4 +1,4 @@
-// npm run smoke, too: Admin → Stats (SPEC-access "Stats") at a laptop's and a phone's size: today's counts after a
+// npm run smoke, too: Admin → Stats (spec/http "Stats") at a laptop's and a phone's size: today's counts after a
 // few page loads on laptop; phone keeps health, queues and Refresh. Screenshots land in STATS_SHOTS when set, else the
 // test's output folder.
 import path from 'node:path';

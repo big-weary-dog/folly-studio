@@ -1,4 +1,4 @@
-// Composites (SPEC-library "Composites"): sub-layers, each its own chain, blended into one source of the chain round
+// Composites (spec/library "Composites"): sub-layers, each its own chain, blended into one source of the chain round
 // them, so a warp or filter below the composite works on all of it and one inside a sub-layer on that alone.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

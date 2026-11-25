@@ -1,4 +1,4 @@
-// The privacy page (SPEC-access "Privacy"): what Studio keeps, for how long, and how to delete it. Open signed in or
+// The privacy page (spec/http "Privacy"): what Studio keeps, for how long, and how to delete it. Open signed in or
 // not; the reports' days come from the server, so the page states the setting in force.
 import '../../../css/pages.css';
 

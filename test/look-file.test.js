@@ -1,4 +1,4 @@
-// Look files (SPEC-looks "Look files"): a look's file, several in one, and importing them back through the
+// Look files (spec/looks "Look files"): a look's file, several in one, and importing them back through the
 // real POST /api/looks as the importer's own, unshared looks, or overruling the one each came from (its origin); a
 // refused look or file is named, the rest go in.
 import assert from 'node:assert/strict';

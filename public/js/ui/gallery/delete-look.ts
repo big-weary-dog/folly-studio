@@ -1,4 +1,5 @@
-// Deleting a look, after a confirm: its owner's own, or, for an admin, anyone's shared look (SPEC-access).
+// Deleting a look, after a confirm: its owner's own, or, for an admin, anyone's shared look
+// (spec/http "Who may do what").
 import { api } from '../../api.ts';
 import { can } from '../../../../shared/policy.ts';
 import { confirmDialog, toast } from '../kit.tsx';

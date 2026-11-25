@@ -1,4 +1,4 @@
-// The Account page (SPEC-access "Your account"): a new password, or the account deleted with its looks. There is no
+// The Account page (spec/http "Your account"): a new password, or the account deleted with its looks. There is no
 // email, so a lost password cannot be reset; the page says so.
 import '../../../css/pages.css';
 

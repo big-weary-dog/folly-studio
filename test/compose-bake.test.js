@@ -132,7 +132,7 @@ test('the render box bakes smoke, replay and sort to the same bytes as the core 
   assert.ok(Buffer.from(parseFseq(bytes).data).equals(Buffer.from(here)), 'the box and the core bake the same bytes');
 });
 
-// A composite (SPEC-library "Composites"): two sub-layers, each with its own filter, one on the arches only, twisted
+// A composite (spec/library "Composites"): two sub-layers, each with its own filter, one on the arches only, twisted
 // together by the warp below them, with a source drawn on top.
 const COMPOSED = {
   layers: [

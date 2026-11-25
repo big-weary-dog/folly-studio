@@ -1,4 +1,4 @@
-// The Studio's edits of a chain that holds composites (ui/chain/composite-model.ts, SPEC-library "Composites"): a
+// The Studio's edits of a chain that holds composites (ui/chain/composite-model.ts, spec/library "Composites"): a
 // module moved into a sub-layer and out (the sub-layer it empties going with it), a source made a sub-layer of its own,
 // sub-layers reordered, a module grouped into a composite and back.
 import assert from 'node:assert/strict';

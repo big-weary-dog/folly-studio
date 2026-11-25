@@ -1,4 +1,4 @@
-// Look files (SPEC-looks "Look files"): a look as JSON, several in one file, and back in through POST /api/looks,
+// Look files (spec/looks "Look files"): a look as JSON, several in one file, and back in through POST /api/looks,
 // so a look moves between two Studios with the same checks as any save.
 import { playsOf } from '../../../../shared/plays.ts';
 import { approved } from '../../../../shared/policy.ts';
@@ -34,7 +34,7 @@ export const fileText = (data: unknown) => `${JSON.stringify(data, null, 2)}\n`;
 export const manyName = (scope: string, now = new Date()) =>
   `folly-looks-${scope}-${now.toISOString().slice(0, 10)}.json`;
 
-/** The gallery's looks Approved keeps (SPEC-access "Moderation"): with it on, the approved ones; all, with it off. */
+/** The gallery's looks Approved keeps (spec/http "Moderation"): with it on, the approved ones; all, with it off. */
 export const approvedOnly = (looks: Listed[], on: boolean) => (on ? looks.filter(approved) : looks);
 
 /** Every listed look in full, one request at a time; one gone since the list was made (404) is left out, and any

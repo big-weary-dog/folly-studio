@@ -1,4 +1,4 @@
-// Deleting an account waits for its looks to be counted, so the confirm can say what goes (SPEC-access "Your account").
+// Deleting an account waits for its looks to be counted, so the confirm can say what goes (spec/http "Your account").
 import assert from 'node:assert/strict';
 
 import { test } from 'vitest';

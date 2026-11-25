@@ -1,4 +1,4 @@
-// The Studio's light view on a phone (SPEC-studio "Phones"): the tabs under the 3D view, a layer's settings
+// The Studio's light view on a phone (spec/studio "Phones"): the tabs under the 3D view, a layer's settings
 // opened from its row in the same panel, and More: the 3D view's options.
 import '../../../css/phone.css';
 

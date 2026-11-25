@@ -1,6 +1,6 @@
 # Folly Studio — the rig, 3D view and light
 
-Part of the [build contract](SPEC.md).
+Part of the [build contract](../SPEC.md).
 
 ## Rig (`public/data/rig-folly.json`)
 
@@ -146,4 +146,3 @@ Missing, unreadable or out of range, each field is its default:
     highlight: 0.22,         // 0..1: the light left outside a hover highlight
     focus: 0.05 } }          // 0..1: the light left outside a layer's groups while picking them
 ```
-

@@ -1,4 +1,4 @@
-// npm run smoke, too: the Studio on a laptop is Simple for a guest (SPEC-studio "Simple"): no Timeline tab, no ∿,
+// npm run smoke, too: the Studio on a laptop is Simple for a guest (spec/studio "Simple"): no Timeline tab, no ∿,
 // Export's menu only what shows, by keyboard too; the user menu's Advanced editing brings the rest back. A guest
 // plays the tutorial in Simple by its own controls.
 import { expect, test } from './studio.js';

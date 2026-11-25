@@ -22,12 +22,12 @@ export const Username = z.string({ error: USERNAME }).trim().toLowerCase()
 const NewPassword = z.string({ error: PASSWORD }).min(PASSWORD_MIN, { error: PASSWORD })
   .max(MAX_PASSWORD, { error: `Password must be at most ${MAX_PASSWORD} characters.` });
 export const Signup = z.object({ username: Username, password: NewPassword });
-/** The account's own password, as a check: anything malformed is just wrong (SPEC-access "Your account"). */
+/** The account's own password, as a check: anything malformed is just wrong (spec/http "Your account"). */
 const Current = z.string().max(MAX_PASSWORD).catch('');
 /** PUT /api/me/password and DELETE /api/me. */
 export const PasswordChange = z.object({ password: Current, next: NewPassword });
 export const AccountDelete = z.object({ password: Current });
-/** PUT /api/admin/accounts/:id (SPEC-access "People"). */
+/** PUT /api/admin/accounts/:id (spec/http "People"). */
 export const AccountChange = z.strictObject({
   role: z.enum(ROLES, { error: `role must be one of ${ROLES.join(', ')}.` }).optional(),
   disabled: z.boolean({ error: 'disabled must be true or false.' }).optional() });
@@ -35,7 +35,7 @@ export const AccountChange = z.strictObject({
 export type Account = { id: string, username: string, role: Role, serverRole?: Role, createdAt: string,
   looks: number, shared: number, disabled: boolean };
 const GUEST = 'A guest name is 1–24 letters, digits, spaces or _ . \' -.';
-/** POST /api/guest: a guest's name, untrusted text shown only as text; Try it sends none (SPEC-access "Guests"). */
+/** POST /api/guest: a guest's name, untrusted text shown only as text; Try it sends none (spec/http "Guests"). */
 export const GuestBody = z.object({ name: z.string({ error: GUEST }).trim().normalize('NFC')
   .regex(/^[\p{L}\p{N} _.'-]{1,24}$/u, { error: GUEST }).default('Visitor') });
 /** A login never says which part was wrong: a malformed name or password is just a wrong one. */
@@ -47,11 +47,11 @@ export const Login = z.object({
 export const LookCreate = z.object({
   title: LookTitle, summary: Summary, layers: Layers, duration: Duration.optional(), globals: Globals.optional(),
   automation: z.unknown().optional(), bpm: Bpm.optional(), shared: bool('shared').default(false), chain: Chain,
-  /** An import's look, by its id where it was made (SPEC-looks "Look files"). */
+  /** An import's look, by its id where it was made (spec/looks "Look files"). */
   origin: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, { error: 'origin is not a look id.' }).optional(),
 });
 const NAME = 'A version\'s name is 1–80 characters.';
-/** A version's name (SPEC-history "Named versions"): naming one keeps it. */
+/** A version's name (spec/looks "Named versions"): naming one keeps it. */
 const VersionName = z.string({ error: NAME }).trim().min(1, { error: NAME }).max(80, { error: NAME });
 const REASON = 'flashOverride: say in 3–500 characters why this flashing is acceptable.';
 /** PUT /api/looks/:id: what changes; null clears bpm, globals and automation. `flashOverride` (with reviewed: true):
@@ -74,7 +74,7 @@ export const LooksQuery = z.object({
 
 // What the API answers with (it never reads these back): an account, the flash check's settings, a look as lists and
 // GET show it.
-/** `guest`: a guest's session, not an account (SPEC-access "Guests"). */
+/** `guest`: a guest's session, not an account (spec/http "Guests"). */
 export type User = { id: string, username: string, role: Role, tour?: Tour, guest?: true };
 /** GET /api/me's `flash`: whether the flash check runs here, and its limits (SPEC "Baked frames" > Checks). */
 export type FlashSettings = { check: boolean, perSecond: number, delta: number, darker: number, area: number };
@@ -92,7 +92,7 @@ export type Look = Omit<Listed, 'layerCount'> & { layers: Layer[], globals?: z.i
   hiddenBy?: string,
   flashOverride?: FlashOverride, chain?: 2, origin?: string };
 
-/** How a version was made (SPEC-history "Versions"): a save, an AI refinement (kept from before Studio dropped the
+/** How a version was made (spec/looks "Versions"): a save, an AI refinement (kept from before Studio dropped the
  * AI), a restore of version `from`, or a look file overruling it. */
 export type VersionHow = 'auto' | 'ai' | 'restore' | 'import';
 /** What a version is besides its content: its number, how it was made, its name (named ones are kept), the round. */
@@ -128,7 +128,7 @@ export type BakeMode = typeof BAKE_MODES[number];
 /** GET /api/baking: the setting and whether the render box runs here. */
 export type BakingState = { mode: BakeMode, box: { ok: boolean, reason?: string } };
 
-/** GET /api/admin/stats (SPEC-access "Stats"): since the server started; `days` newest first, at most 7. */
+/** GET /api/admin/stats (spec/http "Stats"): since the server started; `days` newest first, at most 7. */
 export type StatsDay = { day: string, visitors: number, people: number, views: number, requests: number,
   errors: number, slow: number };
 export type ServerStats = { startedAt: string, uptime: number, memory: { rss: number, heap: number }, load: number,

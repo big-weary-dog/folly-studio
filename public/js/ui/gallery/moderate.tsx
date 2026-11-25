@@ -1,4 +1,4 @@
-// Moderating the gallery (SPEC-access "Moderation"): a curator's Hide or Unhide on a card, and anyone's Report this
+// Moderating the gallery (spec/http "Moderation"): a curator's Hide or Unhide on a card, and anyone's Report this
 // look, a short note sent through the bug reports (SPEC "Bug reports") naming the look.
 import { useState } from 'preact/hooks';
 

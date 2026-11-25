@@ -1,4 +1,4 @@
-// The People page, for admins (SPEC-access "People"): every account, newest first, with its role, looks and state;
+// The People page, for admins (spec/http "People"): every account, newest first, with its role, looks and state;
 // an admin changes another's role, disables or enables it, or deletes it after a confirm. Their own row is Account's.
 import '../../../css/people.css';
 

@@ -1,4 +1,4 @@
-// This session's steps (SPEC-history "Steps"): each edit of the look is a step, named for what it changed. The list
+// This session's steps (spec/looks "Steps"): each edit of the look is a step, named for what it changed. The list
 // is linear, like Photoshop's: jumping back greys the later steps, and a new edit drops them. Quick edits to one
 // thing (a drag, typing) fold into one step until a pause, a pointer up or a focus change seals it. A save marks its
 // step; undoing past it leaves the look unsaved. In the main bundle: undo works with the drawer closed.

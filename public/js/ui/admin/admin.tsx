@@ -1,4 +1,4 @@
-// Admin areas have their own URLs: tabs on laptop, a selector and quick operator tasks on phone (SPEC-studio).
+// Admin areas have their own URLs: tabs on laptop, a selector and quick operator tasks on phone (spec/studio.md).
 // The shared admin permission gates navigation and controls.
 import '../../../css/admin.css';
 

@@ -23,7 +23,7 @@ export type Collection<T extends Doc> = { get(id: string): T | null,
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
 /** `role` is what People made it (the server's lists may raise it: auth's roleOf); `disabled` cannot sign in. */
 export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, disabled?: boolean };
-/** `guest`: a guest's name, and `userId` their `guest-…` id, which no account has (SPEC-access "Guests"). */
+/** `guest`: a guest's name, and `userId` their `guest-…` id, which no account has (spec/http "Guests"). */
 export type Session = Doc & { userId: string, expiresAt: string, guest?: string };
 /** A look as stored: what GET /api/looks/:id answers (older looks may lack its defaults), its versions, and what its
  * own version is (look-versions.ts). */

@@ -29,7 +29,7 @@ const exporter = lazy(() => import('./export.tsx'));
 export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, HTMLElement> }) {
   const narrow = st.narrow.value, root = useRef<HTMLDivElement>(null), side = useRef<HTMLDivElement>(null);
   const [resizing, setResizing] = useState(false), [ph] = useState(createPhone);
-  // What shows (SPEC-studio "Simple", "Phones"): a phone's light view, or on a laptop Simple unless Advanced.
+  // What shows (spec/studio "Simple", "Phones"): a phone's light view, or on a laptop Simple unless Advanced.
   const detail = narrow ? 'light' : advanced.value ? 'full' : 'simple';
   return (
     <div ref={root} class={cx('studio', st.folded.value && 'code-collapsed', st.dirty.value && 'is-dirty',
@@ -54,7 +54,7 @@ export function StudioLayout({ st, pv, tl, els }: Props & { els: Record<string, 
     </div>);
 }
 
-/** An admin's Delete on someone else's gallery look (SPEC-access): back to the gallery once it is gone. */
+/** An admin's Delete on someone else's gallery look (spec/http "Who may do what"): back to the gallery once gone. */
 function AdminDelete({ st }: { st: Studio }) {
   const look = st.server.value, [gone, setGone] = useState('');
   if (!look || gone === look.id || !mayDelete(user.value, look, true)) return null;
@@ -142,7 +142,7 @@ function ExportMenu({ st, pv }: { st: Studio; pv: Preview }) {
       <button type="button" class="btn" ref={btn} aria-haspopup="true" aria-expanded={open}
         onClick={() => setOpen(!open)}>Export</button>
       <div class="menu" role="menu" ref={menu} hidden={!open} onKeyDown={onKey}>
-        {!st.narrow.value && advanced.value   // wide, Advanced (SPEC-studio "Simple")
+        {!st.narrow.value && advanced.value   // wide, Advanced (spec/studio "Simple")
           && item('Export .fseq…', () => exporter().then((m) => m.exportFseq(st, pv)))}
         {item('Check & bake…', () => openBake(st, pv))}
         {item('Export look JSON', () => exporter().then((m) => m.exportJson(st)))}

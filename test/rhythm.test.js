@@ -1,4 +1,4 @@
-// Rhythm (library-docs/rhythm.md) and the text param kind it reads (SPEC-library "Pattern code"): steps on the beat,
+// Rhythm (library-docs/rhythm.md) and the text param kind it reads (spec/library "Pattern code"): steps on the beat,
 // decay, swing, lines dealt to places, the busy-line dip that keeps it under the flash check, and the kind through
 // compile, resolve, the look's schema and the Studio's row.
 import assert from 'node:assert/strict';

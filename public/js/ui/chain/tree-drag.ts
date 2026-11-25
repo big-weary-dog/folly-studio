@@ -1,4 +1,4 @@
-// Drag a module anywhere in a chain that holds composites (SPEC-library "Composites"): its grip, pressed and dragged
+// Drag a module anywhere in a chain that holds composites (spec/library "Composites"): its grip, pressed and dragged
 // by any pointer, marks the slot it will land in, in the layer's chain or any sub-layer's, so a module moves into a
 // composite or out of one as it moves along a list. Slots are the elements marked `data-slot` ("comp sub index", or
 // "- - index" for the layer's chain, then the id of the module it attaches to in an attached run, marked

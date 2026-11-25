@@ -1,4 +1,4 @@
-// A guest's work (SPEC-access "Guests"): an account's blank Studio opens the copy kept in this browser, and the copy
+// A guest's work (spec/http "Guests"): an account's blank Studio opens the copy kept in this browser, and the copy
 // stays until that account saves or discards it, so a Studio that fails to load loses nothing.
 import assert from 'node:assert/strict';
 

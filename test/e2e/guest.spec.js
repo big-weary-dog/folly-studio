@@ -1,4 +1,4 @@
-// npm run smoke, too: a guest (SPEC-access "Guests") at a laptop's and a phone's size. In by a name alone, on to
+// npm run smoke, too: a guest (spec/http "Guests") at a laptop's and a phone's size. In by a name alone, on to
 // the Studio with no AI and no My looks; their edits are kept in the browser and back after a reload, the cookie
 // letting them in; Save asks them to sign up, and the new account takes the work to save.
 import { SIZES } from './sizes.js';

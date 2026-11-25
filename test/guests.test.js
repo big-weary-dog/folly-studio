@@ -1,4 +1,4 @@
-// Guests (SPEC-access "Guests"): a session with a name and no account, which only reads, is nobody's admin whatever
+// Guests (spec/http "Guests"): a session with a name and no account, which only reads, is nobody's admin whatever
 // its name, sees no AI, and is let back in by its cookie.
 import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';

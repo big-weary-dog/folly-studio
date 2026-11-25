@@ -1,4 +1,4 @@
-// A chain as a tree (SPEC-library "Composites"): a composite's sub-layers hold chains of their own. Pure, and
+// A chain as a tree (spec/library "Composites"): a composite's sub-layers hold chains of their own. Pure, and
 // importing nothing, so the app takes it without the core.
 
 type Node = { id?: string, kind?: string, on?: string, layers?: { modules: Node[] }[] };
@@ -37,7 +37,7 @@ export function mapEvery<T extends Node>(modules: readonly T[], fn: (m: T) => T)
   });
 }
 
-/** The id of the source (or composite) whose attached run module j of `list` may join (SPEC-library "Attached
+/** The id of the source (or composite) whose attached run module j of `list` may join (spec/library "Attached
  * modules"): the module above it, past the run; null when that is not a source. */
 export function attachedTo(list: readonly Node[], j: number) {
   let i = j - 1;

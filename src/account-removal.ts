@@ -1,4 +1,4 @@
-// An account deleted, by itself or on People (SPEC-access "Your account", "People"): the account, its sessions and
+// An account deleted, by itself or on People (spec/http "Your account", "People"): the account, its sessions and
 // every look it owns (shared ones too), and the looks' frames and previews.
 import type { Auth } from './auth.ts';
 import type { Logger } from './http.ts';

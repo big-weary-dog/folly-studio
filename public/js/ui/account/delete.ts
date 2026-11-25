@@ -1,4 +1,4 @@
-// What deleting the account says and allows while its looks are counted (SPEC-access "Your account"): nothing is
+// What deleting the account says and allows while its looks are counted (spec/http "Your account"): nothing is
 // deleted until the confirm can say how many looks go, and how many are shared.
 export type Count = { all: number, shared: number };
 /** The count: loading (null), the looks, or why they could not be counted. */

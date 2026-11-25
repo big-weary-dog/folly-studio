@@ -1,4 +1,4 @@
-// A stored module is its library `ref` and params (SPEC-looks "Modules"): reads fill each module's `code` from the
+// A stored module is its library `ref` and params (spec/looks "Modules"): reads fill each module's `code` from the
 // library's current file, ignoring any code stored, and writes keep none. A module whose ref the library lacks, or
 // that has none, takes the ref of the one entry whose current file its code is exactly. The library, hidden entries
 // too, is read again at most every REFRESH_MS, so a list of looks costs one read of it. A look or version keeps the

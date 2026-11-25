@@ -1,4 +1,4 @@
-// People (SPEC-access "People"): admins list accounts, change roles, disable and delete them.
+// People (spec/http "People"): admins list accounts, change roles, disable and delete them.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 

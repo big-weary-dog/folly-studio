@@ -1,4 +1,4 @@
-// A guest's work (SPEC-access "Guests"): the Studio's look as saved, kept in this browser as it changes and opened
+// A guest's work (spec/http "Guests"): the Studio's look as saved, kept in this browser as it changes and opened
 // again on a blank Studio; Save asks them to sign in, and the first account to open a blank Studio here takes it,
 // the copy here going once that account saves or discards it.
 import { effect } from '@preact/signals';

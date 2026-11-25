@@ -1,4 +1,4 @@
-// Layer settings and the module chain (SPEC-studio "Composition"). Composites nest their sub-layers in
+// Layer settings and the module chain (spec/studio "Composition"). Composites nest their sub-layers in
 // chain/tree.tsx; selected-module settings open under its row, or after the chain on phones.
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 

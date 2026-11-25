@@ -1,4 +1,4 @@
-// The library's module files, by name and SHA-256 (SPEC-baking "Library only"), and its presets.
+// The library's module files, by name and SHA-256 (spec/frames "Library only"), and its presets.
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';

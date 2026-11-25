@@ -1,4 +1,4 @@
-// Library only (SPEC-baking "Library only"): no setting, file or route turns it off; a look saves only library
+// Library only (spec/frames "Library only"): no setting, file or route turns it off; a look saves only library
 // modules, composites included.
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';

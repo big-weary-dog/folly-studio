@@ -1,7 +1,7 @@
-// The looks routes of the HTTP API (SPEC "HTTP API"): list, create, read, edit (with versions and review), delete,
-// bake and the gallery preview (SPEC-previews). Who may see a look: its owner, or anyone signed in when it
-// is shared. Bodies are checked by the shared schemas (shared/schemas/api.ts, look.ts); chains from before the one
-// rule are converted (shared/chain-order.ts).
+// The looks routes of the HTTP API (SPEC "HTTP API"): list, create, read, edit (with versions and review), delete, bake
+// and the gallery preview (spec/frames "Gallery previews"). Who may see a look: its owner, or anyone signed in when it
+// is shared. Bodies are checked by the shared schemas (shared/schemas/api.ts, look.ts); chains from before the one rule
+// are converted (shared/chain-order.ts).
 import { promises as fs } from 'node:fs';
 import { isDeepStrictEqual } from 'node:util';
 
@@ -150,7 +150,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     && auth.can(req.user, 'edit', look);
 
   /** `user`'s own looks, newest first, or the gallery's, newest shared first: the approved ones, or every shared one
-   * for a curator (SPEC-access "Moderation"); without their versions. */
+   * for a curator (spec/http "Moderation"); without their versions. */
   const looksIn = (scope: 'mine' | 'gallery', user: User | null) => (scope === 'mine'
     ? store.looks.list((l) => l.owner === user?.id, ['versions']).reverse().sort(newestBy('updatedAt'))
     : store.looks.list((l) => l.shared === true && (auth.can(user, 'curate') || approved(l)), ['versions'])
@@ -165,7 +165,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   async function create(req: FastifyRequest, reply: FastifyReply) {
     const { automation, globals, bpm, origin, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
-    // An import of a look the importer has (SPEC-looks "Look files"): the file overrules it, as a PUT would.
+    // An import of a look the importer has (spec/looks "Look files"): the file overrules it, as a PUT would.
     const had = origin && store.looks.list((l) => l.owner === user.id && (l.id === origin || l.origin === origin))[0];
     if (had) {
       const { look: updated, edited } = await revise(had, user, { title: body.title, summary: body.summary,
@@ -342,7 +342,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     };
   const versions = versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id,
     roomToGrow(store, store.looks.get(id)!, p, (why) => new HttpError(429, why)))! });
-  // The reads forAnyone are a visitor's too, of approved looks (SPEC-access "Visitors").
+  // The reads forAnyone are a visitor's too, of approved looks (spec/http "Visitors").
   return { visibleLook, listed, looksIn, routes: { 'GET /looks': forAnyone(list), 'POST /looks': limited(create),
     'GET /looks/:id': forAnyone(read), 'PUT /looks/:id': limited(edit), 'DELETE /looks/:id': limited(remove),
     'POST /looks/:id/bake': bake, 'GET /looks/:id/preview/:name': forAnyone(preview), ...versions,
