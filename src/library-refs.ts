@@ -1,13 +1,18 @@
 // A stored module is its library `ref` and params (SPEC-looks "Modules"): reads fill each module's `code` from the
 // library's current file, ignoring any code stored, and writes keep none. A module without a ref, or whose code is
 // not its ref's, takes the ref of the one entry whose current or earlier file (history.json) its code is exactly. The
-// library, hidden entries too, is read again at most every REFRESH_MS, so a list of looks costs one read of it.
+// library, hidden entries too, is read again at most every REFRESH_MS, so a list of looks costs one read of it. A
+// bake (and the review that rests on it) of other code than the look's now is left out of what a read gives.
 import { readFileSync } from 'node:fs';
 
 import type { LibraryEntry } from '../shared/schemas/rig.ts';
+import { layersHash, renderFields } from './bake.ts';
 import { sha256 } from './library-history.ts';
 
 const REFRESH_MS = 2000;
+// A module's first keys, as the look schema orders them: a bake's hash is of the layers' JSON, so a filled module's
+// keys are in the order a saved one's are.
+const FIRST = ['id', 'kind', 'title', 'ref', 'code'];
 type Node = Record<string, unknown>;
 const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -26,6 +31,24 @@ function eachModule(layers: unknown, visit: (m: Node) => void) {
       else visit(m);
     }
   }
+}
+
+/** `m` (changed in place) with `ref` (when given) and `code`, its first keys in the look schema's order. */
+function fill(m: Node, ref: unknown, code: string) {
+  const was: Node = { ...m, ...(typeof ref === 'string' ? { ref } : {}), code };
+  for (const k of Object.keys(m)) delete m[k];
+  for (const k of FIRST) if (k in was) m[k] = was[k];
+  for (const [k, v] of Object.entries(was)) if (!FIRST.includes(k)) m[k] = v;
+}
+
+/** `look` (changed in place) without a bake of other code than its own now, nor the review that rested on it. */
+function withoutStaleBake(look: Node) {
+  const bake = look.bake as { layersHash?: unknown } | undefined;
+  if (!bake?.layersHash || bake.layersHash === layersHash(renderFields(look as Parameters<typeof renderFields>[0]))) {
+    return;
+  }
+  for (const k of ['bake', 'reviewedBy', 'flashOverride']) delete look[k];
+  if ('reviewed' in look) look.reviewed = false;
 }
 
 /** A look's layers and its versions' layers. */
@@ -73,12 +96,16 @@ export function libraryRefs(loadLibrary: () => readonly LibraryEntry[], historyF
     return look;
   };
   return {
-    /** `look` (changed in place) with every module's code its ref's current file ('' for a ref the library lacks). */
-    read: <T extends object>(look: T): T => each(look, (m, lib) => {
-      const ref = refOf(m, lib);
-      if (typeof ref === 'string') m.ref = ref;
-      m.code = (typeof ref === 'string' && lib.codes.get(ref)) || '';
-    }) as T,
+    /** `look` (changed in place) with every module's code its ref's current file ('' for a ref the library lacks),
+     * and no bake (nor review) of other code. */
+    read: <T extends object>(look: T): T => {
+      each(look, (m, lib) => {
+        const ref = refOf(m, lib);
+        fill(m, ref, (typeof ref === 'string' && lib.codes.get(ref)) || '');
+      });
+      withoutStaleBake(look as Node);
+      return look;
+    },
     /** `look` (changed in place) with each module's ref set and no code kept. */
     write: <T extends object>(look: T): T => each(look, (m, lib) => {
       const ref = refOf(m, lib);

@@ -8,9 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
+import { layersHash, renderFields } from '../src/bake.ts';
 import { libraryFiles } from '../src/library-history.ts';
 import { libraryRefs } from '../src/library-refs.ts';
 import { createLoaders } from '../src/static.ts';
+import { createStore } from '../src/store.ts';
 import { fx, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
@@ -45,6 +47,23 @@ test('a ref whose code is no known file keeps its ref: plasma stays the preset\'
   const read = refs.read(look({ ref: 'plasma', code: `${file('plasma-classic')}\n// edited` }));
   assert.deepEqual(mods(read).map((m) => [m.ref, m.code]), [0, 1].map(() => ['plasma', '']));
 });
+
+test('a bake of other code than the look\'s now is left out, with its review; a current one stays through writes',
+  async () => {
+    const store = await createStore(path.join(fx.tmp, 'stale'), { log: { error() {} }, views: { looks: refs } });
+    const layers = (code) => [{ id: 'l1', title: 'Noise', modules: [{ id: 'm1', kind: 'source', title: 'Noise',
+      ref: 'noise', code, params: {} }] }];
+    const baked = (code) => ({ owner: 'u1', title: 'x', layers: layers(code), reviewed: true, reviewedBy: 'u2',
+      bake: { status: 'done', ok: true, layersHash: layersHash(renderFields({ layers: layers(code) })) } });
+    const old = store.looks.create(baked(git('1cfdcda6:public/patterns/noise.js')));
+    assert.deepEqual([old.bake, old.reviewed, old.reviewedBy], [undefined, false, undefined]);
+    const now = store.looks.create(baked(file('noise')));
+    assert.equal(now.bake?.layersHash, layersHash(renderFields(now)));
+    const shared = store.looks.update(now.id, { shared: true });
+    assert.deepEqual([shared.bake?.ok, shared.reviewed], [true, true], 'a write without code keeps the bake current');
+    assert.deepEqual(Object.keys(shared.layers[0].modules[0]), ['id', 'kind', 'title', 'ref', 'code', 'params']);
+    await store.flush();
+  });
 
 test('every module the library-only step keeps names a module a read fills', async () => {
   const kept = [...await libraryFiles(patterns, { retired: true })].filter(([, f]) => f.code !== null);

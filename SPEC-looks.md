@@ -40,7 +40,9 @@ below.
   module as its `ref` and params, never its code (`src/library-refs.ts`): every read (the API, versions, bakes,
   previews, exports) fills `code` with the current file of the entry `ref` names, hidden ones too, whatever was
   stored ('' for a ref the library lacks). A module whose code is not its ref's file, or that has no ref, takes the
-  ref of the one entry whose current or earlier file its code is exactly (by SHA-256); else it keeps its ref. A
+  ref of the one entry whose current or earlier file its code is exactly (by SHA-256); else it keeps its ref. A read
+  leaves out a bake whose `layersHash` is not the filled look's, with its review (`reviewed` false, no `reviewedBy`
+  or `flashOverride`): once the library changes, the look is baked and reviewed afresh. A
   module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API puts a renamed one's back), and a hand edit
   of its code drops `ref`, making it custom (custom code is refused: SPEC-baking
