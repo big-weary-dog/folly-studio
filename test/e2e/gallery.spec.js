@@ -3,14 +3,14 @@
 // Screenshots land in GALLERY_SHOTS when set, else the test's output folder.
 import path from 'node:path';
 
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'gallery-admin-390,gallery-admin-1366' } });
 
 /** A signed-up account in `context`, sharing a look of its own for each title. */
 async function account(context, origin, username, titles = []) {
   const post = (url, data) => context.request.post(origin + url, { data });
-  expect((await post('/api/signup', { username, password: 'correct horse' })).status()).toBe(201);
+  await signupIn(context.request, origin, username);
   for (const title of titles) {
     const { look } = await (await post('/api/looks', { title, layers: [] })).json();
     expect((await context.request.put(`${origin}/api/looks/${look.id}`, { data: { shared: true } })).ok()).toBe(true);

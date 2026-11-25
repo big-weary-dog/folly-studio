@@ -1,6 +1,5 @@
 // Conditional controls pass through compilation without changing playback or discarding hidden saved values.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 
 import { test } from 'vitest';
 
@@ -9,8 +8,8 @@ import { applyMods, lookFrame, paramMods, prepareLook, resolveParams } from '../
 import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
 import { normaliseParam, visibleParams } from '../public/js/ui/bindings.ts';
 import { folly } from './fixtures/rigs.js';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
-const lib = (name) => readFileSync(new URL(`../public/patterns/${name}.js`, import.meta.url), 'utf8');
 const controls = (schema, saved = {}) => visibleParams(Object.entries(schema)
   .map(([key, p]) => [key, normaliseParam(key, p)]), saved).map(([key]) => key);
 

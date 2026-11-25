@@ -1,5 +1,5 @@
 // Audit regressions: drafts, reporting eligibility and tutorial availability.
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'pages-admin-1366,pages-admin-390,pages-admin-360' } });
 
@@ -14,8 +14,7 @@ for (const width of [1366, 390, 360]) {
 
     test('a draft survives cancelled navigation', async ({ page, studio }) => {
       const cookie = await signup(studio.origin, `pages-admin-${width}`);
-      const [name, value] = cookie.split('=');
-      await page.context().addCookies([{ name, value, url: studio.origin }]);
+      await signIn(page.context(), studio.origin, cookie);
       await page.goto(`${studio.origin}/admin`);
       await expect(page).toHaveURL(/\/admin\/light$/);
       if (width < 900) {

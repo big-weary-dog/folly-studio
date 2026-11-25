@@ -11,7 +11,10 @@ import { lookRoutes } from '../src/api-looks.ts';
 import { createAuth } from '../src/auth.ts';
 import { MAX_NAMED, nameFields } from '../src/look-versions.ts';
 import { createStore, type StoredLook } from '../src/store.ts';
-import { fakeBox, fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { quiet } from './fixtures/quiet.js';
+import { fx, layer, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 

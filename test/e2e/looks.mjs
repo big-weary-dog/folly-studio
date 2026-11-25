@@ -50,9 +50,6 @@ function pixel(p, t, P) {
   return [0, 0, 0];
 }`;
 
-export function libraryCode(name) {
-  return readFileSync(new URL(`public/patterns/${name}.js`, STUDIO), 'utf8');
-}
 
 /**
  * Render a look's layers ([{ code, groups?, blend?, level?, params?, clips? }]) for `seconds` at

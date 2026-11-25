@@ -17,11 +17,11 @@ import type { Ctx, Step } from '../public/js/ui/tour/types.ts';
 import { tourName, type TourView } from '../public/js/ui/tour-view.ts';
 import { LookCreate } from '../shared/schemas/api.ts';
 import { LibraryEntry, type ModuleEntry, type PresetEntry, type Rig } from '../shared/schemas/rig.ts';
+import { libraryIndex, withCode } from './fixtures/patterns.js';
 
 const root = new URL('..', import.meta.url).pathname, read = (p: string) => readFileSync(path.join(root, p), 'utf8');
 const rig = JSON.parse(read('public/data/rig.json')) as Rig;
-const library = (JSON.parse(read('public/patterns/index.json')) as unknown[]).map((e) => LibraryEntry.parse(e))
-  .map((e) => ({ ...e, code: e.kind === 'preset' ? '' : read(`public/patterns/${e.name}.js`) })) as
+const library = (libraryIndex() as unknown[]).map((e) => withCode(LibraryEntry.parse(e))) as
   (ModuleEntry | PresetEntry)[];
 const modules = new Map(library.filter((e): e is ModuleEntry => e.kind !== 'preset').map((e) => [e.name, e]));
 const presets = new Map(library.filter((e): e is PresetEntry => e.kind === 'preset').map((e) => [e.name, e]));

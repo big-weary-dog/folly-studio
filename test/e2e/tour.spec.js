@@ -5,7 +5,7 @@
 // TOUR_SHOTS set to a folder, each step's screenshot (at 1366 × 768) goes there.
 import path from 'node:path';
 
-import { expect, signup, test } from './studio.js';
+import { expect, signIn, signup, test } from './studio.js';
 import { playKeep, playLayers, playLook, playModules, playMoves, playTime } from './tour-paths.js';
 
 test.use({ tourWelcome: true });
@@ -14,8 +14,7 @@ const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch:
 
 /** A new account's cookie on the page's context. */
 async function signedIn(page, { origin }, name) {
-  const [k, v] = (await signup(origin, name)).split('=');
-  await page.context().addCookies([{ name: k, value: v, url: origin }]);
+  await signIn(page.context(), origin, await signup(origin, name));
 }
 
 /** How far (px) the ring is from round the step's control (the last of `names` on screen, as the tour picks it), or

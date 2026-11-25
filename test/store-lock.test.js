@@ -8,8 +8,8 @@ import { afterAll, test } from 'vitest';
 
 import { createStore } from '../src/store.ts';
 import { DataLockedError, LOCK_FILE, lockDataDir } from '../src/store-lock.ts';
+import { quiet } from './fixtures/quiet.js';
 
-const quiet = { error() {} };
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-lock-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 

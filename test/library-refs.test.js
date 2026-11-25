@@ -13,7 +13,8 @@ import { libraryFiles } from '../src/library-history.ts';
 import { libraryRefs } from '../src/library-refs.ts';
 import { createLoaders } from '../src/static.ts';
 import { createStore } from '../src/store.ts';
-import { fx, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fx, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const publicDir = fileURLToPath(new URL('../public/', import.meta.url));

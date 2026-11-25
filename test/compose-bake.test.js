@@ -14,13 +14,13 @@ import { ledRanges } from '../public/js/fseq.ts';
 import { bakeLoop, readLibrary, renderer } from '../render-box/renderer.ts';
 import { parseFseq } from '../src/frames.ts';
 import { createRenderBox } from '../src/render-box.ts';
+import { quiet } from './fixtures/quiet.js';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const lib = (name) => fs.readFileSync(path.join(PUBLIC, 'patterns', `${name}.js`), 'utf8');
 const MINI = fileURLToPath(new URL('./fixtures/rigs/mini.json', import.meta.url));
 const RIGS = { folly: path.join(PUBLIC, 'data/rig-folly.json'), cog: path.join(PUBLIC, 'data/rig.json'), mini: MINI };
 const readRig = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
-const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const SECONDS = 2;
 
 // A warp, two sources (one only feeding the mask), the mask, globals, automation, a binding and use().

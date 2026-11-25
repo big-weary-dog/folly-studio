@@ -10,7 +10,8 @@ import { afterAll, beforeAll, describe, test, vi } from 'vitest';
 import { can } from '../shared/policy.ts';
 import { adminsDeclared } from '../src/http.ts';
 import * as http from '../src/http.ts';
-import { signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 

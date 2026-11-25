@@ -11,7 +11,9 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { layersHash, renderFields } from '../src/bake.ts';
-import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
+import { signup } from './fixtures/app.js';
+import { fakeBox } from './fixtures/box.js';
+import { fx, PIXEL, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));

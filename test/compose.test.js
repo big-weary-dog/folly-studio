@@ -9,11 +9,11 @@ import {
   automationAt, compileLayer, compilePattern, DEFAULT_PALETTE, layerModules, PALETTE_ROLES, prepareLayer, prepareLook,
   prepareScene, renderFrame, setLibrary, upgradeGlobals,
 } from '../public/js/pattern-core.ts';
+import { libraryCode as lib } from './fixtures/patterns.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig.json'), 'utf8'));
 const palettes = JSON.parse(readFileSync(here('../public/data/palettes.json'), 'utf8'));
-const lib = (name) => readFileSync(here(`../public/patterns/${name}.js`), 'utf8');
 const scene = prepareScene(rig);
 const N = scene.count;
 const layerOf = (layer) => prepareLayer(scene, layer, compileLayer(layer));
