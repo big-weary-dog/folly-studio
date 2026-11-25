@@ -15,10 +15,11 @@ The core, the boxes, the frame analysis, the generators and the viewer read only
 
 The server reads that file for the library's groups, bakes, previews, the render box and the generators, and says
 its name in `/api/me` (`rig`); the browser fetches the same file (both ship, each under its content hash). A bake is
-of the rig it was baked on: its `renderKey` digests the file, so a new rig bakes again. `tools/build_rig.py
-[--check]` builds both (`LIGHTING_DIR`; never by hand; fixtures and groups: DESIGN §9), on lighting's xLights and
-Falcon channels (`tools/check_channels.py`); another installation writes its own (CONTRIBUTING "Adding a new
-installation").
+of the rig it was baked on: its `renderKey` digests the file, and a server started on a rig of another LED count
+fails the done bakes it cannot play ("baked on another rig") and drops their frames, so they bake again.
+`tools/build_rig.py [--check]` builds both (`LIGHTING_DIR`; never by hand; fixtures and groups: DESIGN §9), on
+lighting's xLights and Falcon channels (`tools/check_channels.py`); another installation writes its own
+(CONTRIBUTING "Adding a new installation").
 
 ```jsonc
 { "rig": 1, "name": "Gothic Folly 2026", "about": "…",   // about: optional prose for the AI generators

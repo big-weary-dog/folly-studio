@@ -159,3 +159,15 @@ test('structurally valid frames must match requested count, step and all channel
     assert.equal(out.frames, undefined);
   }
 });
+
+test('a server started on another rig fails the bakes it cannot play and drops their frames', async () => {
+  const f = await fixture();
+  assert.equal((await f.bake()).ok, true);
+  await fs.writeFile(path.join(f.dir, 'rig.json'), JSON.stringify(lineRig(12)));
+  createBakeQueue({ store: { looks: f.looks }, box: { probe: async () => ({ ok: true }) }, framesDir: f.dir,
+    rigFile: path.join(f.dir, 'rig.json'), log: { info() {}, error() {} } });
+  const bake = f.looks.get('a').bake;
+  assert.equal(bake.status, 'failed');
+  assert.match(bake.reason, /another rig/);
+  await vi.waitFor(() => fs.stat(path.join(f.dir, 'a.fseq')).then(() => assert.fail('frames kept'), () => {}));
+});
