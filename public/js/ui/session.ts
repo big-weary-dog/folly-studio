@@ -1,6 +1,6 @@
 // What views share with the shell (app.tsx): who is signed in, navigation, the title, and the guard on unsaved
 // edits. The shell plugs its router in, so no view imports the shell (an import cycle would cost Vite's HMR).
-import { signal } from '@preact/signals';
+import { computed, signal } from '@preact/signals';
 
 import { onSignedOut } from '../api.ts';
 import type { FlashSettings, User } from '../../../shared/schemas/api.ts';
@@ -12,6 +12,17 @@ export const user = signal<User | null>(null);
 export const flash = signal<FlashSettings | null>(null);
 /** The rig the server shows, bakes and boxes (SPEC "Rig", GET /api/me's `rig`): the views load the same one. */
 export const rig = signal<RigName>('folly');
+/** The Studio's Advanced editing on a laptop (SPEC-studio "Simple"), as this browser chose it; null: not chosen. */
+const ADVANCED = 'studio.advanced';
+const chosen = signal<boolean | null>((() => {
+  try { return { 1: true, 0: false }[localStorage.getItem(ADVANCED) ?? ''] ?? null; } catch { return null; }
+})());
+/** Whether the Studio shows Advanced editing: as chosen, else on for an account and off for a guest or visitor. */
+export const advanced = computed(() => chosen.value ?? !!(user.value && !user.value.guest));
+export function setAdvanced(on: boolean) {
+  chosen.value = on;
+  try { localStorage.setItem(ADVANCED, on ? '1' : '0'); } catch { /* private mode: kept for this visit */ }
+}
 /** Where a signed-in visitor starts: the gallery (SPEC-access "Moderation"). */
 export const HOME = '/gallery';
 type Me = { user: User | null, flash?: FlashSettings | null, rig?: RigName };
