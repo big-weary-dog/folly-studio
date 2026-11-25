@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { compileLayer, linkMap, prepareLayer, prepareScene, renderFrame, waveStep } from '../public/js/pattern-core.ts';
+import { compileLayer, linkMap, prepareLayer, prepareScene, renderFrame, waveStep } from '../core/pattern-core.ts';
 import { folly } from './fixtures/rigs.js';
 
 /** A rig of fixtures given as [id, zone, points]: y up, z right, one group per fixture (tagged piece) under `all`. */

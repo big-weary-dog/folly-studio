@@ -1,5 +1,5 @@
 // The timeline (SPEC "Timeline"): a look lasts `duration` seconds; a layer with clips is lit only inside them.
-import type { Clip } from '../../../shared/schemas/look.ts';
+import type { Clip } from '../shared/schemas/look.ts';
 import { clamp, type Direction, DIRECTIONS, isNum, OLD_DIRECTIONS, toward } from './stdlib.ts';
 
 export const DEFAULT_DURATION = 30;

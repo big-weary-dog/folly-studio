@@ -1,6 +1,6 @@
 // The scene: a rig (SPEC "Rig") as typed arrays in the pattern frame (x depth front → back, y up, z left →
 // right), its fixtures, attrs, groups and tags.
-import type { Rig, RigGroup } from '../../../shared/schemas/rig.ts';
+import type { Rig, RigGroup } from '../shared/schemas/rig.ts';
 import { type Centres, hash } from './stdlib.ts';
 
 const AXIS = /^([+-])([xyz])$/;

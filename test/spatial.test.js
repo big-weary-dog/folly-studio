@@ -8,9 +8,9 @@ import { describe, test } from 'vitest';
 import {
   compileLayer, compileModule, DEFAULT_SOFTEN, MAX_RADIUS, neighbourGraph, normalizeParams, prepareLayer, prepareScene,
   renderFrame, resolveParams, STDLIB, toChannels,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
-import { blur, blurState } from '../public/js/core/spatial.ts';
+import { blur, blurState } from '../core/spatial.ts';
 import { libraryCode as lib } from './fixtures/patterns.js';
 
 test('prepared blur weights match dynamic weights exactly, including hidden RGB at zero alpha', () => {

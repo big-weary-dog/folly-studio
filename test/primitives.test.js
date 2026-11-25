@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame, tagCentres } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame, tagCentres } from '../core/pattern-core.ts';
 import { fade } from './fixtures/oklab.js';
 import { folly, mini } from './fixtures/rigs.js';
 import { libraryCode as lib } from './fixtures/patterns.js';

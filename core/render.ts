@@ -1,7 +1,7 @@
 // Layers (SPEC "Modules"): each a module chain run over its pixels in one pass (each module works on what is above
 // it: sources draw and combine, filters rework the colour, warps bend the pixel, warps.ts), or in stages round its
 // spatial modules (SPEC "Spatial modules"); blended into a frame (output.ts), graded by the look's globals.
-import type { Module } from '../../../shared/schemas/look.ts';
+import type { Module } from '../shared/schemas/look.ts';
 import { compileModule, describeError } from './compile.ts';
 import { applyMods, finish, lookFrame, prepareLook } from './globals.ts';
 import type { G, PreparedLook } from './globals.ts';

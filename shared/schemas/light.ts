@@ -2,7 +2,7 @@
 // this shape, checked here with a message per field; reading a stored file is lenient (the core's lightOf).
 import { z } from 'zod';
 
-import { LIGHT_LIMITS } from '../../public/js/pattern-core.ts';
+import { LIGHT_LIMITS } from '../../core/pattern-core.ts';
 
 const share = (name: string) => z.number({ error: `${name} must be a number.` })
   .min(0, { error: `${name} must be at least 0.` }).max(1, { error: `${name} must be at most 1 (100 %).` });

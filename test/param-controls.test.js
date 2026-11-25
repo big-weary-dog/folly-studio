@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { normalizeParams } from '../public/js/core/compile.ts';
-import { applyMods, lookFrame, paramMods, prepareLook, resolveParams } from '../public/js/core/globals.ts';
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../public/js/pattern-core.ts';
+import { normalizeParams } from '../core/compile.ts';
+import { applyMods, lookFrame, paramMods, prepareLook, resolveParams } from '../core/globals.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/pattern-core.ts';
 import { normaliseParam, visibleParams } from '../public/js/ui/bindings.ts';
 import { folly } from './fixtures/rigs.js';
 import { libraryCode as lib } from './fixtures/patterns.js';

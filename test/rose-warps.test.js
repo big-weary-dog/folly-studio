@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame, tagMask } from '../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame, tagMask } from '../core/pattern-core.ts';
 import { cog, folly } from './fixtures/rigs.js';
 import { libraryCode as lib } from './fixtures/patterns.js';
 

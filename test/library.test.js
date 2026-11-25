@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'vitest';
 
 import { compileLayer, compilePattern, prepareLayer, prepareLook, prepareScene, renderFrame } from
-  '../public/js/pattern-core.ts';
+  '../core/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
 import { libraryCode as source, libraryIndex } from './fixtures/patterns.js';
 

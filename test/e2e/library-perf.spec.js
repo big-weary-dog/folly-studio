@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
-import { compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame } from '../../public/js/pattern-core.ts';
+import { compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame } from '../../core/pattern-core.ts';
 import { reference, timer } from './perf-calibrate.js';
 import { libraryCode as source, libraryIndex } from '../fixtures/patterns.js';
 

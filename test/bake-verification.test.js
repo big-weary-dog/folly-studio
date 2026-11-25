@@ -6,8 +6,8 @@ import path from 'node:path';
 
 import { afterEach, test, vi } from 'vitest';
 
-import { ledRanges, writeFseq } from '../public/js/fseq.ts';
-import { LIGHT } from '../public/js/pattern-core.ts';
+import { ledRanges, writeFseq } from '../core/fseq.ts';
+import { LIGHT } from '../core/pattern-core.ts';
 import { createBakeQueue, layersHash, renderFields, renderKey, reviewBlocker } from '../src/bake.ts';
 import { checkFrames, cleanBoxStats, failedBake } from '../src/box-output.ts';
 import { lineRig } from './fixtures/rigs.js';

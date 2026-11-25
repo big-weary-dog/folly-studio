@@ -3,8 +3,8 @@ import { closeSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-import type { Span } from '../public/js/fseq.ts';
-import type * as Core from '../public/js/pattern-core.ts';
+import type { Span } from '../core/fseq.ts';
+import type * as Core from '../core/pattern-core.ts';
 import type { Rig } from '../shared/schemas/rig.ts';
 
 export const FPS = 40; // when the rig gives none (SPEC "Rig": output.fps)

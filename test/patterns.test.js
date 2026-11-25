@@ -8,7 +8,7 @@ import { describe, test } from 'vitest';
 
 import {
   compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame, toChannels,
-} from '../public/js/pattern-core.ts';
+} from '../core/pattern-core.ts';
 import { libraryCode as source, libraryIndex } from './fixtures/patterns.js';
 
 const here = (p) => new URL(p, import.meta.url);

@@ -11,14 +11,14 @@ import { fileURLToPath } from 'node:url';
 
 import type { Browser, Page } from 'playwright-core';
 
-import type { Light } from '../../public/js/pattern-core.ts';
+import type { Light } from '../../core/pattern-core.ts';
 import type { Rig } from '../../shared/schemas/rig.ts';
 import type { Logger } from '../http.ts';
 import { type Camera, HEIGHT, WIDTH } from './motion.ts';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const ORIGIN = 'http://preview.camera';
-const SERVED = /^\/(public\/js|shared\/schemas)\/[\w/-]+\.ts$/;  // what the page imports, no more
+const SERVED = /^\/(public\/js|core|shared\/schemas)\/[\w/-]+\.ts$/;  // what the page imports, no more
 const IDLE_MS = 60_000;
 const WSL = '/usr/lib/wsl/lib';
 const HTML = `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:#000}

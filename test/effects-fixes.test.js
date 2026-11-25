@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { describe, test } from 'vitest';
 
-import { compileModule, upgradedParams } from '../public/js/pattern-core.ts';
+import { compileModule, upgradedParams } from '../core/pattern-core.ts';
 import { at, COG, layerOf, litShare } from './fixtures/layers.js';
 import { libraryCode } from './fixtures/patterns.js';
 

@@ -1,7 +1,7 @@
 // Library modules as one layer on City of Gods, rendered in-process: for tests of what an effect draws.
 import assert from 'node:assert/strict';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../../public/js/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../../core/pattern-core.ts';
 import { cog } from './rigs.js';
 import { libraryCode, libraryIndex } from './patterns.js';
 

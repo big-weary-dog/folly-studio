@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import * as core from '../public/js/pattern-core.ts';
+import * as core from '../core/pattern-core.ts';
 import { upgradeLook } from '../shared/chain-order.ts';
 import { folly } from './fixtures/rigs.js';
 

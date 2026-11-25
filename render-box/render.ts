@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
-import type * as Fseq from '../public/js/fseq.ts';
+import type * as Fseq from '../core/fseq.ts';
 import { bakeFile, bakeId, bakeSeconds, FPS, readLibrary, renderer } from './renderer.ts';
 
 // The FSEQ writer sits beside this file in the box (src/render-box.ts binds it there).

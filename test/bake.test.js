@@ -19,7 +19,7 @@ import { serve, signup } from './fixtures/app.js';
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
 const rigFile = path.join(PUBLIC, 'data/rig-folly.json');
-const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.ts'));
+const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(STUDIO, 'core/pattern-core.ts'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
 const unavailable = `render box unavailable here: ${probe.reason}`;

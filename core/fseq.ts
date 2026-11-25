@@ -9,7 +9,7 @@
 //   (each a whole zstd frame or zlib stream). A sparse frame holds only its ranges' channels.
 // At most 255 blocks, so byte 20's high nibble stays 0: readers differ on whether they honour it.
 
-import type { Rig } from '../../shared/schemas/rig.ts';
+import type { Rig } from '../shared/schemas/rig.ts';
 
 const FIXED_HEADER = 32;
 const MAX_U24 = 0xffffff;

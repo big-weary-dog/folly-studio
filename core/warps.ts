@@ -1,7 +1,7 @@
 // The one rule (SPEC "Modules"): every module of a chain works on what is above it, so a warp bends the modules above
 // it, up to the nearest stage end: a module that holds real LED colours (a blur, trails), which nothing below it
 // reaches past. Per pixel, each module reads one of a few copies of the pixel (slots), bent bottom-up.
-import type { Module } from '../../../shared/schemas/look.ts';
+import type { Module } from '../shared/schemas/look.ts';
 
 /** What a filter's `stage` may declare: it reads its neighbours (with a spatial op), or keeps colours across frames. */
 export const STAGES = Object.freeze(['spatial', 'history'] as const);

@@ -10,7 +10,7 @@ model of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `
   A render-box test that skips says why (`ctx.skip(condition, reason)`; the run ends listing them). A skip is not a
   pass. UI changes also get `npm run smoke` (Playwright Test; `perf` and `e2e` beside it in `test/e2e/`).
 - **SPEC.md indexes the contract: change the relevant SPEC file first.** The sandbox protocol, the HTTP API, the look
-  and `rig.json` shapes, and `pattern-core.ts`'s exports are what the other pieces rely on.
+  and `rig.json` shapes, and `core/pattern-core.ts`'s exports are what the other pieces rely on.
   Code follows the spec, in the same change.
 - **Split, never bump.** Source stays ≤ 400 lines, tests ≤ 600, library patterns ≤ 150 (each
   reads as one file), lines ≤ 120, text files ≤ 64 KB, and the gzipped app ≤ 350 KB with the
@@ -36,7 +36,7 @@ model of the Gothic Folly. `SPEC.md` indexes the contract in the area-specific `
 - **The browser builds nodes, never HTML strings.** Components render with Preact; never `innerHTML` or
   `dangerouslySetInnerHTML`. Everything loads from our own origin under the CSP in `src/static.ts`, with no inline
   script.
-- **Bakes are deterministic.** No `Math.random` in `pattern-core.ts`, the render box or the
+- **Bakes are deterministic.** No `Math.random` in `core/`, the render box or the
   library: use `rand`, `hash`, `noise` and `seed`.
 - **Frames are hot.** The render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), layers outside their clips are skipped before any pixel work, and the loop sleeps when

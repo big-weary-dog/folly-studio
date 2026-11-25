@@ -2,7 +2,7 @@
 import { useState } from 'preact/hooks';
 
 import { api } from '../api.ts';
-import { type Light, lightOf } from '../core/light.ts';
+import { type Light, lightOf } from '../../../core/light.ts';
 import type { Runtime } from '../runtime.ts';
 import { confirmDialog, download, Field, openDialog, Scrub, slugify, toast } from './kit.tsx';
 import { fileText, lookFile } from './look-file.ts';
@@ -29,7 +29,7 @@ export async function exportFseq(st: Studio, pv: Preview) {
       + `leave ${many ? 'them' : 'it'} out. Export the rest anyway?`;
     if (!(await confirmDialog(why, { title: 'A layer is paused', ok: 'Export anyway' }))) return undefined;
   }
-  const { exportShape, packFrames, writeFseq } = await import('../fseq.ts');
+  const { exportShape, packFrames, writeFseq } = await import('../../../core/fseq.ts');
   const rig = st.data.rig as NonNullable<typeof st.data.rig>, L = st.look.peek();
   const { fps, stepMs, frameChannels: channelCount, ranges, used } = exportShape(rig);
   // The light settings (SPEC "Light and output"), the server's: every export goes out on the same curve.

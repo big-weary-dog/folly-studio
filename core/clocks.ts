@@ -5,7 +5,7 @@
 import { type Mod, modValue, type Values } from './globals.ts';
 import { RUN } from './stdlib.ts';
 import { layerEnvelope } from './timeline.ts';
-import type { Clip } from '../../../shared/schemas/look.ts';
+import type { Clip } from '../shared/schemas/look.ts';
 
 const CLOCK_STEP = 1 / 128;      // seconds: a power of two, so every grid time is exact
 

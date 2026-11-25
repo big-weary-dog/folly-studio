@@ -5,8 +5,8 @@
 import { readFileSync } from 'node:fs';
 import { parentPort, workerData } from 'node:worker_threads';
 
-import * as core from '../../public/js/pattern-core.ts';
-import { ledRanges, writeFseq } from '../../public/js/fseq.ts';
+import * as core from '../../core/pattern-core.ts';
+import { ledRanges, writeFseq } from '../../core/fseq.ts';
 import { renderer } from '../../render-box/renderer.ts';
 import { analyzeFrames, parseFseq } from '../../src/frames.ts';
 import { libraryCode } from './patterns.js';

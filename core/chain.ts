@@ -2,7 +2,7 @@
 // combines, the slot of the pixel it reads), and a composite's sub-layers as chains of their own (SPEC-library
 // "Composites"), each with its warps placed, its pixel slots, its colour and the LEDs it plays on. A source with
 // warps or filters attached to it (`on`) runs as a composite of one sub-layer: the source, then them.
-import type { Module, SubLayer } from '../../../shared/schemas/look.ts';
+import type { Module, SubLayer } from '../shared/schemas/look.ts';
 import type { Compiled, ParamSchema } from './compile.ts';
 import type { Stages } from './render.ts';
 import { paramMods, resolveParams } from './globals.ts';
