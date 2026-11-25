@@ -16,13 +16,13 @@ const { saveBody } = await import('../public/js/ui/studio-store.ts');
 
 useFixture();
 
-// Code that reads the tempo, so bpm is in the bake's render fields.
-const BEAT = 'function pixel(p, t, P, G) { return [G.bpm / 240, 0, 0]; }';
+// An LFO in beats, so bpm is in the bake's render fields.
+const BEAT = { speed: { mod: 'lfo', unit: 'beats' } };
 const energy = (value: number) => ({ macros: { energy: { value, min: 0, max: 1 } } });
-const base = { layers: [layer({ code: BEAT })], duration: 20, bpm: 120, globals: energy(0.5),
+const base = { layers: [layer({ params: BEAT })], duration: 20, bpm: 120, globals: energy(0.5),
   automation: { energy: [[0, 0.2], [10, 0.8]] } };
 /** Each field's other value. */
-const OTHER: { [K in PlaysKey]: unknown } = { layers: [layer({ code: BEAT, level: 0.4 })], duration: 25, bpm: 128,
+const OTHER: { [K in PlaysKey]: unknown } = { layers: [layer({ params: BEAT, level: 0.4 })], duration: 25, bpm: 128,
   globals: energy(0.7), automation: { energy: [[0, 0.3]] } };
 const stored = (l: object) => ({ id: 'x', owner: 'u', title: 'T', summary: '', updatedAt: 'then', ...l }) as StoredLook;
 

@@ -15,7 +15,7 @@
     "vitest/no-focused-tests": "error",
     "no-restricted-imports": ["error", { "paths": [
       { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
-      { "name": "node:child_process", "message": "processes only box untrusted work" }
+      { "name": "node:child_process", "message": "processes only run the render box" }
     ] }],
     // `const { data, ...stats } = baked` drops a key on purpose.
     "no-unused-vars": ["error", { "ignoreRestSiblings": true }],
@@ -36,7 +36,7 @@
         "no-restricted-imports": ["error", {
           "paths": [
             { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
-            { "name": "node:child_process", "message": "processes only box untrusted work" }
+            { "name": "node:child_process", "message": "processes only run the render box" }
           ],
           "patterns": [{ "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/js/fseq.*",
             "!**/public/js/scrub.*", "!**/public/**/*.json"], "message": "server code takes only pattern-core, fseq, scrub and data from public/" }]
@@ -62,7 +62,7 @@
         "no-restricted-imports": ["error", {
           "paths": [
             { "name": "node:vm", "message": "code generation lives only in the pattern compiler and the render box" },
-            { "name": "node:child_process", "message": "processes only box untrusted work" }
+            { "name": "node:child_process", "message": "processes only run the render box" }
           ],
           "patterns": [
             { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
@@ -146,12 +146,12 @@
       }
     },
     { "files": ["public/patterns/**"], "rules": { "max-lines": ["error", { "max": 150 }] } },
-    // The allowlist: the pattern compiler, the render box, and the processes that box untrusted work.
+    // The allowlist: the pattern compiler, the render box, and the process it runs in.
     { "files": ["public/js/core/compile.ts"], "rules": { "no-new-func": "off" } },
     {
       "files": ["render-box/render.ts"],
       "rules": { "no-restricted-imports": ["error", { "paths": [
-        { "name": "node:child_process", "message": "processes only box untrusted work" }
+        { "name": "node:child_process", "message": "processes only run the render box" }
       ] }] }
     },
     { "files": ["tools/**"], "rules": { "no-restricted-imports": "off" } },

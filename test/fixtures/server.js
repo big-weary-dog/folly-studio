@@ -34,6 +34,8 @@ export const EXPECTED_SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inli
   + 'sandbox allow-scripts';
 export const SANDBOX_PAGE = '/assets/sandbox-0123abcd.html';
 export const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
+/** The fixture library's embers.js: library code, so it saves. */
+export const EMBERS = `// Rising embers\n${PIXEL}\n`;
 
 const RIG = JSON.stringify({
   rig: 1, count: 2, output: { universes: 1, channelsPerUniverse: 510 }, bounds: { min: [0, 0, 0], max: [0, 1, 0] },
@@ -68,13 +70,13 @@ async function writeFixture(dir) {
       { name: '../evil', title: 'Traversal' },
     ]),
   );
-  await writeFile(path.join(dir, 'patterns', 'embers.js'), `// Rising embers\n${PIXEL}\n`);
+  await writeFile(path.join(dir, 'patterns', 'embers.js'), EMBERS);
   await writeFile(path.join(dir, 'data', RIG_FILES.folly), RIG);   // the server's default rig
 }
 
 /**
- * A stand-in render box (the real one, under bubblewrap, is test/bake.test.js): two seconds of
- * frames for the fixture's two LEDs, strobing at 10 Hz when the code says STROBE, else steady.
+ * A stand-in render box (the real one is test/bake.test.js): two seconds of
+ * frames for the fixture's two LEDs, strobing at 10 Hz when a layer's params say strobe, else steady.
  */
 export function fakeBox() {
   return {
@@ -83,7 +85,7 @@ export function fakeBox() {
     probe: async () => ({ ok: true }),
     async render({ layers }) {
       this.renders++;
-      const strobe = layers.some((l) => /STROBE/.test(l.code));
+      const strobe = layers.some((l) => l.params?.strobe);
       const data = new Uint8Array(80 * 6);
       for (let f = 0; f < 80; f++) data.fill(strobe && Math.floor(f / 2) % 2 ? 0 : 200, f * 6, f * 6 + 6);
       return { bytes: Buffer.from(writeFseq({ frames: 80, data, ranges: [[0, 6]] })), boxStats: { untrusted: true,
@@ -97,7 +99,7 @@ const CHEAP = Object.freeze({ N: 1024, r: 8, p: 1 });
 
 export async function startApp(opts = {}) {
   const app = await createServer({ publicDir: fx.publicDir, distDir: fx.distDir, log: quiet, scrypt: CHEAP,
-    customCode: true, ...opts });
+    ...opts });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
   app.port = addr.port;
@@ -162,5 +164,5 @@ export function rawGet(port, rawPath, headers = {}) {
   });
 }
 
-export const layer = (extra = {}) => ({ id: 'l1', title: 'Sea', code: PIXEL, groups: ['cathedral'], blend: 'add',
-  level: 1, params: { speed: 0.4 }, ...extra });
+export const layer = (extra = {}) => ({ id: 'l1', title: 'Sea', ref: 'embers', code: EMBERS, groups: ['cathedral'],
+  blend: 'add', level: 1, params: { speed: 0.4 }, ...extra });

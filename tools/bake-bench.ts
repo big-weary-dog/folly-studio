@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // How long a bake takes here: bakes library looks (tools/bench-looks.ts: a source's name, or preset:<name>) in the
 // real render box, with the limits the server would give it (STUDIO_BAKE_*), one after another as the server does.
-// Needs bubblewrap; says why not when the box cannot run.
+// Says why not when the box cannot run.
 //
 //   npm run bake-bench -- [--seconds 30] [fire preset:plasma]
 //

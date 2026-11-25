@@ -9,7 +9,7 @@ have not been run here. Check them against the tool's own docs.
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed iframe), playback of baked frames | Its own CPU and battery |
 | Your computer (`npm start`) | Accounts, the JSON store, the API, static files, bakes, frame encoding | About 100 MB of RAM idle; a login takes 128 MiB for half a second (scrypt, at most three at once) |
-| Render box (bubblewrap; without it, library looks only) | One bake at a time, `nice 10` (Admin → Baking: throttled is `nice 19` with 30 s between renders, or off), in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
+| Render box (its own process; library looks only) | One bake at a time, `nice 10` (Admin → Baking: throttled is `nice 19` with 30 s between renders, or off), in its own systemd user scope: ≤ 256 tasks (`STUDIO_BAKE_TASKS`), ≤ 1 GB (`STUDIO_BAKE_MEMORY`); a wall clock | A 30 s look takes 2–3 s on one core |
 | Encoder thread | Brotli for streaming, `nice 10`, one job at a time; a look's encode waits for any bake | 2.5–5.5 s per 30 s look at quality 9 |
 
 Bakes and encodes yield to everything else: the API and your desktop stay responsive. Baked frames
@@ -47,8 +47,7 @@ outward to its provider, so nothing on your network opens.
 
 The studio runs natively in WSL as a systemd user service, `folly-studio`; the Cloudflare tunnel's connector
 (`cloudflared`) runs on Windows, as it does for Loopr's arcade, and reaches it through WSL's localhost forwarding.
-Native rather than Docker because bakes need bubblewrap's user namespaces, which work here as they are and
-which Docker would have to be loosened for.
+Native rather than Docker because bakes run in a systemd user scope, which works here as it is.
 
 What was checked on this machine (WSL 2.4, NAT networking, `systemd=true` in `/etc/wsl.conf`, linger on):
 
