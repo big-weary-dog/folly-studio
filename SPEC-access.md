@@ -63,6 +63,9 @@ only when it is also reviewed. My looks tags its owner's shared looks that are w
 Anyone with an account may **Report this look** on a card someone else shared: a short note, sent as a report
 (SPEC "Bug reports") that names the look, for an admin to read.
 
+**The gallery is home** for everyone signed in, guests too: `/`, the header's brand and signing in without a `next`
+lead to it, showing approved looks. An empty My looks points to it, where a look is picked and saved as one's own.
+
 ## Admin
 
 Phone Admin keeps quick operator tasks; see [SPEC-studio "Phones"](SPEC-studio.md#phones).
@@ -119,7 +122,7 @@ start.
 
 ## No AI
 
-Studio has no AI: no Ideas page (`/ideas` leads to My looks; a guest's home is the Studio), no Refine, no invite
+Studio has no AI: no Ideas page (`/ideas` leads home), no Refine, no invite
 codes and no Models or Access tabs; sign-up says nothing of AI. The server has no idea, model, invite or people
 routes, and leaves an older data folder's `ideas.json`, `invites.json`, `models.json` and `ideas-log/` unread.
 

@@ -50,7 +50,7 @@ for (const width of [1366, 390, 360]) {
         await page.fill('input[name=username]', `pages-member-${width}`);
         await page.fill('input[name=password]', 'correct horse');
         await page.locator('input[name=password]').press('Enter');
-        await expect(page).toHaveURL(/\/looks$/);
+        await expect(page).toHaveURL(/\/gallery$/);
         await expect(page.getByText(/Reporting a problem needs an account/)).toHaveCount(0);
         await shot(page, 'looks');
         await page.keyboard.press('F8');
@@ -78,7 +78,7 @@ for (const width of [1366, 390, 360]) {
         await page.getByRole('button', { name: 'Guest', exact: true }).click();
         await page.getByLabel('Your name').fill('Visitor');
         await page.getByRole('button', { name: 'Come in as a guest' }).click();
-        await expect(page).toHaveURL(/\/studio$/);
+        await expect(page).toHaveURL(/\/gallery$/);
         await page.keyboard.press('F8');
         await expect(page.getByRole('dialog', { name: 'Report a problem' })).toHaveCount(0);
         await expect(page.getByText(/Reporting a problem needs an account/).last()).toBeVisible();

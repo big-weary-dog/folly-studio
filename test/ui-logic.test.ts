@@ -82,12 +82,12 @@ test('new automation names avoid collisions; colour automation preserves the pic
 
 describe('routing', () => {
   test('the same URLs, with redirects for the signed out and the signed in', () => {
-    assert.equal(where('/'), '→ /looks');
+    assert.equal(where('/'), '→ /gallery');
     assert.equal(where('/', '', false), '→ /login');
     assert.equal(where('/studio/a%20b'), 'studio {"lookId":"a b"}');
     assert.equal(where('/studio/'), 'studio {}');
     assert.equal(where('/gallery'), 'gallery {}');
-    assert.equal(where('/nowhere'), '→ /looks');
+    assert.equal(where('/nowhere'), '→ /gallery');
     assert.equal(where('/studio/x', '?y=1', false), '→ /login?next=%2Fstudio%2Fx%3Fy%3D1');
     assert.equal(where('/login', '?next=%2Fgallery'), '→ /gallery');
     assert.equal(where('/login', '', false), 'auth {}');
@@ -105,13 +105,11 @@ describe('routing', () => {
     assert.equal(where('/admin/reports', '', false), '→ /login?next=%2Fadmin%2Freports');
   });
 
-  test('Ideas is gone: its URLs lead to My looks; a guest\'s home is the Studio', () => {
-    assert.equal(where('/ideas'), '→ /looks');
-    assert.equal(where('/ideas/x/how'), '→ /looks');
+  test('Ideas is gone: its URLs lead home, the gallery, a guest\'s too', () => {
+    assert.equal(where('/ideas'), '→ /gallery');
+    assert.equal(where('/ideas/x/how'), '→ /gallery');
     user.value = { id: 'guest-x', username: 'Wren', role: 'member', guest: true };
-    try {
-      assert.equal(where('/'), '→ /studio');
-    } finally { user.value = null; }
+    try { assert.equal(where('/'), '→ /gallery'); } finally { user.value = null; }
   });
 
   test('a guest\'s tutorial says an account saves', () => {
@@ -122,7 +120,7 @@ describe('routing', () => {
 
   test('`next` stays on this app', () => {
     for (const bad of [null, '', 'https://evil.example', '//evil.example', '/login?next=/x']) {
-      assert.equal(safeNext(bad), '/looks', String(bad));
+      assert.equal(safeNext(bad), '/gallery', String(bad));
     }
     assert.equal(safeNext('/studio/abc?x=1'), '/studio/abc?x=1');
   });

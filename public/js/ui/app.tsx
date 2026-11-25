@@ -12,7 +12,7 @@ import { confirmDialog, cx, toast, Toasts } from './kit.tsx';
 import { canReport, fileBugReport } from './bug-report.tsx';
 import { Rose } from './rose.tsx';
 import { openTour, welcomeOnce } from './tour-view.ts';
-import { here, home, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
+import { HOME, here, leaveGuard, navigate, router, setTitle, signedIn, user, type ViewProps } from './session.ts';
 
 interface Route {
   re: RegExp; name: string; title: string; load: () => Promise<ComponentType<ViewProps>>; public?: boolean;
@@ -25,7 +25,7 @@ const adminTab = (tab: string, load: Route['load']) => () => Promise.all([import
 // /admin opens its first tab; the admin pages' old URLs lead to theirs.
 const MOVED: Record<string, string> = { '/admin': '/admin/light', '/admin/models': '/admin/light',
   '/admin/access': '/admin/light', '/models': '/admin/light', '/access': '/admin/light', '/light': '/admin/light',
-  '/reports': '/admin/reports', '/ideas': '/looks' };
+  '/reports': '/admin/reports' };
 const ROUTES: Route[] = [
   { re: /^\/login\/?$/, name: 'auth', title: 'Sign in', public: true,
     load: () => import('./auth.tsx').then((m) => m.Auth) },
@@ -51,12 +51,12 @@ const ROUTES: Route[] = [
 
 /** Where to go after signing in: `next` when it is a page of this app, else home. */
 export const safeNext = (next: string | null) => (next && next.startsWith('/') && !next.startsWith('//')
-  && !next.startsWith('/login') ? next : home());
+  && !next.startsWith('/login') ? next : HOME);
 
 /** Where a path leads: a redirect, or a route and its params. */
 export function resolve(path: string, search: string, signedIn: boolean):
   { redirect: string } | { route: Route; params: Record<string, string> } {
-  if (path === '/' || path === '') return { redirect: signedIn ? home() : '/login' };
+  if (path === '/' || path === '') return { redirect: signedIn ? HOME : '/login' };
   const moved = MOVED[path.replace(/\/$/, '')];
   if (moved) return { redirect: moved + search };
   for (const route of ROUTES) {
@@ -68,7 +68,7 @@ export function resolve(path: string, search: string, signedIn: boolean):
     (route.keys || []).forEach((k, i) => { if (m[i + 1]) params[k] = decodeURIComponent(m[i + 1]); });
     return { route, params };
   }
-  return { redirect: home() };
+  return { redirect: HOME };
 }
 
 const current = signal<{ route: Route; props: ViewProps; View: ComponentType<ViewProps>; key: number } | null>(null);
@@ -142,7 +142,7 @@ function Header({ me, nav }: { me: User; nav?: string }) {
   }, [open]);
   return (
     <header class={cx('app-header', open && 'nav-open')} id="app-header">
-      <a class="brand" href={home()} aria-label="Folly Studio home">
+      <a class="brand" href={HOME} aria-label="Folly Studio home">
         <span class="brand-mark"><Rose /></span>
         <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
       </a>
