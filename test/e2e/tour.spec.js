@@ -5,11 +5,10 @@
 // marked. With TOUR_SHOTS set to a folder, each step's screenshot (at 1366 × 768) goes there.
 import path from 'node:path';
 
+import { SIZES } from './sizes.js';
 import { expect, signIn, signup, test } from './studio.js';
 
 test.use({ tourWelcome: true });
-
-const PHONE = { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 };
 
 /** A new account's cookie on the page's context. */
 async function signedIn(page, { origin }, name) {
@@ -199,13 +198,13 @@ test.describe('laptop, 1366 × 768: unsaved edits', () => {
 });
 
 test.describe('phone, 390 × 844', () => {
-  test.use(PHONE);
+  test.use(SIZES.phone);
 
   test('nothing opens, nothing is marked', async ({ page, studio }, info) => {
     await signedIn(page, studio, 'phone-visit');
     await page.goto(`${studio.origin}/studio`);
     await expect(page.locator('.studio')).toBeVisible({ timeout: 30_000 });
-    await page.waitForTimeout(1000);   // the welcome would have loaded by now
+    await page.waitForLoadState('networkidle');   // the welcome, had it opened, has loaded its chunk
     await expect(page.locator('#tour')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('closed.png') });
     const me = await page.evaluate(() => fetch('/api/me').then((r) => r.json()));

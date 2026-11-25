@@ -1,7 +1,7 @@
 // npm run smoke, too: the Studio's side at a laptop's size. Layers and Settings split the column; each expands to
 // take it all (the other folds to its head) or collapses to its head, by its buttons or a click on its head; the
 // divider sizes the split; the view is kept per browser. Screenshots of each land in the test's output folder.
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
 
 test.use({ viewport: { width: 1366, height: 768 } });
 
@@ -9,12 +9,7 @@ test('layers and settings expand, collapse, resize and stay so', async ({ page, 
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   const shot = (step) => page.screenshot({ path: info.outputPath(`${step}.png`), timeout: 60_000 });
-  await page.goto(`${studio.origin}/login`);
-  await page.getByRole('button', { name: 'Sign up' }).click();
-  await page.fill('input[name=username]', 'side-laptop');
-  await page.fill('input[name=password]', 'correct horse');
-  await page.locator('form button[type=submit]').click();
-  await expect(page).toHaveURL(/\/gallery$/);
+  await signupIn(page.request, studio.origin, 'side-laptop');
   await page.goto(`${studio.origin}/studio`);
   await page.locator('.save-btn:visible').click();      // saved, so a reload keeps it
   await expect(page).toHaveURL(/\/studio\/[\w-]+$/);

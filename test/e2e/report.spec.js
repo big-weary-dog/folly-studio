@@ -1,27 +1,24 @@
 // npm run smoke, too: F8 bug reports (SPEC "Bug reports"). F8 in the Studio freezes the preview under the form and
 // files a report; Cancel thaws it; a phone files one from the menu; an admin finds them on the Reports page, and
 // "Open as captured" opens the draft paused at the captured time. Screenshots land in the test's output folder.
-import { expect, test } from './studio.js';
+import { expect, signupIn, test } from './studio.js';
 
 test.use({ serverOptions: { admins: 'olive' } });
 
-const signIn = async (page, origin, name, home) => {
-  await page.goto(`${origin}/login`);
-  await page.getByRole('button', { name: 'Sign up' }).click();
-  await page.fill('input[name=username]', name);
-  await page.fill('input[name=password]', 'correct horse');
-  await page.locator('form button[type=submit]').click();
-  await expect(page).toHaveURL(`${origin}${home}`);
-};
+/** Resolves after `n` of the page's animation frames: time the preview had to move, however slow the machine. */
+const frames = (page, n) => page.evaluate((n) => new Promise((done) => {
+  const step = () => (--n > 0 ? requestAnimationFrame(step) : done());
+  requestAnimationFrame(step);
+}), n);
 const time = (page) => page.locator('.tp-scrub').inputValue().then(Number);
 const shot = (page, info, step) => page.screenshot({ path: info.outputPath(`${step}.png`), timeout: 60_000 });
 
 test('F8 freezes the Studio under the form and files a report; an admin replays it', async ({ browser, studio },
   info) => {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } }), page = await ctx.newPage();
+  const page = await (await browser.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await signIn(page, studio.origin, 'olive', '/gallery');
+  await signupIn(page.request, studio.origin, 'olive');
   await page.goto(`${studio.origin}/studio`);
   await expect(page.locator('.layer-list')).toBeVisible({ timeout: 30_000 });
   await expect.poll(() => time(page), { timeout: 30_000 }).toBeGreaterThan(0.5);
@@ -37,7 +34,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   const dialog = page.getByRole('dialog', { name: 'Report a problem' });
   await expect(dialog).toBeVisible();
   const at = await time(page);
-  await page.waitForTimeout(600);
+  await frames(page, 30);
   expect(await time(page), 'the preview is frozen').toBe(at);
   await expect(dialog.locator('.report-thumb')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -57,7 +54,7 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
 
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const mob = await phone.newPage();
-  await signIn(mob, studio.origin, 'mona', '/gallery');
+  await signupIn(mob.request, studio.origin, 'mona');
   await mob.goto(`${studio.origin}/studio`);
   await expect.poll(() => time(mob), { timeout: 30_000 }).toBeGreaterThan(0.3);
   await mob.locator('#nav-toggle').click();
@@ -69,7 +66,6 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   await shot(mob, info, '2-report-phone');
   await form.getByRole('button', { name: 'Send' }).click();
   await expect(form).toBeHidden();
-  await phone.close();
 
   await page.getByRole('link', { name: 'Admin', exact: true }).click();
   await page.getByRole('navigation', { name: 'Admin' }).getByRole('link', { name: 'Reports' }).click();
@@ -89,5 +85,4 @@ test('F8 freezes the Studio under the form and files a report; an admin replays 
   await page.waitForTimeout(800);
   await shot(page, info, '5-open-as-captured');
   expect(errors).toEqual([]);
-  await ctx.close();
 });
