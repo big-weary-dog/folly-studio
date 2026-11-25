@@ -20,18 +20,16 @@ import { rigFileOf } from './rig-choice.ts';
 export const DEFAULT_PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 export const DEFAULT_DIST_DIR = fileURLToPath(new URL('../dist/', import.meta.url));
 
-// worker-src blob: lets the sandbox run patterns in a Worker made from a Blob (see sandbox.html);
-// the worker inherits this policy, so it has no network either.
 export const CSP_APP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-  + "img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; "
+  + "img-src 'self' data: blob:; connect-src 'self'; frame-src 'none'; worker-src 'self'; object-src 'none'; "
   + "base-uri 'none'; frame-ancestors 'none'";
-export const CSP_SANDBOX = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; "
-  + 'sandbox allow-scripts';
+// The pattern worker's own (SPEC "Sandbox protocol"): no network; 'unsafe-eval' for the compiler's new Function.
+export const CSP_WORKER = "default-src 'none'; script-src 'self' 'unsafe-eval'";
 export const CACHE_PAGE = 'no-cache';
 export const CACHE_ASSET = 'public, max-age=300, must-revalidate';
 // The URL names the content (its hash), so a copy never goes stale.
 export const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
-const SANDBOX_PAGE = /^assets\/sandbox-[\w-]+\.html$/; // the sandbox page (tools/vite-sandbox.ts)
+const PATTERN_WORKER = /^assets\/sandbox-worker-[\w-]+\.js$/; // the pattern worker (sandbox-worker.ts)
 
 /** serveApp(app, { distDir, log }): dist/ at /, the shell for SPA routes, 404 and 405 for the rest. */
 export async function serveApp(app: FastifyInstance, { distDir = DEFAULT_DIST_DIR, log }: { distDir?: string,
@@ -44,7 +42,7 @@ export async function serveApp(app: FastifyInstance, { distDir = DEFAULT_DIST_DI
       const rel = path.relative(root, file).replace(/\.(?:br|gz)$/, '').split(path.sep).join('/');
       reply.header('cache-control', rel.startsWith('assets/') ? CACHE_IMMUTABLE
         : rel.endsWith('.html') ? CACHE_PAGE : CACHE_ASSET);
-      if (SANDBOX_PAGE.test(rel)) reply.header('content-security-policy', CSP_SANDBOX);
+      if (PATTERN_WORKER.test(rel)) reply.header('content-security-policy', CSP_WORKER);
     },
   });
   // JavaScript's media type is text/javascript (RFC 9239), not the mime package's older name; a 304 has no body to

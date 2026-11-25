@@ -14,9 +14,8 @@
 // phone's worker answers each frame in the look's cost in reference units × the phone's reference time: the probe
 // holds the answer back until then (held, not busy-waited: a phone's slow core is its own), and a frame whose own
 // work took longer is late. Its page runs under CDP's Emulation.setCPUThrottlingRate (Chrome refuses it for workers)
-// at the rate that brings this page's reference time to the phone's. The sandbox's page, a relay doing a fraction of
-// a ms a frame, gets no throttle of its own where the browser isolates it: CDP's throttle busy-waits most of a CPU
-// even on an idle thread, and on a 2-CPU runner that came out of the worker's share.
+// at the rate that brings this page's reference time to the phone's; the sandbox's relay, a fraction of a ms a frame,
+// runs on the page and is throttled with it.
 //
 // Steady state: frames flow for 2 s at full speed first (the JIT warm), then the calibration and the slowdown, 6 s to
 // settle (the app steps its rate at most once a second, down from 40 and up again as its average cost settles), then
@@ -87,62 +86,10 @@ async function demoLook() {
   };
 }
 
-// In each frame, before its scripts. The page: count the sandbox's frame replies and the frames the 3D view draws
-// (its last pass, a full-screen triangle onto the canvas; `slow` ms each, if set), record long tasks. The sandbox:
-// answer each frame as the phone's worker would, once told its time a frame (`perf-phone`): held back until then
-// from the request, its reported times scaled to it; one whose own work took longer goes as soon as it is done (its
-// source is a Blob; the probe goes first). The replies keep their order: what follows a held frame waits behind it.
-function probe({ view, quality = 'auto', slow = 0, calibrator, timer, reference }) {
-  if (window !== window.top) {
-    const Blob0 = Blob, Worker0 = Worker;
-    const slower = `(() => { const now = performance.now.bind(performance), post = self.postMessage.bind(self);
-      const calibration = (${calibrator})((${timer})(${reference}), post);
-      let t0 = 0, phone = 0, held = [];
-      const flush = () => { const q = held; held = []; for (const [m, transfer] of q) post(m, transfer); };
-      self.addEventListener('message', (e) => {
-        if (e.data && e.data.type === 'frame') t0 = now();
-        if (e.data && e.data.type === 'perf-phone') phone = e.data.ms;
-      });
-      self.postMessage = (m, transfer) => {
-        if (calibration(m)) return;
-        if (held.length) return void held.push([m, transfer]);
-        if (m && m.type === 'frame' && t0 && phone) {
-          const ms = Math.max(m.ms, phone), k = m.ms > 0 ? ms / m.ms : 1, at = t0 + ms;
-          t0 = 0;
-          m.ms = ms;
-          for (const id in m.layerMs) m.layerMs[id] *= k;
-          held.push([m, transfer]);
-          return void setTimeout(flush, at - now());
-        }
-        return post(m, transfer);
-      };
-    })();\n`;
-    window.Blob = function (parts, opts) {
-      return new Blob0(opts?.type === 'text/javascript' ? [slower, ...parts] : parts, opts);
-    };
-    // The calibration, asked of the pattern worker from the test: its answer, or null after `wait` ms.
-    window.Worker = class extends Worker0 {
-      constructor(url, opts) {
-        super(url, opts);
-        if (opts?.name !== 'folly-patterns') return;
-        window.perfWorker = this;
-        if (window.perfPhoneMs) this.postMessage({ type: 'perf-phone', ms: window.perfPhoneMs });  // a restarted one
-      }
-    };
-    window.perfPhone = (ms) => {
-      window.perfPhoneMs = ms;
-      window.perfWorker.postMessage({ type: 'perf-phone', ms });
-    };
-    window.perfCalibrate = (pairs, flip, wait) => new Promise((resolve) => {
-      const w = window.perfWorker;
-      const done = (answer) => { clearTimeout(late); w.removeEventListener('message', on); resolve(answer); };
-      const on = (e) => { if (e.data?.type === 'perf-calibrated') done(e.data); };
-      const late = setTimeout(done, wait, null);
-      w.addEventListener('message', on);
-      w.postMessage({ type: 'perf-calibrate', pairs, flip });
-    });
-    return;
-  }
+// Before the page's scripts: count the pattern worker's frame replies and the frames the 3D view draws (its last pass,
+// a full-screen triangle onto the canvas; `slow` ms each, if set), record long tasks, and reach the worker to set the
+// phone's time a frame and to calibrate.
+function probe({ view, quality = 'auto', slow = 0 }) {
   const p = window.perfProbe = { frames: 0, times: [], ms: [], layers: {}, tasks: [], draws: 0, d0: 0, d1: 0 };
   localStorage.setItem('studio.render', view);
   localStorage.setItem('studio.quality', quality);
@@ -163,16 +110,62 @@ function probe({ view, quality = 'auto', slow = 0, calibrator, timer, reference 
     p.ms.push(e.data.ms);
     for (const [id, ms] of Object.entries(e.data.layerMs || {})) (p.layers[id] ||= []).push(ms);
   };
-  // Frames come back over the MessagePort the app hands the sandbox: watch whatever handles a port's messages.
-  const on = Object.getOwnPropertyDescriptor(MessagePort.prototype, 'onmessage');
-  Object.defineProperty(MessagePort.prototype, 'onmessage', { ...on,
-    set(fn) { on.set.call(this, fn && ((e) => { seen(e); return fn(e); })); } });
+  const Worker0 = Worker;
+  window.Worker = class extends Worker0 {
+    constructor(url, opts) {
+      super(url, opts);
+      if (opts?.name !== 'folly-patterns') return;
+      window.perfWorker = this;
+      this.addEventListener('message', seen);
+      if (window.perfPhoneMs) this.postMessage({ type: 'perf-phone', ms: window.perfPhoneMs });  // a restarted one
+    }
+  };
+  window.perfPhone = (ms) => {
+    window.perfPhoneMs = ms;
+    window.perfWorker.postMessage({ type: 'perf-phone', ms });
+  };
+  // The calibration, asked of the pattern worker from the test: its answer, or null after `wait` ms.
+  window.perfCalibrate = (pairs, flip, wait) => new Promise((resolve) => {
+    const w = window.perfWorker;
+    const done = (answer) => { clearTimeout(late); w.removeEventListener('message', on); resolve(answer); };
+    const on = (e) => { if (e.data?.type === 'perf-calibrated') done(e.data); };
+    const late = setTimeout(done, wait, null);
+    w.addEventListener('message', on);
+    w.postMessage({ type: 'perf-calibrate', pairs, flip });
+  });
   new PerformanceObserver((list) => { for (const t of list.getEntries()) p.tasks.push(t.duration); })
     .observe({ type: 'longtask', buffered: true });
 }
 
 const median = (a) => (a.length ? [...a].sort((x, y) => x - y)[a.length >> 1] : 0);
-const sandboxOf = (page) => page.frames().find((f) => f.url().includes('/sandbox'));
+
+/**
+ * Put first in the pattern worker's script: answer each frame as the phone's worker would, once told its time a
+ * frame (`perf-phone`): held back until then from the request, its reported times scaled to it; one whose own work
+ * took longer goes as soon as it is done. The replies keep their order: what follows a held frame waits behind it.
+ */
+const prelude = `(() => { const now = performance.now.bind(performance), post = self.postMessage.bind(self);
+  const calibration = (${calibrator})((${timer})(${reference}), post);
+  let t0 = 0, phone = 0, held = [];
+  const flush = () => { const q = held; held = []; for (const [m, transfer] of q) post(m, transfer); };
+  self.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'frame') t0 = now();
+    if (e.data && e.data.type === 'perf-phone') phone = e.data.ms;
+  });
+  self.postMessage = (m, transfer) => {
+    if (calibration(m)) return;
+    if (held.length) return void held.push([m, transfer]);
+    if (m && m.type === 'frame' && t0 && phone) {
+      const ms = Math.max(m.ms, phone), k = m.ms > 0 ? ms / m.ms : 1, at = t0 + ms;
+      t0 = 0;
+      m.ms = ms;
+      for (const id in m.layerMs) m.layerMs[id] *= k;
+      held.push([m, transfer]);
+      return void setTimeout(flush, at - now());
+    }
+    return post(m, transfer);
+  };
+})();\n`;
 
 /**
  * The calibration: `bursts` of reference runs on the page, each after two look/reference pairs in the sandbox's
@@ -180,10 +173,9 @@ const sandboxOf = (page) => page.frames().find((f) => f.url().includes('/sandbox
  * the lot; a frame that ran no layer counts for nothing) and the page's median ms for the reference; NaN for none.
  */
 async function calibrate(page, { bursts, gap, worker }) {
-  const sandbox = sandboxOf(page);
   const ratios = [], main = [];
   for (let n = 0; n < bursts; n++) {
-    const r = worker ? await sandbox?.evaluate((a) => window.perfCalibrate(...a), [CAL_PAIRS, n % 2, CAL_WAIT_MS])
+    const r = worker ? await page.evaluate((a) => window.perfCalibrate(...a), [CAL_PAIRS, n % 2, CAL_WAIT_MS])
       : null;
     for (const [i, ms] of (r?.look ?? []).entries()) if (ms > 0) ratios.push(ms / r.ref[i]);
     main.push(await page.evaluate(() => window.perfTime(performance.now() / 1000)));
@@ -197,8 +189,13 @@ async function measure(browser, origin, cookie, lookId, run, rate) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3,
     isMobile: true, hasTouch: true });
   await context.addCookies([{ name: 'studio_session', value: cookie.split('=')[1], url: origin }]);
-  await context.addInitScript(probe, { view: run.view, quality: run.quality, slow: run.slow,
-    calibrator: String(calibrator), timer: String(timer), reference: String(reference) });
+  await context.addInitScript(probe, { view: run.view, quality: run.quality, slow: run.slow });
+  await context.route(/\/assets\/sandbox-worker-[\w-]+\.js$/, async (route) => {
+    const response = await route.fetch();
+    const headers = { ...response.headers() };
+    for (const k of ['content-encoding', 'content-length']) delete headers[k];   // the body comes decoded
+    await route.fulfill({ response, headers, body: prelude + await response.text() });
+  });
   await context.addInitScript({ content: `window.perfTime = (${timer})(${reference});` });   // on the page's thread
   const page = await context.newPage();
   const errors = [];
@@ -211,7 +208,7 @@ async function measure(browser, origin, cookie, lookId, run, rate) {
   const phone = rate > 1 && Number.isFinite(full.ratio) ? { ref: RUNNER_REF_MS * rate } : null;
   if (phone) {
     Object.assign(phone, { frame: full.ratio * phone.ref, cpu: Math.max(1, phone.ref / full.page) });
-    await sandboxOf(page).evaluate((ms) => window.perfPhone(ms), phone.frame);
+    await page.evaluate((ms) => window.perfPhone(ms), phone.frame);
     await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: phone.cpu });
   }
   const [slowed] = await Promise.all([calibrate(page, SLOWED), page.waitForTimeout(SETTLE_MS)]);

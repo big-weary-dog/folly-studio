@@ -2,28 +2,23 @@
 
 Part of the [build contract](SPEC.md).
 
-## Sandbox protocol (runtime.ts ⇄ sandbox.html)
+## Sandbox protocol
 
-The app embeds `<iframe sandbox="allow-scripts">` on the sandbox page, which the build makes self-contained
-(`tools/vite-sandbox.ts`): `public/sandbox.html` with `js/sandbox-worker.ts` and the pattern core as one classic
-script in a `<script type="text/x-folly-worker" id="pattern-worker">` data block, and `js/sandbox-relay.ts` as one
-inline script, both minified, at `/assets/sandbox-<hash>.html` (runtime.ts imports its URL as
-`'../sandbox.html?sandbox'`; the dev server builds it for each request at `/sandbox.html`). It is served with
-`Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval'; worker-src blob:; sandbox allow-scripts`
-(opaque origin, no network, no cookies), so it loads nothing. The sandbox's first `ready` and the app's `init` go by
-`postMessage(msg, '*')` (the app checks `event.source === iframe.contentWindow`); `init` carries a `MessagePort`, and
-every message after it goes over that channel, both ways (Chrome takes about a millisecond to unpack each window
-message between a page and an opaque-origin frame; a port's take microseconds).
+Pattern code runs in a dedicated module Worker, never on the app page's thread (a `while (true) {}` there would
+freeze the tab). Vite builds `js/sandbox-worker.ts` with the core into one script, `/assets/sandbox-worker-<hash>.js`,
+which the server sends with its own CSP, `CSP_WORKER`: `default-src 'none'; script-src 'self' 'unsafe-eval'` (no
+network; `'unsafe-eval'` for the compiler's `new Function`). The worker sees no cookies, storage or DOM, and the
+compiler shadows the globals it could reach (`core/compile.ts`). The dev server sends it without a CSP.
 
-Pattern code never runs on the sandbox page's thread (a same-process iframe shares the app's).
-The page starts a Worker from a Blob holding the data block's script, the core and its runner, all in one function
-scope (it inherits the CSP, so no network either), relays messages to it and keeps time.
+The relay (`js/sandbox-relay.ts`, `openSandbox(toApp) → { post(msg), close() }`) runs in the app page: it starts the
+worker, relays the messages below both ways (direct calls on the page's side, `postMessage` to the worker) and keeps
+time. A `close()`d relay terminates its workers and says nothing more.
 
-| app → sandbox | sandbox → app |
+| app → relay | relay → app |
 |---|---|
-| `{ type: 'init', rig, library? }` + a `MessagePort` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (also sent once on load, before init) |
+| `{ type: 'init', rig, library? }` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (the worker has prepared the scene) |
 | `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, SPEC-library) |
-| `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
+| `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred from the worker; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
 Compute is decoupled from drawing: the app keeps one `frame` request in flight and asks at 40 fps, stepping down to
@@ -32,12 +27,13 @@ well under the faster rate's; the 3D view draws at display rate when something c
 whose smoothed `layerMs` is over 40 % of a 40 fps frame's budget (8 ms) is marked heavy on its card.
 A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Live frames keep
 the look's clock continuous across a new look (`prepareLook(look, previous)`); renders start it afresh, as bakes do.
-Watchdog (the page's): a frame, live or exported, running over 1 s, or new code compiling for
-over 0.7 s, has hung. The page terminates the worker, finds the layer to blame (the one being
+Watchdog (the relay's): a frame, live or exported, running over 1 s, or new code compiling for
+over 0.7 s, has hung. The relay terminates the worker, finds the layer to blame (the one being
 compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker
 without it and reports it as an error starting `Pattern hung`; it stays paused until its code
-changes. Every `frame` request is answered within 1.5 s. The app (runtime.ts) tears the iframe down and reloads it
-only if the page itself stops answering for 4 s (8 s during an export, while the page probes a hung layer).
+changes. Every `frame` request is answered within 1.5 s. A worker that cannot load is an `error` before `ready`, and
+the app stops. The app (runtime.ts) closes the relay and opens a fresh one if it stops answering for 4 s (8 s during
+an export, while the relay probes a hung layer), and when an export is cancelled.
 
 `pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
 `PreparedLayer`, `PreparedLook`, `Compiled`, `ParamSchema`, `Pixel`, `G`, `LayerInput`, …):

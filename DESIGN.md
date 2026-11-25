@@ -49,8 +49,8 @@ there. What has to stay true:
   files.
 - **What ships to the browser stays lean.** Phones on the camp's link pay for every byte, so the budgets below are
   measured on the build, and a library earns its place in the browser only within them.
-- **The sandbox and the boxes stay closed and small.** The sandbox page carries everything it runs (its CSP loads
-  nothing); the boxes run our core from its source and the stdlib, nothing else.
+- **The sandbox and the boxes stay closed and small.** The sandbox's worker carries everything it runs (its CSP
+  loads nothing); the boxes run our core from its source and the stdlib, nothing else.
 - **No build for the server.** Node runs the server's, the boxes' and the tests' TypeScript as written, stripping
   the types, so what runs is what is in git; only the browser's code is built. The browser takes the shared
   schemas as types only, so zod ships only where a view deliberately validates with one.
@@ -188,7 +188,7 @@ exactly two places, neither on the server's own process:
 
 | Where | Boundary | If it misbehaves |
 |---|---|---|
-| Browser | `<iframe sandbox="allow-scripts">` at an opaque origin, CSP `default-src 'none'`, code in a Worker from a Blob | A watchdog: a frame over 1 s or a compile over 0.7 s kills the worker, blames the layer, carries on without it |
+| Browser | A Worker under its own CSP, `default-src 'none'` (no network, no DOM or cookies), the compiler shadowing the globals it could reach | A watchdog: a frame over 1 s or a compile over 0.7 s kills the worker, blames the layer, carries on without it |
 | Server | The **render box**: its own process under `env -i`, in a fresh folder with one out/; its own cgroup for tasks and memory (a systemd user scope); prlimits on CPU and file size; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm. It bakes stored looks, which hold library refs alone | Killed; the bake fails |
 
 The server's own process never runs look code (lint keeps `eval`, `node:vm` and `child_process` to their

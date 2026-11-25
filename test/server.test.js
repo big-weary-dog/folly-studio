@@ -1,4 +1,4 @@
-// Server tests: auth, CSRF, static files, the sandbox page and the store (looks: looks.test.js).
+// Server tests: auth, CSRF, static files, the pattern worker and the store (looks: looks.test.js).
 // Each server runs on port 0 with its own temp data dir and fixture public and dist dirs.
 import assert from 'node:assert/strict';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -9,9 +9,9 @@ import { afterAll, beforeAll, describe, test } from 'vitest';
 import { createServer } from '../src/app.ts';
 import { validateLayers } from '../src/api-looks.ts';
 import { createStore } from '../src/store.ts';
-import { CSP_APP, CSP_SANDBOX } from '../src/static.ts';
+import { CSP_APP, CSP_WORKER } from '../src/static.ts';
 import {
-  client, EXPECTED_APP_CSP, EXPECTED_SANDBOX_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, SANDBOX_PAGE, signup,
+  client, EXPECTED_APP_CSP, EXPECTED_WORKER_CSP, fakeBox, fx, layer, PIXEL, quiet, rawGet, PATTERN_WORKER, signup,
   startApp, useFixture,
 } from './fixtures/server.js';
 
@@ -263,15 +263,14 @@ describe('server', () => {
       }
     });
 
-    test('the built sandbox page has the sandbox CSP and is kept, its name being its content', async () => {
-      const r = await fetch(app.base + SANDBOX_PAGE);
+    test('the built pattern worker has the worker CSP and is kept, its name being its content', async () => {
+      const r = await fetch(app.base + PATTERN_WORKER);
       assert.equal(r.status, 200);
-      assert.equal(r.headers.get('content-security-policy'), EXPECTED_SANDBOX_CSP);
+      assert.equal(r.headers.get('content-security-policy'), EXPECTED_WORKER_CSP);
       assert.equal(r.headers.get('cache-control'), 'public, max-age=31536000, immutable');
-      assert.match(r.headers.get('content-type'), /^text\/html/);
-      assert.ok((await r.text()).includes('window.ok = 1;'));
-      assert.equal((await fetch(`${app.base}/sandbox.html`)).status, 404, 'only the built page is served');
-      assert.equal(CSP_SANDBOX, EXPECTED_SANDBOX_CSP);
+      assert.match(r.headers.get('content-type'), /^text\/javascript/);
+      assert.equal(await r.text(), 'self.ok = 1;');
+      assert.equal(CSP_WORKER, EXPECTED_WORKER_CSP);
       assert.equal(CSP_APP, EXPECTED_APP_CSP);
     });
 
@@ -311,7 +310,6 @@ describe('without public files yet', () => {
     assert.deepEqual((await (await fetch(`${app.base}/api/library`)).json()).patterns, []);
     assert.deepEqual(app.loaders.loadGroups(), []);
     assert.equal((await fetch(`${app.base}/`)).status, 404);
-    assert.equal((await fetch(`${app.base}/sandbox.html`)).status, 404);
   });
 });
 

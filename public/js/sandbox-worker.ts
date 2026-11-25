@@ -1,5 +1,5 @@
 // The sandbox's worker (SPEC "Sandbox protocol"): runs the look's layers, each a chain of modules, on the core.
-// Vite builds it with the core into one classic script inside sandbox.html, which starts it as a Worker from a Blob.
+// Vite builds it with the core into one script, sandbox-worker-<hash>.js, which the relay starts as a module Worker.
 // It exports nothing: it is a script.
 import {
   type Compiled, type CompiledLink, compileModule, layerModules, ledChannels, lightOf, linkMap, prepareLayer,

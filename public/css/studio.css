@@ -84,9 +84,6 @@ body[data-view=studio] { --side-w: clamp(340px, 25vw, 480px); --drawer-w: 0px; o
 .flash-banner.off { top: auto; bottom: 10px; left: 10px; transform: none; flex-direction: row; gap: 10px;
   padding: 4px 4px 4px 12px; font-size: 12.5px; text-align: left; }
 .baked-dot { color: var(--amber); }
-.sandbox-host { position: absolute; width: 1px; height: 1px; overflow: hidden; left: -10px; top: -10px; opacity: 0;
-  pointer-events: none; }
-.sandbox-frame { width: 1px; height: 1px; border: 0; }
 /* transport: a lancet to play, the time, an LED-string scrubber */
 .transport { display: flex; align-items: center; gap: 10px; padding: 6px 12px; flex: none; background: var(--night-1);
   border-top: var(--came) solid var(--lead); }

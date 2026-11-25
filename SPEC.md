@@ -20,7 +20,7 @@ installation.
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
   default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
-- **Only library patterns run.** They run inside the sandbox page (below) or the render box (its own process:
+- **Only library patterns run.** They run in the sandbox's Worker (below) or the render box (its own process:
   SPEC-baking), never in the app page or the server's own Node process (except in tests, on our own library
   patterns). What a box returns is data.
 - Patterns see **x = depth** (front → back), **y = height**, **z = left → right** facing the front; the rig's
@@ -58,9 +58,9 @@ modules**, **Library**, **Spatial modules**, **History**, **Globals**, **Param b
 
 [Duration, tempo, clips, fades and transitions](SPEC-looks.md#timeline), part of this contract.
 
-## Sandbox protocol (runtime.ts ⇄ sandbox.html)
+## Sandbox protocol
 
-[The isolated runner, messages, core exports and FSEQ helpers](SPEC-sandbox.md#sandbox-protocol-runtimets--sandboxhtml),
+[The isolated runner, messages, core exports and FSEQ helpers](SPEC-sandbox.md#sandbox-protocol),
 part of this contract.
 
 ## Static files

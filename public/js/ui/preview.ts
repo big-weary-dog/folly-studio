@@ -155,8 +155,7 @@ export function createPreview(st: Studio) {
       viewer?.setQuality(quality.value);
     },
 
-    start(canvas: HTMLCanvasElement, sandboxHost: HTMLElement, onScreenEl: HTMLElement, rig: Rig,
-      library: LibraryEntry[]) {
+    start(canvas: HTMLCanvasElement, onScreenEl: HTMLElement, rig: Rig, library: LibraryEntry[]) {
       const v = viewer = new Viewer(canvas, { views: rig.views || {}, defaultView: 'fit',
         onError: (text: string) => { msg.value = { text, error: true }; } });
       v.setRig(rig);
@@ -185,7 +184,6 @@ export function createPreview(st: Studio) {
       v.setQuality(quality.value);
       p.setMode(pref('studio.render') === 'points' ? 'points' : 'playa');
       runtime = new Runtime({
-        container: sandboxHost,
         onFrame: (rgb: Float32Array) => show(rgb, performance.now()),
         time: () => (last ? (c.t + ((performance.now() - last) / 1000) * st.speed.peek()) % duration.peek() : c.t),
         onCompiled: (layers) => { if (st.status.compiled(layers)) st.fallbackRev.value++; kick(); },

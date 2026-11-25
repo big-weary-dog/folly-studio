@@ -55,10 +55,14 @@ for (const [name, device] of Object.entries(SIZES)) {
       });
 
       await test.step('the Studio, in the Playa view, with the sandbox running', async () => {
-        await expect(page.locator('iframe.sandbox-frame')).toHaveAttribute('src', /^\/assets\/sandbox-[\w-]+\.html$/);
         await expect(page.locator('.view-modes .leds-btn').first())
           .toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
         await expect(page.locator('.tp-stats')).toHaveText(/\d+ fps/, { timeout: 30_000 });
+        // Frames come, so the worker compiles patterns; under its own CSP it reaches nothing.
+        const worker = page.workers().find((w) => /\/assets\/sandbox-worker-[\w-]+\.js$/.test(w.url()));
+        expect(worker, page.workers().map((w) => w.url()).join(', ')).toBeTruthy();
+        expect(await worker.evaluate(() => fetch('/api/me').then(() => 'fetched', () => 'blocked'))).toBe('blocked');
+        await expect(page.locator('iframe')).toHaveCount(0);
         const canvas = await page.locator('canvas:visible').first().evaluate((c) => [c.width, c.height]);
         expect(canvas.every((n) => n > 0), `the 3D view's canvas is ${canvas.join(' × ')}`).toBe(true);
         await shot('studio');

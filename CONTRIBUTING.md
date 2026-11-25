@@ -12,8 +12,8 @@ npm start                    # builds the app (vite build → dist/), then http:
                              #   data in STUDIO_DATA, default ./data/); `node server.ts` serves the last build
 npm run dev                  # Vite's dev server with HMR (Preact's: components keep their state) on
                              #   http://127.0.0.1:5173/ (DEV_PORT), /api sent to the Node server on PORT
-                             #   (tools/dev.ts); the sandbox page is built on each request
-npm run build                # public/ → dist/: content-hashed files, the manifest, the sandbox page
+                             #   (tools/dev.ts)
+npm run build                # public/ → dist/: content-hashed files, the manifest, the sandbox's worker
 npm run check                # typecheck, lint, then every test: run it before you call anything done
 npm run check:fast           # a pre-check while iterating, not the gate: typecheck, lint, the tests that import
                              #   what changed since origin/dev (and the library's when patterns or rigs did)
@@ -91,7 +91,7 @@ sandbox and the boxes take only our own code and the stdlib.
 | Package | Why |
 |---|---|
 | `typescript` 7.0.2 | `tsc` checks types (`npm run typecheck`, no emit); 7 is the native compiler, with the same CLI |
-| `vite` 8.3.4 | Builds `public/` into `dist/` (hashed names, a manifest, split views and styles, the sandbox page); the dev server |
+| `vite` 8.3.4 | Builds `public/` into `dist/` (hashed names, a manifest, split views and styles, the sandbox's worker); the dev server |
 | `@types/node` 22.20.5 | The types of Node 22's built-ins, for `tsc` |
 | `oxlint` 1.88.0 | The lint (`.oxlintrc.jsonc`): reads `.js` and `.ts` alike, in well under a second; `tools/budgets.ts` does the rest |
 | `vitest` 5.0.5 | Runs the tests through the app's Vite config: `.ts` and Vite's imports as the build sees them, a process per file, a watch mode |
@@ -139,7 +139,7 @@ types (Node ≥ 22.18, no flag). So, enforced by `erasableSyntaxOnly` and `verba
 - only syntax that erases: no `enum`, `namespace`, parameter properties or `import x = require()`;
 - `import type { … }` for anything used only as a type;
 - relative imports name the real file, `.ts` included (`import { hash } from './stdlib.ts'`): Node maps nothing.
-  `'<path>/sandbox.html?sandbox'` (its URL, `public/js/env.d.ts`) and style imports are Vite's.
+  Style imports and `new Worker(new URL(…, import.meta.url))` are Vite's.
 
 oxlint parses and lints `.js`, `.mjs`, `.ts` and `.tsx` alike; `tools/budgets.ts` checks every text file's size and
 hygiene, and the line limits of the CSS, HTML and Python oxlint does not read.
@@ -185,7 +185,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `src/store.ts`, `store-lock.ts`, `atomic-file.ts`, `settings-file.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; the lock keeping it to one server; every data file written whole (a unique temporary, synced, renamed; one write at a time per file); the admin's settings files (`light.json`, `baking.json`) read when they change |
 | `src/clock.ts` | `monoNow()` for durations and `stamp()` for stored times: the host's wall clock can step back |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
-| `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
+| `vite.config.js`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box, its own process under limits; what a box hands back, read as data; the core from its source for the boxes |
 | `src/baking.ts`, `library-gate.ts` | `SPEC-baking.md`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (library modules only: by ref, or by exact file) |
@@ -195,12 +195,12 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
 | `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` in the render box; its frame loop |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel, imported by their views' modules, so Vite loads them with them |
-| `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
+| `public/js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the relay and watchdog, on the app page; the Worker |
 | `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (layers, in stages round spatial modules), chain (a chain made runnable, a composite's sub-layers as chains of their own), pass (the per-pixel pass through a chain, composites included), tree (a chain's modules as a tree: flat, mapped), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), light (the one place colour values become light: the settings, the output transform, each byte's light), spatial (the neighbour graph and the native blur), links (the neighbour map: which LEDs touch, and wireDistance and rowOrder along it), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
 | `public/js/fseq.ts` | Pure: FSEQ v2 writer |
 | `public/js/scrub.ts` | Pure: what a bug report and the server's log tail may carry (secrets, addresses, URL queries out; sizes cut) |
 | `public/js/frames-stream.ts` | Streamed playback of baked frames, and their pure decoder |
-| `public/js/runtime.ts` | App side of the sandbox: iframe, adaptive frame rate, watchdog; the protocol's messages as types |
+| `public/js/runtime.ts` | App side of the sandbox: the relay, adaptive frame rate, watchdog; the protocol's messages as types |
 | `public/js/flash-guard.ts` | Pure: the preview's flash guard, the bake check's rule (`core/flash.ts`) on the frames shown |
 | `public/js/viewer.ts`, `viewer-input.ts`, `viewer-gl.ts` | The 3D view (SPEC "The 3D view"): the orbit camera; its pointer and keys; the Points drawing |
 | `public/js/playa/` | The Playa view, loaded on first use: `geometry.ts` builds it from the rig's render hints, `renderer.ts` draws (light texture, spill, bloom, tone map, tiers), `glsl.ts` |
@@ -275,10 +275,9 @@ cover.
 
 ## Security invariants
 
-- **Pattern code is untrusted.** In the browser it runs in `<iframe sandbox="allow-scripts">`
-  at an opaque origin, under `default-src 'none'` (no network, cookies or storage), inside a
-  Worker, so a hang cannot freeze the tab; a watchdog replaces a hung worker or iframe. The app
-  page and the server's own process never run it.
+- **Pattern code is untrusted.** In the browser it runs in a Worker under its own CSP, `default-src 'none'` (no
+  network; a worker has no cookies or DOM, and the compiler shadows storage and the rest), so a hang cannot freeze
+  the tab; a watchdog replaces a hung worker. The app page and the server's own process never run it.
 - **The render box** runs `render-box/render.ts` as its own process under `env -i`, a systemd scope, prlimits and a
   wall clock. Inside, patterns get a `node:vm` realm holding only the stdlib. It bakes stored looks, whose modules are
   library refs, and a save takes only library modules (SPEC-baking "Library only"). A box's output is bytes the
@@ -296,7 +295,7 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 350 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox worker (`dist/assets/`) ≤ 350 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
   build. Views and their styles load on first use, split into chunks where that comes naturally. The limits move
   only by the owner's call: Studio is a desktop-first pattern builder, so the app and a cold load are sized for a
