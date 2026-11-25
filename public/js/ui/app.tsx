@@ -163,6 +163,10 @@ function Header({ me, nav }: { me: User | null; nav?: string }) {
         <span class="brand-mark"><Rose /></span>
         <svg class="wordmark" aria-hidden="true"><use href="#wordmark" /></svg>
       </a>
+      {!me && <div class="visitor-box">
+        <button class="btn primary small" type="button" onClick={() => void tryIt()}>Try it</button>
+        <a class="btn ghost small" href={`/login?next=${encodeURIComponent(here())}`}>Log in</a>
+      </div>}
       <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded={open} aria-controls="nav-panel"
         onClick={() => setOpen(!open)}>
         <span class="sr-only">Menu</span><span class="nav-toggle-bars" aria-hidden="true" />
@@ -174,10 +178,7 @@ function Header({ me, nav }: { me: User | null; nav?: string }) {
           {navOf(me).map(([href, text]) => <a href={href}
             data-tour={`nav:${href.slice(1)}`} aria-current={nav === href ? 'page' : undefined}>{text}</a>)}
         </nav>
-        {!me ? <div class="user-box">
-          <button class="btn primary small" type="button" onClick={() => void tryIt()}>Try it</button>
-          <a class="btn ghost small" href={`/login?next=${encodeURIComponent(here())}`}>Log in</a>
-        </div> : <div class="user-box">
+        {me && <div class="user-box">
           <span class="user-name">{me.username}</span>
           <button class="user-menu-btn" id="user-menu-btn" type="button" popovertarget="user-menu"
             aria-haspopup="menu" data-tour="user-menu"><span class="user-name">{me.username}</span></button>

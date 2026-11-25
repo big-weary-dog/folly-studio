@@ -212,7 +212,7 @@ export function createStudio(me: User | null) {
           shared: !!from.shared, layers: normaliseLayers(from.layers, rig),
           owner: from.owner, ownerName: from.ownerName, duration: cleanDuration(from.duration),
           bpm: cleanBpm(from.bpm), globals: copy(from.globals) || {}, automation: copy(from.automation) });
-        copyOnSave.value = !!(me && from.owner && from.owner !== me.id);
+        copyOnSave.value = !!from.owner && from.owner !== me?.id;   // never a visitor's own
         server.value = from;
         setTitle(L.title);
       }
