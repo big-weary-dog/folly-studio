@@ -10,7 +10,7 @@ import { buildPrompt, buildUserMessage, formatGroups } from '../src/generate/pro
 import { docsBlock, pickDocs } from '../src/generate/docs-turn.ts';
 import { buildDraftMessage } from '../src/generate/explore-prompt.ts';
 import { GenerateError, LIMITS, validateLook } from '../shared/schemas/generated.ts';
-import { MAX_LOOKS_PER_USER } from '../src/look-cap.ts';
+import { MAX_LOOK_BYTES_PER_USER, MAX_LOOKS_PER_USER } from '../src/look-cap.ts';
 import { byName, goodLayer, GROUPS, queueSetup, quiet, RIG, STUDIO } from './fixtures/generate/shared.js';
 
 const DIR = path.join(STUDIO, 'public/patterns');
@@ -148,6 +148,17 @@ describe('queue', () => {
     assert.deepEqual([during, before].map((i) => [store.ideas.get(i.id).status, store.ideas.get(i.id).error]),
       [['failed', 'You have 500 looks; delete some first.'], ['failed', 'You have 500 looks; delete some first.']]);
     assert.deepEqual([asked, store.looks.list().length], [1, MAX_LOOKS_PER_USER]);
+  });
+
+  test('an idea whose look would take the account past its bytes fails', async () => {
+    const { store, user, idea, queue } = setup({ adapterName: 'x',
+      adapters: { x: async () => ({ title: 'Fire', layers: [goodLayer()] }) } });
+    store.looks.create({ owner: user.id, title: 'Full', summary: 'x'.repeat(MAX_LOOK_BYTES_PER_USER - 200) });
+    const i = idea('one');
+    queue.enqueue(i);
+    await queue.idle();
+    assert.deepEqual([store.ideas.get(i.id).status, store.looks.list().length], ['failed', 1]);
+    assert.match(store.ideas.get(i.id).error, /20 MB/);
   });
 
   test('enqueue is idempotent per idea, runs one at a time, and skips finished ideas', async () => {

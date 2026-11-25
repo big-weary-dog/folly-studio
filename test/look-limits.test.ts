@@ -6,6 +6,8 @@ import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
+import { lookRoutes } from '../src/api-looks.ts';
+import { createAuth } from '../src/auth.ts';
 import { MAX_LOOK_BYTES_PER_USER, roomForLook, roomToGrow } from '../src/look-cap.ts';
 import { createStore, type Store } from '../src/store.ts';
 import { fx, layer, quiet, signup, startApp, useFixture } from './fixtures/server.js';
@@ -42,9 +44,33 @@ describe('the store', () => {
     assert.throws(() => roomForLook(store, 'cy', fail, { summary: big }), /delete some first/);
     assert.doesNotThrow(() => roomForLook(store, 'dee', fail, { summary: big }), 'another account');
     const was = store.looks.list((l) => l.owner === 'cy')[0]!;
-    assert.throws(() => roomToGrow(store, was, { ...was, summary: big + big }, fail), /20 MB/);
-    assert.doesNotThrow(() => roomToGrow(store, was, { ...was, summary: 'short' }, fail));
+    assert.throws(() => roomToGrow(store, was, { summary: big + big }, fail), /20 MB/);
+    assert.doesNotThrow(() => roomToGrow(store, was, { summary: 'short' }, fail));
     assert.ok(store.looks.bytes((l) => l.owner === 'cy') <= MAX_LOOK_BYTES_PER_USER);
+  });
+
+  test('a new look counts what the store adds to it, to the byte', () => {
+    store.looks.create({ owner: 'eve', title: 'E' });
+    const left = MAX_LOOK_BYTES_PER_USER - store.looks.bytes((l) => l.owner === 'eve');
+    const base = Buffer.byteLength(JSON.stringify(store.looks.create({ owner: 'zed', title: 'Z', summary: '' })));
+    const fits = { owner: 'eve', title: 'Z', summary: 'x'.repeat(left - base) };
+    assert.doesNotThrow(() => roomForLook(store, 'eve', fail, fits));
+    assert.throws(() => roomForLook(store, 'eve', fail, { ...fits, summary: `${fits.summary}x` }), /20 MB/);
+  });
+
+  test('naming a version keeps to the bytes: a longer name is refused, a shorter one saves', async () => {
+    const auth = createAuth({ store });
+    const { routes } = lookRoutes({ store, auth, bakes: {} as never, dropFrames: async () => {} });
+    const user = store.users.create({ username: 'fay', passwordHash: '' });
+    const look = store.looks.create({ owner: user.id, title: 'F', version: { n: 1, how: 'auto', name: 'Long name' } });
+    const filler = store.looks.create({ owner: user.id, title: 'Full', summary: '' });
+    const left = MAX_LOOK_BYTES_PER_USER - store.looks.bytes((l) => l.owner === user.id);
+    store.looks.update(filler.id, { summary: 'x'.repeat(left - 10) });
+    const name = (to: string | null) => routes['PUT /looks/:id/versions/:n']({ user,
+      params: { id: look.id, n: '1' }, body: { name: to } } as never);
+    await assert.rejects(name('A much, much longer name than the version had'), /delete some first/);
+    assert.equal((await name('Short')).version.name, 'Short');
+    assert.equal((await name(null)).version.name, undefined);
   });
 });
 

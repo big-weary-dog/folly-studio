@@ -273,8 +273,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       Object.assign(patch, { reviewed: true, reviewedBy: kept.by || undefined, flashOverride: kept.flashOverride });
     }
     const edited = Object.keys(patch).length > 0;
-    if (edited) roomToGrow(store, look, { ...look, ...patch }, (why) => new HttpError(429, why));
-    const updated = edited ? store.looks.update(id, patch)! : look;
+    const updated = edited ? store.looks.update(id, roomToGrow(store, look, patch, (why) => new HttpError(429, why)))!
+      : look;
     if ('bake' in patch) await dropFrames(id);
     if (kept) await bakes.request(id).catch(() => {});   // its frames again (the same render: often a stored bake)
     previews?.want(id);
@@ -324,7 +324,8 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       await limitWrites(req);
       return run(req, ...rest);
     };
-  const versions = versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id, p)! });
+  const versions = versionRoutes({ visibleLook, update: (id, p) => store.looks.update(id,
+    roomToGrow(store, store.looks.get(id)!, p, (why) => new HttpError(429, why)))! });
   return { visibleLook, listed, looksIn, routes: { 'GET /looks': list, 'POST /looks': limited(create),
     'GET /looks/:id': read, 'PUT /looks/:id': limited(edit), 'DELETE /looks/:id': limited(remove),
     'POST /looks/:id/bake': bake, 'GET /looks/:id/preview/:name': preview, ...versions,

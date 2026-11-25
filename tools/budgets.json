@@ -11,7 +11,7 @@
     "render-box": { "lines": 260, "reason": "Parent PID checks stop orphaned library-only bakes between frames, alongside deterministic IDs and streaming FSEQ output." },
     "shared": { "lines": 1616, "reason": "Shared schemas and pure rules define looks, generated compositions, API data, permissions and playback." },
     "src": { "lines": 10450, "reason": "The server additionally reads historical library fingerprints and upgrades exact saved copies to current code for Pi imports, and keeps each account's look writes to a rate and its looks to a size." },
-    "test": { "lines": 25500, "reason": "Per-account look write and size limits are covered beside vampire palette browser coverage, which checks catalogue swatches, saved colours and preview selection, alongside historical library import coverage; the browser checks build the app once per run and wait on drawn frames, not fixed sleeps." },
+    "test": { "lines": 25560, "reason": "Per-account look write and size limits are covered beside vampire palette browser coverage, which checks catalogue swatches, saved colours and preview selection, alongside historical library import coverage; the browser checks build the app once per run and wait on drawn frames, not fixed sleeps." },
     "tools": { "lines": 2380, "reason": "Tools build and check rig and palette data, check the Pi bundle holds nothing secret, enforce budgets, support development and backups, and benchmark rendering." }
   }
 }
