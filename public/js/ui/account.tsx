@@ -6,10 +6,9 @@ import { useEffect, useState } from 'preact/hooks';
 
 import ACCOUNT from '../../data/account.json' with { type: 'json' };
 import { api } from '../api.ts';
+import { type Counting, deleting } from './account-delete.ts';
 import { confirmDialog, cx, Field, toast } from './kit.tsx';
 import { leaveGuard, navigate, setTitle, user } from './session.ts';
-
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
 /** A form's submit: its fields as text, the form reset when `run` succeeds, its error shown when not. */
 function useForm(run: (fields: Record<string, string>) => Promise<unknown>) {
@@ -46,17 +45,15 @@ function PasswordForm() {
 }
 
 function DeleteForm() {
-  const [looks, setLooks] = useState<{ all: number, shared: number } | null>(null);
+  const [count, setCount] = useState<Counting>(null);
   useEffect(() => {
-    api.looks('mine').then(({ looks: list = [] }) => setLooks({ all: list.length,
-      shared: list.filter((l) => l.shared).length }), () => {});
+    api.looks('mine').then(({ looks: list = [] }) => setCount({ all: list.length,
+      shared: list.filter((l) => l.shared).length }), (err) => setCount({ error: (err as Error).message }));
   }, []);
+  const now = deleting(count, user.value?.username ?? '');
   const { error, busy, submit } = useForm(async ({ password }) => {
-    const n = looks ?? { all: 0, shared: 0 };
-    const what = n.all ? ` and its ${plural(n.all, 'look')}${n.shared ? ` (${n.shared} shared in the gallery)` : ''}`
-      : '';
-    const ok = await confirmDialog(`Delete the account ${user.value?.username}${what}? This cannot be undone.`,
-      { title: 'Delete account', ok: 'Delete account', danger: true });
+    if (!now.question) return false;
+    const ok = await confirmDialog(now.question, { title: 'Delete account', ok: 'Delete account', danger: true });
     if (!ok) return false;
     await api.deleteAccount(password);
     leaveGuard.discard?.();
@@ -68,14 +65,14 @@ function DeleteForm() {
   return (
     <form class="models-panel account-form account-danger" aria-labelledby="delete-h" onSubmit={submit}>
       <h2 id="delete-h">Delete account</h2>
-      <p class="field-hint">This deletes your account and every look you made
-        {looks && looks.all > 0 && <> ({plural(looks.all, 'look')}{looks.shared > 0 && `, ${looks.shared} shared`})</>}:
-        shared looks leave the gallery and the live stage. Copies other people saved are theirs and stay.</p>
+      <p class="field-hint">This deletes your account and every look you made ({now.note}): shared looks leave the
+        gallery and the live stage. Copies other people saved are theirs and stay.</p>
       <Field label="Your password" stack>{(id) => <input id={id} name="password" type="password" required
         autocomplete="current-password" />}</Field>
       <p class="form-error" role="alert" hidden={!error}>{error}</p>
       <div class="models-actions">
-        <button class={cx('btn danger', busy && 'busy')} type="submit" disabled={busy}>Delete account…</button></div>
+        <button class={cx('btn danger', busy && 'busy')} type="submit" disabled={busy || !now.ready}>
+          Delete account…</button></div>
     </form>);
 }
 
