@@ -60,7 +60,7 @@ export async function migrateLibraryOnly({ dataDir, patternsDir, dryRun = false,
     return { done: false as const, dropped: [] as Dropped[], changed: 0, rebaked: 0, grants: 0,
       backups: [] as string[] };
   }
-  await fsp.mkdir(dataDir, { recursive: true });
+  if (!dryRun) await fsp.mkdir(dataDir, { recursive: true });
   const lock = dryRun ? null : await lockDataDir(dataDir);
   try {
     const looksFile = path.join(dataDir, 'looks.json'), usersFile = path.join(dataDir, 'users.json');

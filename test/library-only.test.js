@@ -118,6 +118,9 @@ test('--dry-run writes nothing; a folder in use, or one whose backup fails, is l
   const dry = await run({ dryRun: true });
   assert.deepEqual(dry.dropped.map((d) => d.look), ['custom']);
   assert.deepEqual(readdirSync(dataDir).sort(), before);
+  const nowhere = path.join(dataDir, 'nowhere');
+  assert.deepEqual((await run({ dataDir: nowhere, dryRun: true })).dropped, []);
+  assert.ok(!existsSync(nowhere));
   const lock = await lockDataDir(dataDir);
   await assert.rejects(run(), /studio\.lock|another|in use/i);
   await lock.release();
