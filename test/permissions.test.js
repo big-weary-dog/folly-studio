@@ -19,12 +19,14 @@ describe('can', () => {
   const mine = { owner: 'member' }, shared = { owner: 'other', shared: true }, hidden = { owner: 'other' };
   const approved = { ...shared, reviewed: true }, moderated = { ...approved, hidden: true };
 
-  test('roles: admin above curator above member; nobody signed in may do nothing', () => {
+  test('roles: admin above curator above member; a visitor only sees approved looks', () => {
     assert.deepEqual([member, curator, admin].map((u) => can(u, 'admin')), [false, false, true]);
     assert.deepEqual([member, curator, admin].map((u) => can(u, 'curate')), [false, true, true]);
-    for (const action of ['admin', 'curate', 'see', 'edit', 'delete', 'bake']) {
+    for (const action of ['admin', 'curate', 'see', 'edit', 'delete', 'review', 'bake']) {
       assert.equal(can(null, action, mine), false);
+      assert.equal(can(null, action, approved), action === 'see', action);
     }
+    assert.deepEqual([shared, moderated].map((l) => can(null, 'see', l)), [false, false]);
   });
 
   test('looks: the owner does anything; a curator sees, reviews and bakes a shared one', () => {

@@ -49,7 +49,8 @@ POST   /api/guest    { name? }                → { user, flash, rig }  a guest 
 POST   /api/logout                            → { ok: true }
 GET    /api/me                                → { user, flash, rig } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
-GET    /api/light                             → light  the light settings (Light and output), defaults where unset
+GET    /api/light                             → light  the light settings (Light and output), defaults where unset;
+                                              no session needed
 PUT    /api/admin/light  light                → light, after writing <STUDIO_DATA>/light.json; admins only; 400 names
                                               the field
 POST   /api/reports  report                   → 201 { id }  an F8 bug report (SPEC "Bug reports"): its own 3 MB
@@ -86,6 +87,9 @@ GET    /api/library                           → { patterns: [{ name, title, su
                                               (a preset: kind 'preset', its layers and globals?, code ''; a hidden
                                               module: hidden true, for the looks that use it, never shown)
 ```
+
+With no session, `GET /api/looks?scope=gallery`, `GET /api/looks/:id` and its frames and preview answer for
+approved looks alone (SPEC-access "Visitors"); `scope=mine` is 401.
 
 API `GET`s answer `Cache-Control: private, no-cache` with an ETag (a reload or a poll revalidates to an
 empty 304); other responses are `no-store`. JSON bodies of 1 KB or more are sent br (quality 5) or gzip

@@ -45,7 +45,7 @@ export function Studio({ params, query }: ViewProps) {
     const { st, pv, els } = ctx;
     let alive = true;
     setTitle('Studio');
-    const guest = !!user.peek()?.guest;
+    const guest = !user.peek() || !!user.peek()?.guest;   // a visitor is a guest without a session
     const isDirty = () => !guest && st.dirty.peek();   // a guest's work is kept here (guest-work.ts)
     leaveGuard.isDirty = isDirty;
     leaveGuard.discard = () => { st.saved.value = JSON.stringify(st.body.peek()); };

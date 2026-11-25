@@ -134,6 +134,8 @@ export function adminsDeclared(route: { url: string, method: string | string[], 
 type Entry = Handler | readonly [Handler, RouteConfig];
 /** A route for admins only, for a routes() table. */
 export const forAdmins = (handler: Handler) => [handler, { role: 'admin' }] as const;
+/** A route anyone may call, signed in or not (`req.user` null then), for a routes() table. */
+export const forAnyone = (handler: Handler) => [handler, { public: true }] as const;
 /**
  * Routes from a table ({ 'POST /looks/:id/bake': handler }, or [handler, config]: { public: true } for one that needs
  * no session, { role } for one that needs a role), each path's other methods answered 405 with Allow.

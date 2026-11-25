@@ -268,7 +268,7 @@ export function createStudio(me: User | null) {
     /** Saves the look: true once saved; false when it failed (and said so) or a save is already running. */
     async save(extra: Pick<LookPatch, 'restoredFrom' | 'versionName'> = {}) {
       if (!ready.value || saving.value) return false;
-      if (me?.guest) return guestSave(st);
+      if (!me || me.guest) return guestSave(st);   // a guest, or a visitor
       if (previewing.value) {
         toast('You are previewing a version: restore it, or go back to your work, to save.', { kind: 'warn' });
         return false;

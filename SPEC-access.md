@@ -26,6 +26,12 @@ log in or sign up, since saving is for accounts, and the work comes along: the f
 in that browser gets it, unsaved, and the browser's copy goes once that account saves or discards it. Their name
 shows with a Guest tag; it is untrusted text, shown only as text.
 
+**Visitors.** Approved looks are open to anyone, with no session: the gallery's list, a look, its preview and its
+frames answer a visitor as they would a member, and any other look is 404 (SPEC-http). `/` and `/gallery` show a
+visitor the gallery, and a share link, `/studio/<id>`, opens its look in the Studio, under a header with Gallery,
+Try it and Log in. There the visitor is a guest without a session: their work is kept in that browser, and Save
+asks them to log in or sign up. Every other page, and anything else the server is asked, sends them to sign in.
+
 ## Your account
 
 **Account** (`/account`, in the user menu; no guest has one) changes the password and deletes the account. There is
@@ -64,8 +70,8 @@ only when it is also reviewed. My looks tags its owner's shared looks that are w
 Anyone with an account may **Report this look** on a card someone else shared: a short note, sent as a report
 (SPEC "Bug reports") that names the look, for an admin to read.
 
-**The gallery is home** for everyone signed in, guests too: `/`, the header's brand and signing in without a `next`
-lead to it, showing approved looks. An empty My looks points to it, where a look is picked and saved as one's own.
+**The gallery is home** for everyone, guests and visitors too: `/`, the header's brand and signing in without a
+`next` lead to it, showing approved looks. An empty My looks points to it, where a look is picked and saved as one's own.
 
 ## Admin
 
