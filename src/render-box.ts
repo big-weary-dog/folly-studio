@@ -14,6 +14,7 @@ import { customCode, libraryHashes } from './box-library.ts';
 import { BakeError, cleanBoxStats, CONTROL, readUntrusted } from './box-output.ts';
 import type { LayerInput } from '../public/js/pattern-core.ts';
 import { type Config, configOf } from './config.ts';
+import { rigFileOf, rigOf } from './rig-choice.ts';
 import { bundle } from './core-script.ts';
 import type { Logger } from './http.ts';
 
@@ -93,7 +94,7 @@ export function createRenderBox(o: Options = {}) {
       'package.json': path.join(STUDIO, 'render-box/package.json'),
       'renderer.ts': path.join(STUDIO, 'render-box/renderer.ts'),
       'fseq.ts': o.fseqFile || path.join(publicDir, 'js/fseq.ts'),
-      'rig.json': o.rigFile || path.join(publicDir, 'data/rig.json'),
+      'rig.json': o.rigFile || rigFileOf(publicDir, rigOf(c)),
     },
     coreFile: o.coreFile || path.join(publicDir, 'js/pattern-core.ts'),
     patternsDir: o.patternsDir || path.join(publicDir, 'patterns'),    // the library, for use()

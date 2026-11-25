@@ -20,7 +20,7 @@ import { validateLook } from '../shared/schemas/generated.ts';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
-const rig = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/rig.json'), 'utf8'));
+const rig = JSON.parse(fs.readFileSync(path.join(PUBLIC, 'data/rig-folly.json'), 'utf8'));
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const WHITE = 'function pixel() { return [1, 1, 1]; }';

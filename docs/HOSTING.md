@@ -253,6 +253,7 @@ them.
 | `PORT` | the port, default 8780 |
 | `HOST` | the address to listen on, default 127.0.0.1; loopback only unless STUDIO_PROFILE=pi |
 | `STUDIO_PROFILE` | hosted (the default), or pi: the Pi's offline Studio (SPEC-offline) |
+| `STUDIO_RIG` | the rig: folly, the Folly's playa build (the default), or cog, City of Gods |
 | `STUDIO_DATA` | the data folder, default data/ in the repo |
 | `STUDIO_CURATORS` | comma-separated usernames with the curator role |
 | `STUDIO_ADMINS` | comma-separated usernames with the admin role (admins are curators too) |

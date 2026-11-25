@@ -21,7 +21,7 @@ npx oxlint src/app.ts        # oxlint alone, on a file or a folder
 npm test                     # vitest run: test/ and pi/test/ *.test.{js,ts} (vitest.config.js; a fresh build of
                              #   the app included), then every skipped test and why
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
-npm run build-data           # rebuild public/data/rig.json (City of Gods) and rig-folly.json, palettes.json
+npm run build-data           # rebuild public/data/rig-folly.json (the Folly), rig.json (City of Gods), palettes.json
 node tools/pattern-history.ts # refresh historical library hashes after committing library pattern changes
 npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
                              #   error, the timeline, a bake (test/e2e/smoke.spec.js), and each flow's own spec
@@ -53,9 +53,11 @@ skipped test and why (`test/skip-reporter.js`). The rigs come from a lighting ch
 The lighting repo (The-Gothic-Folly/lighting, John Keefe's) is the lighting system's single source of truth: the
 pixel maps, the xLights shows, the Falcon's string config and the power model. Studio reads a checkout of it, never
 writes one: `LIGHTING_DIR`, by default `../lighting` beside this repo (`tools/sources.py`,
-`test/fixtures/sources.js`; set it in a worktree). `npm run build-data` builds `rig.json` from its
-`city-of-gods/pixel-map/out/` and `rig-folly.json` from its `show-builder/pixel-map/`, universes from each one's
-`xlights_networks.xml`; `pi/tools/build_power.py` builds `pi/data/power.json` from its `pixel-map/` Python.
+`test/fixtures/sources.js`; set it in a worktree). `npm run build-data` builds `rig-folly.json`, the Folly's playa
+build and the rig the Studio shows by default, from its `show-builder/pixel-map/`, and `rig.json`, City of Gods, from
+its `city-of-gods/pixel-map/out/`, universes from each one's `xlights_networks.xml`; `STUDIO_RIG` (`folly`
+or `cog`, SPEC "Rig") picks the one the server and the browser use. `pi/tools/build_power.py` builds
+`pi/data/power.json` from its `pixel-map/` Python.
 
 Lighting fits the wiring in the Falcon (virtual strings, Direction, a short strip's offset), so the channels its
 xLights models and sequences use stay put, and that channel space is what Studio sends. So
@@ -156,7 +158,7 @@ JavaScript.
 
 ## Adding a new installation
 
-Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"); nothing else names the Folly.
+Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "Rig"); nothing else names the Folly.
 
 1. Write a generator for it, as `tools/build_rig.py` is for the Folly (with `--check`), from the installation's
    own canonical LED list, so addresses are never typed twice. A tiny rig can be hand-written:
@@ -166,7 +168,8 @@ Everything installation-specific is one file, `public/data/rig.json` (SPEC "Rig"
 3. Group it xLights-style under one root, and tag the groups with the conventional tags (`all`, `arch`, `tower`,
    `rose`, `canopy`, `wash`, `front`, …): the library, the generators and portable looks find places by tag.
    Per-pixel numbers the patterns need (rings, sectors, rows) go in `pixels.attrs`.
-4. Replace `public/data/rig.json`, point `npm run build-data` at the new generator, and run `npm run check`:
+4. Add its file and name to `src/rig-choice.ts` and `RigName`, point `npm run build-data` at the new generator, and
+   run `npm run check`:
    `test/rig.test.js` holds it to the core's rules. Tests that pin the Folly (`data.test.js`, `rig-folly.test.js`,
    the counts in `core.test.js`) read `rig-folly.json`; City of Gods is pinned by `rig-cog.test.js`.
 5. Saved looks keep working where their layers carry `tags`; ones that name only the old rig's group ids need
@@ -307,12 +310,13 @@ cover.
 
 ## Performance budgets
 
-- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 300 KB; the login page (the
+- As built, gzipped: the app's scripts, styles and sandbox page (`dist/assets/`) ≤ 350 KB; the login page (the
   shell, its entry and what that imports, the sign-in view) ≤ 40 KB. `test/build.test.js` measures both on a fresh
   build. Views and their styles load on first use, split into chunks where that comes naturally. The limits move
-  only by the owner's call.
+  only by the owner's call: Studio is a desktop-first pattern builder, so the app and a cold load are sized for a
+  laptop, not a phone on the playa.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
-  Studio load (shell, modules, styles, sandbox, `rig.json`, API) ≤ 240 KB with br (270 KB gzip);
+  Studio load (shell, modules, styles, sandbox, the rig `/api/me` names, API) ≤ 360 KB with br (400 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
   content-hashed names, kept a year); lists carry no code, and idea polls back off.
 - The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass

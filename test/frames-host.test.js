@@ -145,7 +145,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     const publicDir = path.join(tmp, 'public');
     fs.mkdirSync(path.join(publicDir, 'data'), { recursive: true });
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-    fs.writeFileSync(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(100)));
+    fs.writeFileSync(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(100)));
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
       async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length, 200) }; } };
     app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, generator: { enqueue() {} }, log: quiet,

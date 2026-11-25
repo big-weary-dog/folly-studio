@@ -1,6 +1,6 @@
-// The installation (SPEC "Rig", public/data/rig.json) and the pattern library's index (public/patterns/index.json),
-// as the server reads them: modules (a code file each) and presets (layers of them, in the index). The pattern core
-// checks a rig's pixels against its fixtures (prepareScene).
+// The installation (SPEC "Rig", the file STUDIO_RIG picks) and the pattern library's index
+// (public/patterns/index.json), as the server reads them: modules (a code file each) and presets (layers of them,
+// in the index). The pattern core checks a rig's pixels against its fixtures (prepareScene).
 import { z } from 'zod';
 
 import { BLENDS, MODULE_KINDS, SOURCE_BLENDS } from '../../public/js/pattern-core.ts';
@@ -9,6 +9,10 @@ import { Globals, ID, MAX_MODULES, Params, Soften } from './look.ts';
 const int = (min = 0) => z.number().int().min(min);
 const xyz = z.tuple([z.number(), z.number(), z.number()]);
 const axis = z.enum(['+x', '-x', '+y', '-y', '+z', '-z']);
+
+/** The rigs the server may be set to (STUDIO_RIG): the Folly's playa build, or City of Gods. */
+export const RigName = z.enum(['folly', 'cog']);
+export type RigName = z.infer<typeof RigName>;
 
 export const RigGroup = z.object({
   id: z.string(), name: z.string().optional(), parent: z.string().nullish(), tags: z.array(z.string()).optional(),

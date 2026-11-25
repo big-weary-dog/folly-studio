@@ -19,7 +19,7 @@ import { parseFseq } from '../src/frames.ts';
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
-const rigFile = path.join(PUBLIC, 'data/rig.json');
+const rigFile = path.join(PUBLIC, 'data/rig-folly.json');
 const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.ts'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };

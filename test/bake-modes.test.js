@@ -51,7 +51,7 @@ describe('library only', () => {
   });
 
   const prlimit = ['/usr/bin', '/bin'].some((d) => fs.existsSync(path.join(d, 'prlimit')));
-  const built = fs.existsSync(path.join(PUBLIC, 'data/rig.json'));
+  const built = fs.existsSync(path.join(PUBLIC, 'data/rig-folly.json'));
   test('Pi defaults bake and play a full 600 s look; explicit caps still win', async ({ skip }) => {
     skip(!prlimit, 'needs prlimit');
     // Length and late clips do not depend on the installation's pixel count. Keep the real box and all 600 s,

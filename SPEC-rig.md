@@ -2,14 +2,23 @@
 
 Part of the [build contract](SPEC.md).
 
-## Rig (`public/data/rig.json`)
+## Rig (`public/data/rig-folly.json`)
 
 The one installation-specific file: every LED, how it is addressed and grouped, and how the 3D view draws it.
-The core, the boxes, the frame analysis, the generators and the viewer read only this. City of Gods' is
-built by `tools/build_rig.py [--check]` from lighting's `city-of-gods/pixel-map/out/`, the Folly's playa build
-(`rig-folly.json`) from its `show-builder/pixel-map/` (`LIGHTING_DIR`; never by hand; fixtures and groups: DESIGN
-§9), on lighting's xLights and Falcon channels (`tools/check_channels.py`);
-another installation writes its own (CONTRIBUTING "Adding a new installation").
+The core, the boxes, the frame analysis, the generators and the viewer read only the rig the server is set to,
+`STUDIO_RIG`, and nothing else names the installation:
+
+| `STUDIO_RIG` | file | is |
+|---|---|---|
+| `folly` (the default) | `public/data/rig-folly.json` | the Gothic Folly's playa build, 4,870 LEDs, from lighting's `show-builder/pixel-map/` |
+| `cog` | `public/data/rig.json` | City of Gods, 2,114 LEDs, from lighting's `city-of-gods/pixel-map/out/` |
+
+The server reads that file for the library's groups, bakes, previews, the render box and the generators, and says
+its name in `/api/me` (`rig`); the browser fetches the same file (both ship, each under its content hash). A bake is
+of the rig it was baked on: its `renderKey` digests the file, so a new rig bakes again. `tools/build_rig.py
+[--check]` builds both (`LIGHTING_DIR`; never by hand; fixtures and groups: DESIGN §9), on lighting's xLights and
+Falcon channels (`tools/check_channels.py`); another installation writes its own (CONTRIBUTING "Adding a new
+installation").
 
 ```jsonc
 { "rig": 1, "name": "Gothic Folly 2026", "about": "…",   // about: optional prose for the AI generators

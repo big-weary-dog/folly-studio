@@ -102,7 +102,7 @@ describe('previews of shared looks', () => {
     dataDir = path.join(tmp, 'data');
     await mkdir(path.join(publicDir, 'data'), { recursive: true });
     await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
-    await writeFile(path.join(publicDir, 'data', 'rig.json'), JSON.stringify(lineRig(N)));
+    await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(N)));
     const renderBox = { config: { seconds: SECONDS }, probe: async () => ({ ok: true }),
       async render({ layers }) { return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() }; } };
     app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
