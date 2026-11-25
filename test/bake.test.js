@@ -211,45 +211,37 @@ describe('render box', () => {
       curators: 'cur',
       renderBox: createRenderBox({ publicDir: PUBLIC, seconds: 4, log: quiet }),
     });
-    const base = app.base;
-    const login = async (username) => {
-      const { cookie } = await signup(app, username);
-      return (method, p, body) =>
-        fetch(base + p, { method, headers: { cookie, 'content-type': 'application/json' },
-          body: body === undefined ? undefined : JSON.stringify(body) }).then(async (res) => ({ status: res.status,
-            json: await res.json().catch(() => null) }));
-    };
     try {
-      const own = await login('owner');
-      const cur = await login('cur');
-      const strobe = (await own('POST', '/api/looks', { title: 'Strobe', layers: [lib('strobe', STROBE)],
+      const own = await signup(app, 'owner');
+      const cur = await signup(app, 'cur');
+      const strobe = (await own.post('/api/looks', { title: 'Strobe', layers: [lib('strobe', STROBE)],
         shared: true })).json.look;
-      const calm = (await own('POST', '/api/looks', { title: 'Calm', layers: [lib('colour-wash', STILL)],
+      const calm = (await own.post('/api/looks', { title: 'Calm', layers: [lib('colour-wash', STILL)],
         shared: true })).json.look;
-      const small = (await own('POST', '/api/looks', { title: 'Spirelets', layers: [lib('colour-wash', STILL),
+      const small = (await own.post('/api/looks', { title: 'Spirelets', layers: [lib('colour-wash', STILL),
         lib('strobe', STROBE, { id: 'l2', groups: ['spirelets'] })], shared: true })).json.look;
-      assert.equal((await own('POST', `/api/looks/${small.id}/bake`, {})).status, 202);
-      assert.equal((await own('POST', `/api/looks/${strobe.id}/bake`, {})).status, 202);
-      assert.equal((await cur('POST', `/api/looks/${calm.id}/bake`, {})).status, 202,
+      assert.equal((await own.post(`/api/looks/${small.id}/bake`, {})).status, 202);
+      assert.equal((await own.post(`/api/looks/${strobe.id}/bake`, {})).status, 202);
+      assert.equal((await cur.post(`/api/looks/${calm.id}/bake`, {})).status, 202,
         'a curator may bake a shared look');
       await app.bakes.idle();
 
-      const s = (await own('GET', `/api/looks/${strobe.id}`)).json.look;
+      const s = (await own.get(`/api/looks/${strobe.id}`)).json.look;
       assert.equal(s.bake.source, 'render-box');
       assert.equal(s.bake.status, 'done');
       assert.equal(s.bake.analysis.flicker.ok, false);
-      const blocked = await cur('PUT', `/api/looks/${strobe.id}`, { reviewed: true });
+      const blocked = await cur.put(`/api/looks/${strobe.id}`, { reviewed: true });
       assert.equal(blocked.status, 409);
       assert.match(blocked.json.error, /8 flashes a second/);
 
-      assert.equal((await own('GET', `/api/looks/${calm.id}`)).json.look.bake.ok, true);
-      assert.equal((await cur('PUT', `/api/looks/${calm.id}`, { reviewed: true })).json.look.reviewed, true);
-      const warned = (await own('GET', `/api/looks/${small.id}`)).json.look;
+      assert.equal((await own.get(`/api/looks/${calm.id}`)).json.look.bake.ok, true);
+      assert.equal((await cur.put(`/api/looks/${calm.id}`, { reviewed: true })).json.look.reviewed, true);
+      const warned = (await own.get(`/api/looks/${small.id}`)).json.look;
       assert.equal(warned.bake.ok, true, warned.bake.reason);
       assert.match(warned.bake.warning, /small parts only \(spirelets\)/);
-      assert.equal((await cur('PUT', `/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
+      assert.equal((await cur.put(`/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
         'flashing on a small region alone does not block review');
-      const visitor = (id) => fetch(`${base}/api/looks/${id}/frames`, { headers: { cookie: '' } });
+      const visitor = (id) => fetch(`${app.base}/api/looks/${id}/frames`, { headers: { cookie: '' } });
       assert.equal((await visitor(calm.id)).status, 200, 'a visitor reads an approved look\'s frames');
       assert.equal((await visitor(strobe.id)).status, 404, 'and no other look\'s');
     } finally {
