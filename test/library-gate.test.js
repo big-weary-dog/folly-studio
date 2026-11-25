@@ -1,15 +1,14 @@
-// Custom code is off (SPEC-baking "Custom code"): no setting, file or route turns it on; a look saves and bakes only
-// library code, composites included. `customCode` is createServer's test-only option.
+// Library only (SPEC-baking "Library only"): no setting, file or route turns it off; a look saves only library
+// modules, composites included.
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
-import { fx, layer, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
+import { EMBERS as LIBRARY, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
-const LIBRARY = `// Rising embers\n${PIXEL}\n`;   // the fixture library's embers.js
 const NEW = 'function pixel(p) { return [1, 0, 0]; }';
 const mod = (code, extra = {}) => ({ id: 'm1', kind: 'source', title: 'Mine', code, params: {}, ...extra });
 const modules = (code, extra) => [{ id: 'l1', title: 'Sea', modules: [mod(code, extra)] }];
@@ -23,7 +22,7 @@ describe('as the server runs (no test options; the data and environment asking f
     const dataDir = path.join(fx.tmp, 'data-code');
     mkdirSync(dataDir, { recursive: true });
     writeFileSync(path.join(dataDir, 'baking.json'), JSON.stringify({ mode: 'on', customCode: true }));
-    app = await startApp({ dataDir, admins: 'Olive', customCode: undefined });
+    app = await startApp({ dataDir, admins: 'Olive' });
     [admin, ann, bob] = [await signup(app, 'Olive'), await signup(app, 'ann'), await signup(app, 'bob')];
   });
   afterAll(() => app?.close());
@@ -36,21 +35,18 @@ describe('as the server runs (no test options; the data and environment asking f
     }
   });
 
-  test('custom code is off whatever baking.json says, and no admin turns it on', async () => {
-    assert.equal((await ann.get('/api/baking')).json.customCode, false);
-    assert.equal((await ann.put('/api/admin/baking', { customCode: true })).status, 403);
-    const r = await admin.put('/api/admin/baking', { customCode: true });
-    assert.equal(r.status, 400);
-    assert.match(r.json.error, /Custom code is off on every server/);
-    assert.equal((await admin.put('/api/admin/baking', { mode: 'on', customCode: false })).json.customCode, false);
-    assert.equal((await ann.get('/api/baking')).json.customCode, false);
+  test('baking.json\'s old customCode is ignored, and the bake setting has no such key', async () => {
+    assert.equal('customCode' in (await ann.get('/api/baking')).json, false);
+    assert.equal((await ann.put('/api/admin/baking', { mode: 'on' })).status, 403);
+    assert.equal((await admin.put('/api/admin/baking', { mode: 'on', customCode: true })).status, 400);
+    assert.equal((await admin.put('/api/admin/baking', { mode: 'throttled' })).json.mode, 'throttled');
   });
 
   test('custom code is refused (403, naming it); a library file exactly is not', async () => {
     let r = await ann.post('/api/looks', { title: 'New', layers: modules(NEW) });
     assert.equal(r.status, 403);
     assert.match(r.json.error, /unchanged library patterns.*Layer 1 \(Sea\)'s Mine is custom code/);
-    r = await ann.post('/api/looks', { title: 'Old shape', layers: [layer()] });
+    r = await ann.post('/api/looks', { title: 'Old shape', layers: [layer({ code: NEW })] });
     assert.equal(r.status, 403, 'a layer\'s own code too');
     r = await ann.post('/api/looks', { title: 'Embers', layers: modules(LIBRARY, { ref: 'embers' }), shared: true });
     assert.equal(r.status, 201);

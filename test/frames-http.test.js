@@ -16,15 +16,15 @@ import { decodeChunk, parseManifest, readFrame } from '../public/js/frames-strea
 import { createServer } from '../src/app.ts';
 import { parseFseq } from '../src/frames.ts';
 import { IMMUTABLE } from '../src/frames-http.ts';
+import { GLOW, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
-const PIXEL = 'function pixel(p, t, P) { return [p.x, p.y, p.z]; }';
 const FRAMES = 170; // three chunks, the last one short
 const C = 6;
 
-/** What the stand-in box bakes for `// seed n` code: a fade, a chase and constants, so chunks differ. */
+/** What the stand-in box bakes for a look whose seed param is n: a fade, a chase and constants, so chunks differ. */
 function bakedData(seed) {
   const data = new Uint8Array(FRAMES * C);
   for (let f = 0; f < FRAMES; f++) {
@@ -32,7 +32,7 @@ function bakedData(seed) {
   }
   return data;
 }
-const code = (seed) => `// seed ${seed}\n${PIXEL}`;
+const seeded = (seed) => ({ code: GLOW, params: { seed } });
 
 let tmp, app, alice, bob, carol, anon;
 
@@ -41,17 +41,18 @@ async function startApp() {
   await mkdir(path.join(publicDir, 'data'), { recursive: true });
   await writeFile(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
   await writeFile(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(2)));
+  await writeLibrary(publicDir);
   const renderBox = {
     config: { seconds: FRAMES / 40 },
     probe: async () => ({ ok: true }),
     async render({ layers }) {
-      const data = bakedData(Number(/seed (\d+)/.exec(layers[0].code)?.[1] ?? 1));
+      const data = bakedData(Number(/"seed":(\d+)/.exec(JSON.stringify(layers))?.[1] ?? 1));
       return { bytes: Buffer.from(writeFseq({ frames: FRAMES, data, ranges: [[0, C]], uniqueId: 1 })) };
     },
   };
   const dataDir = path.join(tmp, 'data');
   app = await createServer({ dataDir, publicDir, log: quiet, renderBox, curators: ['carol'],
-    customCode: true });
+    });
   const addr = await app.listen(0, '127.0.0.1');
   app.base = `http://127.0.0.1:${addr.port}`;
 }
@@ -89,7 +90,7 @@ async function signup(name) {
 
 /** A baked look of alice's (frames from `seed`), encoded for the wire: the look, its hash, its URLs. */
 async function bakedLook(seed, extra = {}) {
-  const body = { title: 'Wire', layers: [{ code: code(seed) }], ...extra };
+  const body = { title: 'Wire', layers: [seeded(seed)], ...extra };
   const look = (await send(alice, 'POST', '/api/looks', body)).json.look;
   assert.equal((await send(alice, 'POST', `/api/looks/${look.id}/bake`)).status, 202);
   await app.bakes.idle();
@@ -184,7 +185,7 @@ describe('streaming frames', () => {
     assert.equal(JSON.parse(wait.body).pending, true);
     await app.frames.idle();
     assert.equal((await get(alice, `/api/looks/${look.id}/frames/wire`)).status, 302);
-    const none = (await send(alice, 'POST', '/api/looks', { title: 'Unbaked', layers: [{ code: code(5) }] })).json.look;
+    const none = (await send(alice, 'POST', '/api/looks', { title: 'Unbaked', layers: [seeded(5)] })).json.look;
     assert.equal((await get(alice, `/api/looks/${none.id}/frames/wire`)).status, 404);
   });
 
@@ -196,7 +197,7 @@ describe('streaming frames', () => {
     assert.equal((await send(alice, 'DELETE', `/api/looks/${one.look.id}`)).status, 200);
     assert.ok(existsSync(path.join(folder, 'manifest.json')), 'still used by the other look');
     assert.equal((await get(alice, `${two.base}0`)).status, 200);
-    assert.equal((await send(alice, 'PUT', `/api/looks/${two.look.id}`, { layers: [{ code: code(7) }] })).status, 200);
+    assert.equal((await send(alice, 'PUT', `/api/looks/${two.look.id}`, { layers: [seeded(7)] })).status, 200);
     assert.ok(!existsSync(folder), 'new code dropped the bake, and its chunks');
     assert.equal((await get(alice, `${two.base}0`)).status, 404);
   });

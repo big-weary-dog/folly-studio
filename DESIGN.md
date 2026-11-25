@@ -24,7 +24,7 @@ It is hosted on the owner's computer for tens of people (the camp and friends), 
 |---|---|---|
 | Phone or laptop | The app, the 3D preview, every pattern's code (sandboxed), playback of baked frames | Each viewer pays for their own preview; the server runs no look code |
 | The owner's computer | Accounts, JSON store, API, static files, bakes, frame encoding (~100 MB idle) | One cheap process; nothing to operate |
-| Render box (bubblewrap) | One bake at a time, nice 10, ≤ 1 GB, a wall clock | The only place look code runs on the server |
+| Render box | One bake at a time, nice 10, ≤ 1 GB, a wall clock | The only place look code runs on the server |
 
 - **Alternatives.** A desktop app (no shared gallery, no phones), a hosted service (cost and operations for a
   few dozen users), an xLights plugin (desktop-only C++, no AI loop).
@@ -183,13 +183,13 @@ its clock and a cue decides only who is visible.
 
 ## 6. Trust and safety
 
-**Pattern code is untrusted**: anyone can paste code. It runs in
-exactly two places, and neither can reach accounts, cookies or the network:
+**Only library patterns run**: a look's modules name library modules, and their code runs in
+exactly two places, neither on the server's own process:
 
 | Where | Boundary | If it misbehaves |
 |---|---|---|
 | Browser | `<iframe sandbox="allow-scripts">` at an opaque origin, CSP `default-src 'none'`, code in a Worker from a Blob | A watchdog: a frame over 1 s or a compile over 0.7 s kills the worker, blames the layer, carries on without it |
-| Server | The **render box**: bubblewrap `--unshare-all` (no network), `--clearenv`, read-only inputs, one writable `/out`; its own cgroup for tasks and memory (a systemd user scope); prlimits on CPU and file size; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm | Killed; the bake fails. Without bubblewrap the box is library only: looks of unchanged library patterns (checked by hash) bake as its own process under the same limits, and any other code is refused |
+| Server | The **render box**: its own process under `env -i`, in a fresh folder with one out/; its own cgroup for tasks and memory (a systemd user scope); prlimits on CPU and file size; nice 10; a wall clock; layers in a stdlib-only `node:vm` realm. It bakes stored looks, which hold library refs alone | Killed; the bake fails |
 
 The server's own process never runs look code (lint keeps `eval`, `node:vm` and `child_process` to their
 allowlisted files). What the box hands back is parsed as data, and what it says about itself is kept marked
@@ -214,8 +214,8 @@ dimming off for themselves ("Don't dim for me"). The limits are the host's (`STU
 
 - **Alternatives.** `node:vm` alone (not a security boundary), isolated-vm (a native dependency), containers or
   microVMs (heavy for a home host), rendering previews on the server (CPU and latency at home).
-- **Trade-off.** Baking any code people write needs Linux or WSL2 with bubblewrap and unprivileged user namespaces;
-  elsewhere only library looks bake, and a refused bake says why. Admins can also turn baking off or throttle it.
+- **Trade-off.** Only library patterns save and bake, so the box needs no namespaces: prlimit and a scope suffice.
+  Admins can also turn baking off or throttle it.
 
 ![Check & bake from the Export menu: the bake report (flash check, peak power, length, downloads), playing the baked frames](docs/screenshots/laptop-bake.jpg)
 

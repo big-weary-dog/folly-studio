@@ -2,6 +2,7 @@
 // strictly; old single-code layers stay valid; chains from before the one rule are converted on their way in, and
 // once at start.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,18 +14,20 @@ import { fakeBox, fx, PIXEL, signup, startApp, useFixture } from './fixtures/ser
 
 useFixture();
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
-const WARP = 'function warp(q) { q.lz = 1 - q.lz; }';
-const FILTER = 'function filter(c, q, t, P, G, x) { return x || c; }';
+/** A layer as a read gives it: each module's code filled from the library. */
+const filled = (layer) => ({ ...layer, modules: layer.modules.map((m) => ({ ...m,
+  code: readFileSync(path.join(PUBLIC, 'patterns', `${m.ref}.js`), 'utf8') })) });
+const STREAKS = filled({ modules: [{ ref: 'streaks' }] }).modules[0].code;
 const chain = (extra = {}) => ({ id: 'l1', title: 'Chain', groups: ['cathedral'], modules: [
-  { id: 'a', kind: 'source', title: 'A', ref: 'streaks', code: PIXEL, params: { speed: { mod: 'lfo', rate: 2 } } },
-  { id: 'b', kind: 'source', title: 'B', code: PIXEL, as: 'input' },
-  { id: 'f', kind: 'filter', title: 'Mask', code: FILTER, input: 'b',
+  { id: 'a', kind: 'source', title: 'A', ref: 'streaks', params: { speed: { mod: 'lfo', rate: 2 } } },
+  { id: 'b', kind: 'source', title: 'B', ref: 'streaks', as: 'input' },
+  { id: 'f', kind: 'filter', title: 'Mask', ref: 'mask', input: 'b',
     params: { k: { mod: 'global', name: 'storm', from: 0, to: 1 } } },
-  { id: 'w', kind: 'warp', title: 'Flip', code: WARP },
+  { id: 'w', kind: 'warp', title: 'Flip', ref: 'mirror' },
 ], ...extra });
-// A chain from before the one rule: the flip bent the source after it.
-const OLD = { id: 'l1', title: 'Flip', groups: ['cathedral'], modules: [{ id: 'w', kind: 'warp', code: WARP },
-  { id: 's', kind: 'source', code: 'function pixel(p) { return [p.lz, 0, 0]; }' }] };
+// A chain from before the one rule: the mirror bent the source after it.
+const OLD = { id: 'l1', title: 'Flip', groups: ['cathedral'], modules: [{ id: 'w', kind: 'warp', ref: 'mirror' },
+  { id: 's', kind: 'source', ref: 'streaks' }] };
 const ids = (layers) => layers[0].modules.map((m) => m.id);
 const GLOBALS = { energy: 0.7, palette: 'carnival', macros: { storm: { value: 0.25 } } };
 
@@ -50,7 +53,7 @@ describe('composed looks over the API', () => {
     assert.deepEqual(look.globals.macros, { storm: { value: 0.25, min: 0, max: 1 },
       energy: { value: 0.7, min: 0, max: 1 } }, 'an old look\'s energy is a macro');
     assert.deepEqual(look.automation.energy, [[0, 0.2], [10, 1]], 'sorted by time');
-    const old = await ana.post('/api/looks', { title: 'Old', layers: [{ code: PIXEL, params: { k: 1 } }] });
+    const old = await ana.post('/api/looks', { title: 'Old', layers: [{ code: STREAKS, params: { k: 1 } }] });
     assert.equal(old.status, 201, 'single-code layers stay valid');
     const graded = await ana.post('/api/looks', { title: 'Graded', layers: [chain()],
       globals: { speed: 9, level: 0.2, hue: 3, saturation: 0, live: ['level', 'bpm'] },
@@ -117,10 +120,11 @@ test('looks stored before the rule are converted once at start: their versions t
   const dataDir = path.join(fx.tmp, 'data-before');
   await mkdir(dataDir, { recursive: true });
   const at = '2025-01-01T00:00:00.000Z', bake = { source: 'render-box', status: 'done', ok: true,
-    layersHash: layersHash(renderFields({ layers: [OLD] })) };
+    layersHash: layersHash(renderFields({ layers: [filled(OLD)] })) };
+  // Stored with its code, as looks were before refs alone.
   await writeFile(path.join(dataDir, 'looks.json'), JSON.stringify([{ id: 'old', owner: 'u1', title: 'Old',
-    layers: [OLD], versions: [{ layers: [OLD], savedAt: at }], bake, reviewed: true, shared: true, createdAt: at,
-    updatedAt: at }]));
+    layers: [filled(OLD)], versions: [{ layers: [filled(OLD)], savedAt: at }], bake, reviewed: true, shared: true,
+    createdAt: at, updatedAt: at }]));
   const app = await startApp({ dataDir, publicDir: PUBLIC, renderBox: fakeBox() });
   const { look } = (await (await signup(app, 'before-bo')).get('/api/looks/old')).json;
   assert.deepEqual([ids(look.layers), look.chain, look.updatedAt, look.reviewed], [['s', 'w'], 2, at, true]);

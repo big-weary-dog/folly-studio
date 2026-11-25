@@ -14,10 +14,10 @@ import { createLane } from '../src/bake.ts';
 import { createFrameJobs, createFramesCache, createFramesDisk } from '../src/frames-cache.ts';
 import { wireHash } from '../src/frames-wire.ts';
 import { createRenderBox } from '../src/render-box.ts';
+import { GLOW, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
 
 const quiet = Object.assign(() => {}, { info() {}, debug() {}, warn() {}, error() {} });
-const PIXEL = 'function pixel(p, t) { return [p.x, p.y, p.z]; }';
 let tmp;
 beforeAll(async () => { tmp = await mkdtemp(path.join(os.tmpdir(), 'studio-frames-host-')); });
 afterAll(() => rm(tmp, { recursive: true, force: true }));
@@ -146,9 +146,10 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     fs.mkdirSync(path.join(publicDir, 'data'), { recursive: true });
     fs.writeFileSync(path.join(publicDir, 'index.html'), '<!doctype html><title>t</title>');
     fs.writeFileSync(path.join(publicDir, 'data', 'rig-folly.json'), JSON.stringify(lineRig(100)));
+    await writeLibrary(publicDir);
     const renderBox = { config: { seconds: 5 }, probe: async () => ({ ok: true }),
-      async render({ layers }) { renders++; return { bytes: frames(layers[0].code.length, 200) }; } };
-    app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, log: quiet, customCode: true,
+      async render({ layers }) { renders++; return { bytes: frames(JSON.stringify(layers).length, 200) }; } };
+    app = await createServer({ dataDir: path.join(tmp, 'data'), publicDir, log: quiet,
       renderBox });
     base = `http://127.0.0.1:${(await app.listen(0)).port}`;
     const r = await fetch(`${base}/api/signup`, { method: 'POST', headers: { 'content-type': 'application/json' },
@@ -160,7 +161,7 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
     'content-type': 'application/json' }, body: body && JSON.stringify(body) });
 
   test('a look that renders what another baked takes its frames without baking', async () => {
-    const make = async (title) => (await (await call('POST', '/api/looks', { title, layers: [{ code: PIXEL }] }))
+    const make = async (title) => (await (await call('POST', '/api/looks', { title, layers: [{ code: GLOW }] }))
       .json()).look;
     const first = await make('First');
     assert.equal((await call('POST', `/api/looks/${first.id}/bake`, {})).status, 202);
@@ -183,8 +184,8 @@ describe('the bake cache and re-baking evicted frames, through the API', () => {
   });
 
   test('evicted frames are baked again when asked for, keeping the bake (and its review)', async () => {
-    const { look } = await (await call('POST', '/api/looks', { title: 'Evict me', layers: [{ code: `${PIXEL} ` }] }))
-      .json();
+    const evict = { title: 'Evict me', layers: [{ code: GLOW, params: { k: 1 } }] };
+    const { look } = await (await call('POST', '/api/looks', evict)).json();
     await call('POST', `/api/looks/${look.id}/bake`, {});
     await app.bakes.idle();
     await app.frames.idle();
@@ -209,10 +210,11 @@ const probe = await createRenderBox({ log: quiet }).probe();
 /** /proc/<pid>/stat's fields from the state on: [1] parent, [16] nice. */
 const stat = (pid) => fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ');
 describe('the render box runs at nice 10', () => {
-  beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly,
-    `render box unavailable here: ${probe.reason || probe.libraryOnly}`));
+  beforeEach(({ skip }) => skip(!probe.ok,
+    `render box unavailable here: ${probe.reason}`));
   test('its processes have nice 10', async () => {
-    const box = createRenderBox({ customCode: true, seconds: 3, frameTimeoutMs: 600_000, log: quiet });
+    const node = fs.realpathSync(process.execPath);
+    const box = createRenderBox({ seconds: 3, frameTimeoutMs: 600_000, log: quiet });
     const slow = { id: 'l1', groups: ['cathedral'], blend: 'add', level: 1, params: {},
       code: 'function pixel(p, t) { let s = 0; for (let i = 0; i < 300; i++) s += sin(i); return [s, 0, 0]; }' };
     const done = box.render({ layers: [slow] });
@@ -221,8 +223,8 @@ describe('the render box runs at nice 10', () => {
       await new Promise((r) => setTimeout(r, 25));
       for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
         try {
-          // The box's node itself: the nice wrapper carries the same arguments but is at 0 until it has run.
-          if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').startsWith('/box/node\0')) continue;
+          // The box's node itself, once nice, prlimit and env have each run it in their place.
+          if (!fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').startsWith(`${node}\0--max-old-space-size`)) continue;
           // Ours: other test files and runs have boxes of their own.
           let up = Number(stat(pid)[1]);
           while (up > 1 && up !== process.pid) up = Number(stat(up)[1]);

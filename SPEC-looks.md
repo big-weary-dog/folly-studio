@@ -47,8 +47,8 @@ below.
   module whose `ref` the library has is standard: it keeps the
   library's title (`shared/standard-modules.ts`; the API puts a renamed one's back). The Studio plays each module's
   code from its ref's library file (hidden ones too, `GET /api/library`), whatever the look holds ('' for a ref the
-  library lacks). A save may send a module as its `ref` alone; with custom code off (SPEC-baking "Custom code") each
-  module must name a library module so, or carry a library file exactly; `params`
+  library lacks). A save may send a module as its `ref` alone; each module must name a library module so, or carry a
+  library file exactly (SPEC-baking "Library only"); `params`
   override the code's defaults (≤ 64; a string ≤ 256 characters: a pick, a choice or text).
   `live` optionally lists up to 64 unique param keys the creator offers in Live Play: only declared choice and
   colour params are offered. The Settings panel shows **Offer in Live Play** beside each eligible setting;
@@ -103,7 +103,7 @@ below.
 
 ### Library only
 
-Stored looks hold library code alone (SPEC-baking "Custom code"). A module is library when its code is a current or
+Stored looks hold library code alone (SPEC-baking "Library only"). A module is library when its code is a current or
 earlier file (by SHA-256: `public/patterns`' files and `history.json`) of a module the index lists, hidden ones too:
 the entry its `ref` names when it is, else the one entry whose file it is. A copy of a retired pattern (one
 `history.json` names and the index no longer lists as a module) is not. Each data folder is brought under this rule once

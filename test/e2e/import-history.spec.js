@@ -1,11 +1,10 @@
-// An import accepts old library exports while Custom code is off.
+// An import accepts old library exports, as every server takes only library code.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from './studio.js';
 
-test.use({ serverOptions: { customCode: false } });
-test('import an earlier library Noise with custom code off', async ({ page, studio }, info) => {
+test('import an earlier library Noise', async ({ page, studio }, info) => {
   const code = execFileSync('git', ['show', '1cfdcda6:public/patterns/noise.js'], { encoding: 'utf8' });
   const current = readFileSync(new URL('../../public/patterns/noise.js', import.meta.url), 'utf8');
   const look = { title: 'Simple Noise Bed', origin: 'old-prod-noise', chain: 2, duration: 30,

@@ -20,9 +20,9 @@ installation.
   boxes' and the tests' as written (types stripped, no build); Vite builds the browser's into `dist/`.
 - **Every LED comes from the rig file `STUDIO_RIG` picks** (SPEC "Rig"; the Folly's `public/data/rig-folly.json` by
   default), built from the lighting repo's pixel maps, never by hand. Nothing else names the installation.
-- **Pattern code is untrusted.** It only ever runs inside the sandbox page (below) or a box
-  (bubblewrap: the render box; else library only: SPEC-baking), never in the app page or the
-  server's own Node process (except in tests, on our own library patterns). What a box returns is data.
+- **Only library patterns run.** They run inside the sandbox page (below) or the render box (its own process:
+  SPEC-baking), never in the app page or the server's own Node process (except in tests, on our own library
+  patterns). What a box returns is data.
 - Patterns see **x = depth** (front → back), **y = height**, **z = left → right** facing the front; the rig's
   `axes` map its own coordinates onto these (the Folly's are the repo's: front/playa −12 m → back +14 m, 0 →
   18.5 m, −9 → +8 m).

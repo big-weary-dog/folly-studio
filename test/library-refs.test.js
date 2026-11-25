@@ -89,7 +89,7 @@ test('every module the library-only step keeps names a module a read fills', asy
 });
 
 test('hidden modules play stored looks but stay off the shelf', async () => {
-  const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'refs'), customCode: false });
+  const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'refs') });
   try {
     const listed = (await (await fetch(`${app.base}/api/library`)).json()).patterns;
     assert.equal(listed.find((e) => e.name === 'plasma-classic')?.hidden, true, 'marked, for the Studio to fill');

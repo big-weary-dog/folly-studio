@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, test } from 'vitest';
 
 import { parseFseq } from '../src/frames.ts';
-import { fakeBox, fx, layer, PIXEL, signup, startApp, useFixture } from './fixtures/server.js';
+import { EMBERS, fakeBox, fx, layer, signup, startApp, useFixture } from './fixtures/server.js';
 
 useFixture();
 
@@ -30,7 +30,7 @@ describe('looks', () => {
   });
 
   test('create validates and defaults', async () => {
-    const r = await alice.post('/api/looks', { title: ' Coral reef ', layers: [{ code: PIXEL }] });
+    const r = await alice.post('/api/looks', { title: ' Coral reef ', layers: [{ code: EMBERS }] });
     assert.equal(r.status, 201);
     const look = r.json.look;
     assert.equal(look.title, 'Coral reef');
@@ -40,7 +40,7 @@ describe('looks', () => {
     assert.equal(look.shared, false);
     assert.equal(look.reviewed, false);
     assert.equal('versions' in look, false);
-    assert.deepEqual(look.layers, [{ id: 'l1', title: '', code: PIXEL, blend: 'add', level: 1,
+    assert.deepEqual(look.layers, [{ id: 'l1', title: '', ref: 'embers', code: EMBERS, blend: 'add', level: 1,
       params: {} }], 'no groups: the rig\'s root');
     const tagged = await alice.post('/api/looks', { title: 'Portable', layers: [layer({ tags: ['rose', 'rose'] })] });
     assert.deepEqual(tagged.json.look.layers[0].tags, ['rose']);
@@ -140,8 +140,8 @@ describe('looks', () => {
     assert.equal(edited.json.look.bake, undefined);
     assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 409);
     // So does a new tempo on a look that moves to the beat. The old tempo is kept in the version.
-    const beat = 'function pixel(p, t, P, G) { return [G.bpm / 240, 0, 0]; }';
-    await alice.put(`/api/looks/${look.id}`, { layers: [layer({ code: beat })] });
+    const beat = { speed: { mod: 'lfo', unit: 'beats' } };
+    await alice.put(`/api/looks/${look.id}`, { layers: [layer({ params: beat })] });
     assert.equal((await alice.post(`/api/looks/${look.id}/bake`)).status, 202);
     await app.bakes.idle();
     assert.equal((await carol.put(`/api/looks/${look.id}`, { reviewed: true })).status, 200);
@@ -162,9 +162,9 @@ describe('looks', () => {
 
   test('bake: queued render, frames download, flicker blocks review', async () => {
     const strobe = (await alice.post('/api/looks', { title: 'Strobe!  "x"',
-      layers: [layer({ code: `// STROBE\n${PIXEL}` })], shared: true })).json.look;
-    // Code no other look has baked: the same render would take those frames instead of baking.
-    const calm = (await alice.post('/api/looks', { title: 'Calm', layers: [layer({ code: `// calm\n${PIXEL}` })] }))
+      layers: [layer({ params: { strobe: 1 } })], shared: true })).json.look;
+    // What no other look has baked: the same render would take those frames instead of baking.
+    const calm = (await alice.post('/api/looks', { title: 'Calm', layers: [layer({ params: { calm: 1 } })] }))
       .json.look;
     assert.equal((await alice.get(`/api/looks/${calm.id}/frames`)).status, 404, 'nothing baked yet');
 
@@ -221,7 +221,7 @@ describe('looks', () => {
 
   test('a curator approves a flashing bake only with a reason, which stays on the look', async () => {
     const look = (await alice.post('/api/looks', { title: 'Finale', shared: true,
-      layers: [layer({ code: `// STROBE finale\n${PIXEL}` })] })).json.look;
+      layers: [layer({ params: { strobe: 1, finale: 1 } })] })).json.look;
     assert.equal((await alice.post(`/api/looks/${look.id}/bake`)).status, 202);
     await app.bakes.idle();
     const put = (who, body) => who.put(`/api/looks/${look.id}`, body);
@@ -249,7 +249,7 @@ describe('looks', () => {
     assert.equal(edited.json.look.flashOverride, undefined, 'new code needs a fresh review');
     // A look without flashing is approved as before; a reason given anyway is not kept.
     const calm = (await alice.post('/api/looks', { title: 'Calm finale', shared: true,
-      layers: [layer({ code: `// calm finale\n${PIXEL}` })] })).json.look;
+      layers: [layer({ params: { finale: 1 } })] })).json.look;
     await alice.post(`/api/looks/${calm.id}/bake`);
     await app.bakes.idle();
     const calmOk = await carol.put(`/api/looks/${calm.id}`, { reviewed: true, flashOverride: 'Not needed here.' });

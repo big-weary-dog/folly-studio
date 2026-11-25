@@ -1,6 +1,5 @@
 // The Baking page, for admins (SPEC "Baked frames", "The bake setting"): whether the render box bakes freely,
-// throttled or not at all, saved as it is picked; that custom code is off (SPEC-baking "Custom code"); and what the
-// render box can do on this server.
+// throttled or not at all, saved as it is picked; and whether the render box runs on this server.
 import '../../css/pages.css';
 
 import { useEffect, useState } from 'preact/hooks';
@@ -45,14 +44,8 @@ export function BakingPage() {
         <p class="field-hint">{MODES.find(([m]) => m === state.mode)![2]}</p>
       </section>}
       <PhoneDisclosure label="Baking details">
-      {state && <section class="models-panel" aria-label="Custom code">
-        <h2>Custom code</h2>
-        <p class="field-hint">Looks take only library patterns, unchanged: nothing saves or bakes other code, and
-          the Studio's code editor is read only.</p>
-      </section>}
       {box && <section class="models-panel" aria-label="The render box">
-        <p class="field-hint">{!box.ok ? box.reason
-          : box.libraryOnly ? `No bubblewrap. ${box.reason}` : 'The render box runs under bubblewrap.'}</p>
+        <p class="field-hint">{box.ok ? 'The render box runs on this server.' : box.reason}</p>
       </section>}
       </PhoneDisclosure>
     </div>);

@@ -1,6 +1,5 @@
-// The render box for real: render-box/render.ts under bubblewrap, run by src/bake.ts. Where
-// bubblewrap or user namespaces are missing these tests skip and say why: a skipped isolation
-// test, not a passing one.
+// The render box for real: render-box/render.ts under its limits, run by src/bake.ts. Where prlimit or the box's
+// files are missing these tests skip and say why: a skipped test, not a passing one.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -23,14 +22,17 @@ const rigFile = path.join(PUBLIC, 'data/rig-folly.json');
 const ready = fs.existsSync(rigFile) && fs.existsSync(path.join(PUBLIC, 'js/pattern-core.ts'));
 const probe = ready ? await createRenderBox({ log: quiet }).probe() : { ok: false,
   reason: 'the pattern runtime or LED map is not built' };
-const unavailable = `render box unavailable here: ${probe.reason || probe.libraryOnly}`;
+const unavailable = `render box unavailable here: ${probe.reason}`;
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-bake-'));
 afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 const layer = (code, extra = {}) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1,
   params: {}, ...extra });
 const BREATHE = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
-const STROBE = 'function pixel(p, t) { return floor(t * 20) % 2 ? [0, 0, 0] : [1, 1, 1]; }';
+/** A layer of one library module, as the API takes them. */
+const lib = (ref, params, extra = {}) => ({ id: 'l1', title: 'x', groups: ['cathedral'], params: {},
+  modules: [{ id: 'm', kind: 'source', ref, params }], ...extra });
+const STROBE = { colours: '#ffffff', speed: 8, length: 0.5, fade: 0 }, STILL = { speed: 0 };
 
 /** /proc/<pid>/stat's fields from the state on: [0] state, [1] parent, [19] start time. */
 const stat = (pid) => fs.readFileSync(`/proc/${pid}/stat`, 'utf8').split(') ')[1].split(' ');
@@ -55,8 +57,8 @@ function ourBoxes() {
   return found;
 }
 
-describe('render box (bubblewrap)', () => {
-  beforeEach(({ skip }) => skip(!probe.ok || !!probe.libraryOnly, unavailable));
+describe('render box', () => {
+  beforeEach(({ skip }) => skip(!probe.ok, unavailable));
   let hits = 0;
   let server;
   let port;
@@ -71,9 +73,9 @@ describe('render box (bubblewrap)', () => {
   afterAll(() => server.close());
 
   test('a normal look bakes and analyses, in a systemd user scope or without one', async () => {
-    const plain = createRenderBox({ customCode: true, seconds: 1, systemdRun: '', log: quiet });
+    const plain = createRenderBox({ seconds: 1, systemdRun: '', log: quiet });
     assert.equal((await plain.render({ layers: [layer(BREATHE)] })).seconds, 1);
-    const box = createRenderBox({ customCode: true, seconds: 4, log: quiet });
+    const box = createRenderBox({ seconds: 4, log: quiet });
     const { bytes, boxStats } = await box.render({ layers: [layer(BREATHE)] });
     const { bake, frames } = checkFrames(bytes, { source: 'render-box',
       rig: JSON.parse(fs.readFileSync(rigFile, 'utf8')), boxStats });
@@ -90,7 +92,7 @@ describe('render box (bubblewrap)', () => {
   });
 
   test('an infinite loop is killed by the wall clock, box and all', async () => {
-    const box = createRenderBox({ customCode: true, seconds: 2, timeoutMs: 1500, frameTimeoutMs: 600_000, log: quiet });
+    const box = createRenderBox({ seconds: 2, timeoutMs: 1500, frameTimeoutMs: 600_000, log: quiet });
     const seen = new Map();
     const watch = setInterval(() => { for (const [pid, start] of ourBoxes()) seen.set(pid, start); }, 50);
     await assert.rejects(box.render({ layers: [layer('function pixel() { for (;;) {} }')] }),
@@ -105,14 +107,14 @@ describe('render box (bubblewrap)', () => {
     assert.deepEqual(left, [], 'nothing from the box keeps running');
     // A spinning frame is stopped by the VM wall backstop and reported against its CPU budget.
     // A short budget, so the backstop (ten times it) comes in 2 s, not 20.
-    const guarded = createRenderBox({ customCode: true, seconds: 2, frameTimeoutMs: 200, log: quiet });
+    const guarded = createRenderBox({ seconds: 2, frameTimeoutMs: 200, log: quiet });
     const hang = layer('function pixel(p, t) { while (t > 0.5) {} return [1, 0, 0]; }');
     await assert.rejects(guarded.render({ layers: [hang] }),
       (e) => /took over 200 ms of CPU on the frame at t = 0\.5\d s/.test(e.reason));
   });
 
   test('runtime errors fail the bake instead of producing a passing black sequence (M5)', async () => {
-    const box = createRenderBox({ customCode: true, seconds: 1, log: quiet });
+    const box = createRenderBox({ seconds: 1, log: quiet });
     for (const code of ['throw new Error("broken")', 'return [NaN, 0, 0]']) {
       await assert.rejects(box.render({ layers: [layer(`function pixel() { ${code}; }`)] }),
         (e) => e instanceof BakeError && /layer .* failed:/.test(e.reason));
@@ -129,7 +131,8 @@ describe('render box (bubblewrap)', () => {
       import fs from 'node:fs';
       const start = () => new Promise((resolve) => {
         try {
-          const c = spawn('/box/node', ['-e', 'process.stdout.write("up"); setInterval(() => {}, 1e6)']);
+          const c = spawn(${JSON.stringify(process.execPath)},
+            ['-e', 'process.stdout.write("up"); setInterval(() => {}, 1e6)']);
           c.stdout.once('data', () => resolve('up'));
           c.on('error', (e) => resolve(e.code));
           c.on('exit', (code, signal) => resolve('exit ' + (signal || code)));
@@ -137,18 +140,20 @@ describe('render box (bubblewrap)', () => {
       });
       let up = 0, why;
       while (up < 200 && (why = await start()) === 'up') up++;
-      fs.writeFileSync('/out/result.json', JSON.stringify({ ok: false, error: 'up ' + up + ': ' + why }));
+      const out = process.argv[process.argv.indexOf('--out') + 1];
+      fs.writeFileSync(out + '/result.json', JSON.stringify({ ok: false, error: 'up ' + up + ': ' + why }));
       process.exit(1);
     `);
-    const box = createRenderBox({ customCode: true, script: bomb, seconds: 1, tasks: 64, log: quiet });
+    const box = createRenderBox({ script: bomb, seconds: 1, tasks: 64, log: quiet });
     const err = await box.render({ layers: [layer(BREATHE)] }).then(() => null, (e) => e);
     assert.ok(err instanceof BakeError, String(err));
-    const [, up] = /up (\d+): EAGAIN/.exec(err.reason) || [];
+    // The spawn is refused, or the node it starts dies wanting a thread.
+    const [, up] = /up (\d+): (EAGAIN|exit SIGABRT)/.exec(err.reason) || [];
     assert.ok(Number(up) < 64, `a node is about ten tasks: a few start, then the box refuses one (${err.reason})`);
   });
 
   test('streaming never reads pattern-realm buffer properties through Node file APIs', async () => {
-    const box = createRenderBox({ customCode: true, seconds: 1, log: quiet });
+    const box = createRenderBox({ seconds: 1, log: quiet });
     const { bytes } = await box.render({ layers: [layer(`
       Object.defineProperty(Uint8Array.prototype, 'byteLength', {
         get() { throw new Error('pattern buffer getter'); }
@@ -158,7 +163,7 @@ describe('render box (bubblewrap)', () => {
   });
 
   test('pattern code reaches no fetch, require, process or Node realm', async () => {
-    const box = createRenderBox({ customCode: true, seconds: 1, log: quiet });
+    const box = createRenderBox({ seconds: 1, log: quiet });
     await assert.rejects(box.render({ layers: [layer(`fetch('http://127.0.0.1:${port}/'); ${BREATHE}`)] }),
       (e) => /does not compile: .*fetch is not a function/.test(e.reason));
     await assert.rejects(box.render({ layers: [layer(`const net = require('net'); ${BREATHE}`)] }),
@@ -186,58 +191,13 @@ describe('render box (bubblewrap)', () => {
     assert.equal(hits, 0, 'nothing reached the host network');
   });
 
-  test('the box itself: no network, no host files, nothing writable but /out, whose tmpfs holds 1 MB', async () => {
-    const secret = path.join(tmpRoot, 'secret.txt');
-    fs.writeFileSync(secret, 'TOP SECRET');
-    const pwned = path.join(tmpRoot, 'pwned');
-    // Stand in for an escaped pattern: run arbitrary Node in the box in place of render.ts.
-    const evil = path.join(tmpRoot, 'evil.mjs');
-    fs.writeFileSync(evil, `
-      import fs from 'node:fs';
-      import net from 'node:net';
-      const out = [];
-      const tryIt = (name,
-        fn) => { try { fn(); out.push(name + ':ok'); } catch (e) { out.push(name + ':' + (e.code || e.name)); } };
-      tryIt('read-secret', () => fs.readFileSync(${JSON.stringify(secret)}));
-      tryIt('read-passwd', () => fs.readFileSync('/etc/passwd'));
-      tryIt('write-host', () => fs.writeFileSync(${JSON.stringify(pwned)}, 'x'));
-      tryIt('write-box', () => fs.writeFileSync('/box/x', 'x'));
-      tryIt('write-out', () => fs.writeFileSync('/out/scratch', 'x'));
-      tryIt('fill-out', () => fs.writeFileSync('/out/big', Buffer.alloc(2 << 20)));
-      tryIt('swap-out', () => fs.renameSync('/out/scratch', '/out/frames.fseq'));
-      out.push('env:' + Object.keys(process.env).sort().join(','));
-      try { await fetch('http://127.0.0.1:${port}/'); out.push('fetch:ok'); }
-      catch (e) { out.push('fetch:' + (e.cause?.code || e.name)); }
-      await new Promise((r) => { const s = net.connect(${port}, '127.0.0.1'); s.on('connect',
-        () => { out.push('net:ok'); s.destroy(); r(); }); s.on('error', (e) => { out.push('net:' + e.code); r(); }); });
-      fs.writeFileSync('/out/result.json', JSON.stringify({ ok: false, error: out.join(' ') }));
-      process.exit(1);
-    `);
-    const box = createRenderBox({ customCode: true, script: evil, seconds: 1, log: quiet });
-    const err = await box.render({ layers: [layer(BREATHE)] }).then(() => null, (e) => e);
-    assert.ok(err instanceof BakeError, String(err));
-    const said = err.reason;
-    assert.match(said, /read-secret:ENOENT/);
-    assert.match(said, /read-passwd:ENOENT/);
-    assert.match(said, /write-host:(ENOENT|EROFS)/);
-    assert.match(said, /write-box:EROFS/);
-    assert.match(said, /write-out:ok/);
-    assert.match(said, /fill-out:ENOSPC/, 'only frames.fseq and result.json are the host\'s');
-    assert.match(said, /swap-out:EBUSY/);
-    assert.match(said, /env:LD_LIBRARY_PATH,(PWD,)?TMPDIR /, 'a clean environment');
-    assert.match(said, /fetch:ECONNREFUSED/);
-    assert.match(said, /net:ECONNREFUSED/);
-    assert.equal(fs.existsSync(pwned), false);
-    assert.equal(hits, 0);
-  });
-
   test('through the API: a strobe is blocked from review, one on the spirelets only warns, a calm one passes',
     async () => {
-    const app = await createServer({ customCode: true,
+    const app = await createServer({
       dataDir: path.join(tmpRoot, 'data'),
       publicDir: PUBLIC,
       curators: 'cur',
-      renderBox: createRenderBox({ customCode: true, publicDir: PUBLIC, seconds: 4, log: quiet }),
+      renderBox: createRenderBox({ publicDir: PUBLIC, seconds: 4, log: quiet }),
       log: quiet,
     });
     const addr = await app.listen(0);
@@ -254,12 +214,12 @@ describe('render box (bubblewrap)', () => {
     try {
       const own = await login('owner');
       const cur = await login('cur');
-      const strobe = (await own('POST', '/api/looks', { title: 'Strobe', layers: [layer(STROBE)],
+      const strobe = (await own('POST', '/api/looks', { title: 'Strobe', layers: [lib('strobe', STROBE)],
         shared: true })).json.look;
-      const calm = (await own('POST', '/api/looks', { title: 'Calm', layers: [layer(BREATHE)],
+      const calm = (await own('POST', '/api/looks', { title: 'Calm', layers: [lib('colour-wash', STILL)],
         shared: true })).json.look;
-      const small = (await own('POST', '/api/looks', { title: 'Spirelets', layers: [layer(BREATHE),
-        layer(STROBE, { id: 'l2', groups: ['spirelets'] })], shared: true })).json.look;
+      const small = (await own('POST', '/api/looks', { title: 'Spirelets', layers: [lib('colour-wash', STILL),
+        lib('strobe', STROBE, { id: 'l2', groups: ['spirelets'] })], shared: true })).json.look;
       assert.equal((await own('POST', `/api/looks/${small.id}/bake`, {})).status, 202);
       assert.equal((await own('POST', `/api/looks/${strobe.id}/bake`, {})).status, 202);
       assert.equal((await cur('POST', `/api/looks/${calm.id}/bake`, {})).status, 202,
@@ -272,13 +232,13 @@ describe('render box (bubblewrap)', () => {
       assert.equal(s.bake.analysis.flicker.ok, false);
       const blocked = await cur('PUT', `/api/looks/${strobe.id}`, { reviewed: true });
       assert.equal(blocked.status, 409);
-      assert.match(blocked.json.error, /10 flashes a second/);
+      assert.match(blocked.json.error, /8 flashes a second/);
 
       assert.equal((await own('GET', `/api/looks/${calm.id}`)).json.look.bake.ok, true);
       assert.equal((await cur('PUT', `/api/looks/${calm.id}`, { reviewed: true })).json.look.reviewed, true);
       const warned = (await own('GET', `/api/looks/${small.id}`)).json.look;
       assert.equal(warned.bake.ok, true, warned.bake.reason);
-      assert.match(warned.bake.warning, /small parts only \(spires, spirelets\)/);
+      assert.match(warned.bake.warning, /small parts only \(spirelets\)/);
       assert.equal((await cur('PUT', `/api/looks/${small.id}`, { reviewed: true })).json.look.reviewed, true,
         'flashing on a small region alone does not block review');
       const frames = await fetch(`${base}/api/looks/${calm.id}/frames`, { headers: { cookie: '' } });

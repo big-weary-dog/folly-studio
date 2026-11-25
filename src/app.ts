@@ -12,7 +12,7 @@ import { upgradeStored } from './api-looks.ts';
 import { type Cost, createAuth } from './auth.ts';
 import { createBakeQueue, createLane } from './bake.ts';
 import { createBakingStore, governBox } from './baking.ts';
-import { createCodeGate } from './custom-code.ts';
+import { createCodeGate } from './library-gate.ts';
 import { flashSettings } from './box-output.ts';
 import { type Config, configOf } from './config.ts';
 import { createFramesCache } from './frames-cache.ts';
@@ -40,7 +40,7 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
   rateLimit?: { max?: number, ipMax?: number, guestMax?: number, windowMs?: number, writeMax?: number }, scrypt?: Cost,
   framesQuality?: number, framesMaxBytes?: number, renderBox?: Parameters<typeof createBakeQueue>[0]['box'],
   flash?: FlashSettings, previews?: string, rig?: RigName,
-  reports?: { keep?: number, maxBytes?: number, days?: number }, customCode?: boolean };
+  reports?: { keep?: number, maxBytes?: number, days?: number } };
 
 /**
  * The server. `config`: the settings (src/config.ts; default: the environment's), the default of every option below
@@ -50,8 +50,6 @@ type Options = { config?: Config, dataDir?: string, publicDir?: string, distDir?
  * flash check's settings (default: flashSettings(config));
  * `previews`: the gallery previews' camera, 'playa' or 'front' (STUDIO_PREVIEWS; default playa).
  * `rig`: 'folly' or 'cog' (STUDIO_RIG; default: the Folly), the rig it shows, bakes and boxes (SPEC "Rig").
- * `customCode`: tests only (no setting, file or route reaches it), to save and bake code that is not the library's;
- * production has none (SPEC-baking "Custom code"). It goes with the custom code it tests.
  */
 export async function createServer(opts: Options = {}) {
   const config = opts.config ?? configOf(process.env);
@@ -67,19 +65,17 @@ export async function createServer(opts: Options = {}) {
 
   const loaders = createLoaders(publicDir, { log, rigFile });
   // A look's code is its modules' library files, never what is stored (SPEC-looks "Modules").
-  // With custom code (tests only) a look keeps the code it was saved with.
-  const views = opts.customCode ? {}
-    : { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
+  const views = { looks: libraryRefs(loaders.loadLibrary, path.join(publicDir, 'patterns', 'history.json')) };
   const store = await createStore(dataDir, { log, upgrade: { looks: upgradeStored }, views });
   const auth = createAuth({ store, curators, admins, cost: scrypt });
   auth.pruneSessions();
   const { loadRig } = loaders;
   const light = createLightStore({ file: path.join(dataDir, 'light.json'), log });
-  const box = renderBox || createRenderBox({ publicDir, rigFile, log, config, customCode: opts.customCode });
+  const box = renderBox || createRenderBox({ publicDir, rigFile, log, config });
   // Bakes and previews go through the admin's bake setting.
-  const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), customCode: opts.customCode, log });
+  const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), log });
   const bakeBox = governBox(box, baking.mode);
-  const codeGate = createCodeGate({ on: baking.customCode, patternsDir: path.join(publicDir, 'patterns') });
+  const codeGate = createCodeGate({ patternsDir: path.join(publicDir, 'patterns') });
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes and those
   // encodes take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();

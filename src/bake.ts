@@ -150,8 +150,8 @@ export async function removeFrames(dir: string | undefined, lookId: string) {
  */
 export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16, log = console, onFrames,
   lane = createLane(), flash, loadLight }: { store: Pick<Store, 'looks'>, box: Pick<RenderBox, 'probe' | 'render'> & {
-  stop?(): void, config?: Partial<RenderBox['config']>, ready?(): Promise<void>, custom?: RenderBox['custom'],
-  refusal?(layers: readonly LayerInput[]): Promise<{ status: number, reason: string } | null> }, framesDir: string,
+  stop?(): void, config?: Partial<RenderBox['config']>, ready?(): Promise<void>,
+  refusal?(): Promise<{ status: number, reason: string } | null> }, framesDir: string,
   rigFile: string, maxQueue?: number,
   log?: Logger, onFrames?: (id: string) => unknown, lane?: ReturnType<typeof createLane>, flash?: FlashSettings,
   loadLight?: () => Light }) {
@@ -278,8 +278,8 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       .finally(() => { restoring.delete(running!); running = null; pump(); });
   }
 
-  /** Why the box will not bake the look now: the bake setting, no box, or custom code. */
-  const refusal = async (look: StoredLook) => (box.refusal ? box.refusal(look.layers ?? [])
+  /** Why the box will not bake now: the bake setting, or no box. */
+  const refusal = async () => (box.refusal ? box.refusal()
     : box.probe().then((p) => (p.ok ? null : { status: 503, reason: p.reason })));
   const queued = (id: string) => running === id || pending.includes(id);
   const full = () => pending.length + asking.size >= maxQueue;
@@ -293,9 +293,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       if (full()) throw Object.assign(new BakeError('The render box is busy. Try again in a minute.'), { status: 429 });
       asking.add(id);
       try {
-        // Custom code bakes nowhere, from stored frames neither; then reuse pixels, checked with today's settings.
-        const custom = await box.custom?.(look.layers ?? []);
-        if (custom) throw Object.assign(new BakeError(custom), { status: 422 });
+        // Reuse pixels, checked with today's settings.
         const key = renderKey(look, bakeSeconds(look, box.config?.seconds), await digest());
         const hit = await stored({ key });
         if (hit) {
@@ -304,7 +302,7 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
           });
           if (bake) return bake;
         }
-        const no = await refusal(look);
+        const no = await refusal();
         if (no) throw Object.assign(new BakeError(no.reason), { status: no.status });
         await removeFrames(framesDir, id);
         const bake: Bake = { source, status: 'queued', ok: false, requestedAt: new Date().toISOString() };
@@ -322,11 +320,10 @@ export function createBakeQueue({ store, box, framesDir, rigFile, maxQueue = 16,
       const look = store.looks.get(typeof lookOrId === 'string' ? lookOrId : lookOrId?.id);
       const b = look?.bake;
       if (!look || b?.source !== source || b.status !== 'done' || !b.frames?.sha256) return false;
-      if (await box.custom?.(look.layers ?? [])) return false;
       if (queued(look.id) || asking.has(look.id)) return true;
       const hit = await stored({ sha: b.frames.sha256 }); // another look may hold the same frames
       if (hit && await reuse(look, hit).then(Boolean, () => false)) return true;
-      if (full() || await refusal(look)) return false;
+      if (full() || await refusal()) return false;
       restoring.add(look.id);
       pending.push(look.id);
       pump();
