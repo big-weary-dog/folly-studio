@@ -52,7 +52,7 @@ beforeAll(async () => {
     await writeFile(path.join(dir, f), body);
   }
   await packed(Object.keys(FILES));
-  app = await createServer({ dataDir: path.join(dir, '.data'), distDir: dir, generator: { enqueue() {} }, log: quiet });
+  app = await createServer({ dataDir: path.join(dir, '.data'), distDir: dir, log: quiet });
   port = (await app.listen(0)).port;
 });
 

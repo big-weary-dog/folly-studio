@@ -111,8 +111,7 @@ describe('previews of shared looks', () => {
           if (layers[0]?.code.includes('hold')) { holding(); await held; }
           return { bytes: layers[0]?.code.includes('late') ? frames(2, 9) : frames() };
         } };
-      app = await createServer({ dataDir, publicDir, generator: { enqueue() {}, async idle() {} }, log: quiet,
-        generators: true, customCode: true, renderBox, rig });
+      app = await createServer({ dataDir, publicDir, log: quiet, customCode: true, renderBox, rig });
       app.base = `http://127.0.0.1:${(await app.listen(0, '127.0.0.1')).port}`;
     };
     await start();

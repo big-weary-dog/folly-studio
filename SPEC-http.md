@@ -39,7 +39,7 @@ known path's other methods 405 with `Allow`.
 Look writes (`POST /api/looks`, `PUT` and `DELETE /api/looks/:id`, `PUT /api/looks/:id/versions/:n`) are limited per
 account: 120 a minute, then 429 with `Retry-After`. An account keeps at most 500 looks, and its looks with their
 versions hold at most 20 MB as stored: a new look past either, or a change that grows its looks past the bytes, is
-429 "delete some first" (a change that does not grow them always saves; an idea's new look keeps to both: it fails).
+429 "delete some first" (a change that does not grow them always saves).
 What the server itself records on a look, its bake, is bounded and never refused, so a look at the cap still bakes.
 
 ```
@@ -47,44 +47,18 @@ POST   /api/signup   { username, password }   → { user, flash, rig }  (sets co
 POST   /api/login    { username, password }   → { user, flash, rig }
 POST   /api/guest    { name }                 → { user, flash, rig }  a guest (SPEC-access "Guests")
 POST   /api/logout                            → { ok: true }
-GET    /api/me                                → { user, flash, access, rig } | 401
+GET    /api/me                                → { user, flash, rig } | 401
 PUT    /api/me/tour  tour                     → { tour }  SPEC-tutorial
-GET    /api/ideas                             → { ideas: [idea] }    mine, newest first
-POST   /api/ideas    { text, model?, explore? } → { idea }           queued for generation on that model (none: the
-                                              default this user gets); 400 when it is unknown, off, not offered
-                                              to their role, or cannot run here; 403 { error, access } when it is
-                                              paid and the account is locked; 429 { error, access } + Retry-After
-                                              at a limit (SPEC-access "Access"); `explore` quick | explore (default) |
-                                              deep, kept on a prompted model's idea (SPEC-generators "Explore");
-                                              400 for deep while it is off, 403 while it is admins' only
-POST   /api/looks/:id/refine { text?, model?, critique?, fix?: { layer, error } } → 201 { idea }  owner only: a
-                                              refinement of the saved look (SPEC-generators "Refine"); text 2–1000
-                                              unless critique or fix; refused as POST /api/ideas is; 409 while
-                                              one is pending on the look
-GET    /api/ideas/:id[?wait=<status>@<updatedAt>] → { idea }         mine only; with wait, an idea still pending and
-                                              as given is answered when it changes, or after 25 s
-GET    /api/ideas/:id/how[/live|/stills/:n]   → { idea, from, run, prompt?, rounds } | image/png  mine or admins'
-                                              (else 404): SPEC-generators "How it was made"
-POST   /api/ideas/:id/undo                    → { idea }  mine only, a ready refinement: marks it `undone` (the
-                                              Studio has put its look back), so later refinements' history skips it
-GET    /api/models                            → { models: [{ id, label, paid }], default }  what this user may pick
-GET    /api/admin/models                      → { file, config, models: [{ id, available, note, warn? }], efforts,
-                                              problem? }  admins only (403): the registry and what can run here
-PUT    /api/admin/models  config              → the same, after writing the registry file; admins only; 400 names
-                                              the first problem
 GET    /api/light                             → light  the light settings (Light and output), defaults where unset
 PUT    /api/admin/light  light                → light, after writing <STUDIO_DATA>/light.json; admins only; 400 names
                                               the field
-GET    /api/admin/ideas/:id/log               → { idea, calls, system, stills }  admins only (403): an idea's or
-                                              refinement's log (SPEC-generators "The idea log"); 404 when none
-GET    /api/admin/ideas/:id/log/stills/:name  → image/png  admins only; `name` as the log lists it (400 otherwise)
 POST   /api/reports  report                   → 201 { id }  an F8 bug report (SPEC "Bug reports"): its own 3 MB
                                               body limit (413: send it again without the shot); 10 an hour per user
 GET    /api/admin/reports                     → { reports: [summary] }  admins only (403), newest first
 GET    /api/admin/reports/:id                 → { report }  admins only; 404 when none
 GET    /api/admin/reports/:id/shot            → image/jpeg  admins only; 404 when it has none
 GET    /api/looks?scope=mine|gallery          → { looks: [listed] }  metadata only: no layers
-POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, ideaId?, chain?, origin? }
+POST   /api/looks    { title, summary?, layers, duration?, bpm?, globals?, automation?, chain?, origin? }
                                               → { look, imported? }  origin: an import (SPEC-looks "Look files"):
                                               201 added, or 200 updating the importer's look it names, `imported`
                                               'added' | 'updated' | 'unchanged'; 429 at the account's limits
@@ -113,7 +87,7 @@ API `GET`s answer `Cache-Control: private, no-cache` with an ETag (a reload or a
 empty 304); other responses are `no-store`. JSON bodies of 1 KB or more are sent br (quality 5) or gzip
 when the request accepts it, with `Vary: Accept-Encoding`; the ETag is the uncompressed body's. A list
 holds `listed = { id, owner, ownerName, title, summary, duration, layerCount, shared, reviewed, bpm?, sharedAt?,
-ideaId?, preview?, createdAt, updatedAt }` (`preview`: its gallery preview's key, when it has one); `GET /api/looks/:id`
+preview?, createdAt, updatedAt }` (`preview`: its gallery preview's key, when it has one); `GET /api/looks/:id`
 has the rest.
 
 `PUT reviewed: true` answers 409 with the reason unless the look has a passing render-box bake of
@@ -125,19 +99,10 @@ or `automation`) makes a version, and a change to the frames drops the bake and 
 Clips that overlap
 or fall outside 0–600 s, and a duration outside 1–600 s, are refused with 400.
 
-`user`, `access`, `invite` and `person`: SPEC-access.
+`user`: SPEC-access.
 `flash = { check, perSecond, delta, darker, area }`: the flash check's settings (Baked frames, Checks), for the
 preview's guard; `check: false` (`STUDIO_FLASH_CHECK=off`) means nothing is dimmed or blocked.
-`idea = { id, owner, text, status: 'queued'|'generating'|'ready'|'failed', model?, generator, by?, explore?, took?,
-timing?, rounds?, how?, lookId?, refine?, changes?, verdict?, undone?, error?, createdAt, updatedAt }`: `status` goes queued → generating →
-ready or failed, which are final (moves: `shared/idea-status.ts`); `model` the registry id asked for, `generator` the one that made
-the look (the one-shot generator's when the foundry was off or busy), `by` its label ("Opus"), `timing = { wait, prompt, request, parse,
-total, check?, critique?, draft?, tokens? }` in ms (`tokens = { input, cached, output }`); `rounds = [{ kind, ms,
-outcome? }]` its model's rounds and `how` how it was made (SPEC-generators "The idea log"); `explore` the level it was made at and `took` what its look took from
-each draft (SPEC-generators "Explore"). A refinement has `refine = { critique?, fix? }` and the look it changes as
-`lookId` from the start; `changes` (ready) says what changed, `verdict` how its critique round ended (`revised`,
-`unchanged`, …), and `undone: true` that it was undone.
-`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, ideaId?, reviewed, reviewedBy?,
+`look = { id, owner, ownerName, title, summary, layers, duration, bpm?, shared, reviewed, reviewedBy?,
 flashOverride?, bake?, chain, createdAt, updatedAt }`
 (`bake`: see Baked frames).
 

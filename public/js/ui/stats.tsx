@@ -39,9 +39,8 @@ export function StatsPage() {
           <p class="field-hint">Up {took(stats.uptime)}, since {new Date(stats.startedAt).toLocaleString()}.
             Memory {mb(stats.memory.rss)} ({mb(stats.memory.heap)} in use by scripts); load {stats.load.toFixed(2)}.
           </p>
-          <p class="field-hint">In the last day: {stats.bakes.done} bakes, {stats.bakes.failed} failed
-            {stats.ideas && <>; {stats.ideas.made} ideas, {stats.ideas.failed} failed</>}.
-            Waiting now: {stats.bakes.waiting} bakes{stats.ideas && <>, {stats.ideas.waiting} ideas</>}.</p>
+          <p class="field-hint">In the last day: {stats.bakes.done} bakes, {stats.bakes.failed} failed.
+            Waiting now: {stats.bakes.waiting} bakes.</p>
         </section>
         {!phone && <><div class="stats-scroll"><table class="stats-table">
           <caption>Each day (the server's time zone)</caption>

@@ -25,7 +25,7 @@ npm test                     # vitest run: test/ *.test.{js,ts} (vitest.config.j
 npx vitest run test/core.test.js     # one file (`-t <name>` for one test); `npm run test:watch` reruns on save
 npm run build-data           # rebuild public/data/rig-folly.json (the Folly), rig.json (City of Gods), palettes.json
 node tools/pattern-history.ts # refresh historical library hashes after committing library pattern changes
-npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, an idea, the Studio, a code
+npm run smoke                # the app in Chromium at 1366 × 768 and 390 × 844: sign up, the Studio, a code
                              #   error, the timeline, a bake (test/e2e/smoke.spec.js), and each flow's own spec
                              #   (the `smoke` project in playwright.config.js)
 npm run perf                 # the preview on an emulated phone: the look's cost against a reference workload, the
@@ -37,8 +37,7 @@ npm run e2e                  # our .fseq through sACN and the relay into Mirage,
                              #   (test/e2e/mirage.spec.js; E2E_DEPS, relay/node_modules: see "Browser checks")
 ```
 
-Useful settings: `STUDIO_MODELS` (the model registry, default `<STUDIO_DATA>/models.json`; `ANTHROPIC_API_KEY` for
-Opus, the Codex CLI for Sol and Luna), `STUDIO_ADMINS` and `STUDIO_CURATORS` (usernames), `STUDIO_SECURE_COOKIES=1`
+Useful settings: `STUDIO_ADMINS` and `STUDIO_CURATORS` (usernames), `STUDIO_SECURE_COOKIES=1`
 behind HTTPS, `STUDIO_TRUST_PROXY=1` behind a tunnel on this machine, `STUDIO_FRAMES_BROTLI_QUALITY` (9),
 `STUDIO_FRAMES_MAX_BYTES` (2GB). Every setting is in `src/config.ts` and docs/HOSTING.md "Every setting";
 `npm run config:check -- <file>` says whether a settings file would start the server. `docs/HOSTING.md` covers
@@ -81,7 +80,6 @@ To add a palette, add `tools/data/palettes/<name>.csv` with `slot,colour` rows (
 `high1`, numbered within each role) and sRGB `#rrggbb` swatches, then add its mood to `themes.txt`.
 Run `python3 tools/build_palettes.py` to regenerate the catalogue. Mixed-family palettes can put both families
 in `body`, as patina, meadow, orchid, solstice, guava and voltage do; roles need not each be a single hue.
-Update the palette count in `docs/GENERATION.md` and the choices in `library-docs/README.md` too.
 
 ## Dependencies
 
@@ -103,7 +101,7 @@ sandbox and the boxes take only our own code and the stdlib.
 | `@preact/signals` 2.11.3 | The UI's state (the look, the selection, playback, layout): what is derived is computed, and a signal bound to text updates it without a render |
 | `@preact/preset-vite` 2.10.6 | JSX for Preact in the build (Oxc) and Preact's HMR in `npm run dev` (Prefresh, dev only) |
 | `@babel/core` 7.29.7 | The preset's peer: Prefresh's transform on the dev server only; nothing of it ships |
-| `zod` 4.6.7 | The shapes both sides share (`shared/schemas/`): looks, the API's bodies, the generators' output and its JSON Schema; types by `z.infer` |
+| `zod` 4.6.7 | The shapes both sides share (`shared/schemas/`): looks and the API's bodies; types by `z.infer` |
 | `fastify` 5.12.7 | The HTTP server: routing, JSON bodies and their size limit, hooks (CSRF, caching), `trustProxy`, `inject` |
 | `@fastify/cookie` 11.1.3 | Reads and sets the session cookie |
 | `@fastify/rate-limit` 11.2.1 | The login limits: attempts per IP, failed ones per IP and username |
@@ -148,9 +146,8 @@ oxlint parses and lints `.js`, `.mjs`, `.ts` and `.tsx` alike; `tools/budgets.ts
 hygiene, and the line limits of the CSS, HTML and Python oxlint does not read.
 
 The boxes take the core from its source too: `src/core-script.ts` joins its modules into one script for the render
-box's realm (stripping their types with `node:module`), and the Fleet workspace gets copies of the modules
-`check.ts` imports, which Node runs as they are; the boxes' own scripts (`render.ts`, `check.ts`) import what sits
-beside them, typed by `import type` from the repo. The server, the boxes, the tools and the core are TypeScript;
+box's realm (stripping their types with `node:module`); the box's own script (`render.ts`) imports what sits beside
+it, typed by `import type` from the repo. The server, the boxes, the tools and the core are TypeScript;
 the tests stay JavaScript where they do not need types (`checkJs` is off), and library patterns are always plain
 JavaScript.
 
@@ -164,7 +161,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 2. Give `axes` (its up, front and right), `output` (universes, channels per universe, colour order, fps),
    and one fixture per wire, panel, set of cells or flood, in pixel order, with `render` hints for the 3D view.
 3. Group it xLights-style under one root, and tag the groups with the conventional tags (`all`, `arch`, `tower`,
-   `rose`, `canopy`, `wash`, `front`, …): the library, the generators and portable looks find places by tag.
+   `rose`, `canopy`, `wash`, `front`, …): the library and portable looks find places by tag.
    Per-pixel numbers the patterns need (rings, sectors, rows) go in `pixels.attrs`.
 4. Add its file and name to `src/rig-choice.ts` and `RigName`, point `npm run build-data` at the new generator, and
    run `npm run check`:
@@ -179,29 +176,25 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 |---|---|
 | `server.ts` | Entry point: the settings read (`readConfig()`), a bad one refused by name, start, graceful stop |
 | `src/config.ts`, `tools/config-check.ts` | Every setting the server reads, parsed with zod once at start (`readConfig()`) and passed down as `Config`; a module given none parses its environment (`configOf()`); `npm run config:check` |
-| `src/app.ts` | `createServer()`: the store, auth, queues, frames cache, the API and the built app on one Fastify server |
-| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions; `look-cap.ts`, what an account's looks hold), `account-limit.ts`, `api-account.ts`, `api-models.ts`, `api-access.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, ideas (and their long polls), the library and login limits; looks; an account's own password and deletion; per-account limits (look writes, reports); the models; invite codes and people; its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, the `routes()` table with each route's `public` or `role` (`forAdmins`; an `/admin` route without a role stops the server at start), 405s, the logger) |
+| `src/app.ts` | `createServer()`: the store, auth, the bake queue, frames cache, the API and the built app on one Fastify server |
+| `src/api.ts`, `api-looks.ts` (+ `look-versions.ts`, its versions; `look-cap.ts`, what an account's looks hold), `account-limit.ts`, `api-account.ts`, `http.ts` | The HTTP API (SPEC "HTTP API"): accounts, the library and login limits; looks; an account's own password and deletion; per-account limits (look writes, reports); its plumbing (the CSRF hook, JSON revalidated and compressed, errors as `{ error }`, the `routes()` table with each route's `public` or `role` (`forAdmins`; an `/admin` route without a role stops the server at start), 405s, the logger) |
 | `src/auth.ts` | Accounts, roles (member, curator, admin), scrypt hashes that carry their cost (re-hashed at login when older), sessions; `sessionHook`, which holds each route to its config: a session unless `public` (401), and its `role` (403) |
 | `shared/policy.ts` | `can(user, action, look)`: who may do what, the one answer the server and the browser both ask (the browser runs it, so it imports no zod). A look someone may not see is 404 to them |
-| `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `generated.ts` (a generator's look cleaned leniently; its JSON Schema for structured output), `api.ts` (request bodies, users, ideas; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index), `models.ts` (the model registry, and `TRANSPORT_CAPS`: what each transport may do), `access.ts` (limits, invite and person bodies) |
+| `shared/schemas/` | zod schemas the server runs and the browser takes as types: `look.ts` (what a look may hold, the 400s naming the first problem), `api.ts` (request bodies, users; its account limits from `public/data/account.json`, which the sign-up form shows too), `rig.ts` (the rig, the library index) |
 | `shared/chain-order.ts` | Pure: looks from before the one rule converted so they render as they did (SPEC "Looks" > chain) |
 | `shared/plays.ts` | What plays (`PLAYS`, `playsOf`, `playsChanged`): the one list versions, bakes, the stage, the sandbox, export and the Studio's save and undo read (SPEC "Looks"); no zod, so the browser takes it at run time |
-| `shared/idea-status.ts` | Pure, so the browser imports it too: an idea's states (`IDEA_STATUS`), `isPending()` and `transition()`, which refuses a move that is not one |
 | `src/store.ts`, `store-lock.ts`, `atomic-file.ts`, `settings-file.ts` | JSON-file storage under `STUDIO_DATA`, typed per collection; the lock keeping it to one server; every data file written whole (a unique temporary, synced, renamed; one write at a time per file); the admin's settings files (`light.json`, `baking.json`) read when they change |
 | `src/clock.ts` | `monoNow()` for durations and `stamp()` for stored times: the host's wall clock can step back |
 | `src/static.ts` | The built app from `dist/` (@fastify/static: the precompressed copies, ETags, cache headers with `assets/` kept a year, the CSPs, the shell for SPA routes); the library and rig loaders |
 | `vite.config.js`, `tools/vite-sandbox.ts`, `tools/vite-compress.ts`, `tools/dev.ts` | The build (`public/` → `dist/`); the sandbox page, its scripts inlined; the `.br` and `.gz` copies of its text; `npm run dev` |
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box under bubblewrap; what a box hands back, read as data; the core from its source for the boxes |
-| `src/box-library.ts`, `baking.ts`, `custom-code.ts` | Where bakes run (`SPEC-baking.md`): which looks may save and bake (library code, by hash; custom code is off); the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (`generate/no-code.ts` holds a generator's rounds to it) |
+| `src/box-library.ts`, `baking.ts`, `custom-code.ts` | Where bakes run (`SPEC-baking.md`): which looks may save and bake (library code, by hash; custom code is off); the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving |
 | `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
 | `src/frames-worker.ts` | The encoder thread, at nice 10 |
 | `src/stats.ts` | The request log and Admin → Stats (SPEC-access "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
-| `src/access.ts` | Who may use the paid models, and how much (SPEC-access "Access"): invite codes kept hashed, each account's ideas counted against the limits, the daily ceiling |
-| `src/generate/` | Idea → look: the queue (a lane per transport), the model registry (`models.ts`), adapters (`adapters.ts` maps each transport to its module, which exports its adapter and `probe()`: `claude`, `codex` with `proc.ts` for its one CLI call, `fleet`; a new transport is a row in `TRANSPORT_CAPS`, one there and its module), the prompt (`prompt.ts`, its text in `guide.ts`), the library as vocabulary (`catalog.ts`, the answer's schema `composition.ts`, its expansion into a look `expand.ts`; cleaning: `shared/schemas/generated.ts`) |
-| `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; the frame loop it shares with `fleet-box/check.ts` |
-| `fleet-box/` | Checker and brief for a boxed Fleet worker |
+| `render-box/render.ts`, `renderer.ts` | Bakes a look to `.fseq` inside bubblewrap; its frame loop |
 | `public/index.html`, `css/` | The app shell and its styles: `base.css` (tokens, layout and components) on every page; the rest, one per view or panel, imported by their views' modules, so Vite loads them with them |
 | `public/sandbox.html`, `js/sandbox-relay.ts`, `js/sandbox-worker.ts` | The sandboxed pattern runner (SPEC "Sandbox protocol"): the page Vite inlines them into; the relay and watchdog; the Worker |
 | `public/js/pattern-core.ts`, `core/` | Pure: stdlib (with palettes), picks (colour picks, pal() and swatch() per module), clocks (clock(): a speed param's integrated distance), compile, scene (the rig, its groups and tags), timeline, render (layers, in stages round spatial modules), chain (a chain made runnable, a composite's sub-layers as chains of their own), pass (the per-pixel pass through a chain, composites included), tree (a chain's modules as a tree: flat, mapped), warps (the one rule: a warp bends what is above it, up to a stage end), output (compositing, DMX channels), light (the one place colour values become light: the settings, the output transform, each byte's light), spatial (the neighbour graph and the native blur), links (the neighbour map: which LEDs touch, and wireDistance and rowOrder along it), globals (with automation and param bindings), flash (the flash check, for bakes and the preview alike); re-exported with their types (`Scene`, `PreparedLayer`, `Pixel`, …); runs in the sandbox, the boxes and tests |
@@ -222,8 +215,8 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 
 Browser code imports only from `public/` and packages. Server code imports only `pattern-core.ts`,
 `fseq.ts`, `scrub.ts` and JSON from `public/`. Both take `shared/`: the server at run time, the browser as types
-only (`import type`), so zod never ships to the browser. Four pure files are the exceptions, the browser's at run
-time too: `idea-status.ts` (an idea's states), `policy.ts` (who may do what, which the server asks too), `standard-modules.ts`
+only (`import type`), so zod never ships to the browser. Three pure files are the exceptions, the browser's at run
+time too: `policy.ts` (who may do what, which the server asks too), `standard-modules.ts`
 (the library's own titles), and `plays.ts`, since what plays must be one list that the server's versions and bakes and
 the Studio's save, sandbox and export all read, and a copy in `public/` would drift. They import nothing but the
 core's constants (no zod, no schema); `shared/schemas/look.ts` re-exports `plays.ts` for the server. `shared/`
@@ -237,8 +230,8 @@ otherwise imports only zod, itself and the core's constants and data. oxlint che
 | Text files ≤ 64 KB (generated rigs ≤ 1 MB), lines ≤ 120 | Diffs stay readable, and nothing large gets committed by accident. |
 | Final newline, no trailing spaces, tabs, CRLF or BOM; valid JSON; syntax | Clean diffs, and no surprises on another machine. |
 | `eval`, `Function`, `node:vm` only in the compiler (`core/compile.ts`), the render box and `tools/` | Code generation is how untrusted code gets in, so it lives only behind the sandbox. |
-| `child_process` only in `src/render-box.ts`, `src/box-limits.ts`, `src/generate/fleet.ts`, `src/generate/proc.ts` and `tools/` | Processes are started only to box untrusted work, or for a generator's one CLI call (an argument list, never a shell). |
-| No `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `dangerouslySetInnerHTML` in `public/js` | Titles and ideas are user data. Nodes built from JSX (text set as text) cannot inject markup. |
+| `child_process` only in `src/render-box.ts`, `src/box-limits.ts` and `tools/` | Processes are started only to box untrusted work (an argument list, never a shell). |
+| No `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write` or `dangerouslySetInnerHTML` in `public/js` | Titles and summaries are user data. Nodes built from JSX (text set as text) cannot inject markup. |
 | No remote scripts, styles or imports in `public/` | It works offline on the playa, and the CSP allows only our origin. Packages are bundled by the build. |
 | No `console` but `warn` and `error` in `src/` or `public/js/` | Server output goes through the logger (its one silenced line); the browser console stays quiet. |
 | No `debugger`, no `.only` in tests | Leftovers that stall the app or skip the rest of the suite. |
@@ -314,7 +307,7 @@ cover.
 - On the wire (`test/transfer.test.js`, the real server, the build and a model of a browser's cache): a cold
   Studio load (shell, modules, styles, sandbox, the rig `/api/me` names, API) ≤ 360 KB with br (400 KB gzip);
   a reload, even a day later, sends only the shell and its API calls, each a 304 (assets have
-  content-hashed names, kept a year); lists carry no code, and idea polls back off.
+  content-hashed names, kept a year); and lists carry no code.
 - The Folly's 4,870 LEDs at 40 fps: the render loop allocates nothing per frame (reuse typed arrays, pass
   `out`), skips layers outside their clips before any pixel work, and sleeps when idle.
 - The sandbox answers every frame within 1.5 s or reports the layer as hung. Bakes run one at a

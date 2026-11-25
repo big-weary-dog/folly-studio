@@ -9,8 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 
-import type { UserAccess } from '../shared/schemas/access.ts';
-import type { Idea, Look, User, VersionMeta } from '../shared/schemas/api.ts';
+import type { Look, User, VersionMeta } from '../shared/schemas/api.ts';
 import { writeFileAtomic } from './atomic-file.ts';
 import { stamp } from './clock.ts';
 import type { Log } from './http.ts';
@@ -22,10 +21,7 @@ export type Collection<T extends Doc> = { get(id: string): T | null,
   list(filter?: (x: T) => unknown, omit?: readonly (keyof T)[]): T[], count(filter?: (x: T) => unknown): number,
   /** The documents' size as stored (JSON, UTF-8). */ bytes(filter?: (x: T) => unknown): number,
   create(x: Partial<T>): T, update(id: string, patch: Partial<T>): T | null, remove(id: string): boolean };
-export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string, access?: UserAccess };
-/** An invite code as stored: its sha256, never the code (SPEC-access "Access"). */
-export type StoredInvite = Doc & { hash: string, label?: string, uses: number, used: number, expiresAt?: string,
-  revokedAt?: string, createdBy: string };
+export type StoredUser = Doc & Partial<User> & { username: string, passwordHash: string };
 /** `guest`: a guest's name, and `userId` their `guest-…` id, which no account has (SPEC-access "Guests"). */
 export type Session = Doc & { userId: string, expiresAt: string, guest?: string };
 /** A look as stored: what GET /api/looks/:id answers (older looks may lack its defaults), its versions, and what its
@@ -33,11 +29,11 @@ export type Session = Doc & { userId: string, expiresAt: string, guest?: string 
 export type StoredLook = Doc & Pick<Look, 'owner' | 'title'>
   & Partial<Omit<Look, 'versionCount' | 'version' | keyof Doc>>
   & { versions?: Record<string, unknown>[], version?: VersionMeta };
-export type Store = { users: Collection<StoredUser>, sessions: Collection<Session>, ideas: Collection<Idea>,
-  looks: Collection<StoredLook>, invites: Collection<StoredInvite>, dataDir: string, flush(): Promise<void>,
+export type Store = { users: Collection<StoredUser>, sessions: Collection<Session>, looks: Collection<StoredLook>,
+  dataDir: string, flush(): Promise<void>,
   /** Flushes, then releases the data folder. */ close(): Promise<void> };
 
-const COLLECTIONS = ['users', 'sessions', 'ideas', 'looks', 'invites'] as const;
+const COLLECTIONS = ['users', 'sessions', 'looks'] as const;
 type Item = Doc & Record<string, unknown>;
 type Upgrade = (doc: Item) => Item;
 /** Each collection's documents as stored by an older version → as this one reads them (the same object when one

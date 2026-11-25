@@ -123,7 +123,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
       title: look.title, summary: look.summary ?? '', duration: look.duration ?? DEFAULT_DURATION,
       layerCount: Array.isArray(look.layers) ? look.layers.length : 0, shared: look.shared === true,
       reviewed: look.reviewed === true, createdAt: look.createdAt, updatedAt: look.updatedAt,
-      ...Object.fromEntries((['bpm', 'sharedAt', 'ideaId'] as const).filter((k) => look[k] != null)
+      ...Object.fromEntries((['bpm', 'sharedAt'] as const).filter((k) => look[k] != null)
         .map((k) => [k, look[k]])), ...(preview ? { preview } : {}) };
   }
 
@@ -148,7 +148,7 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
   }
 
   async function create(req: FastifyRequest, reply: FastifyReply) {
-    const { automation, ideaId, globals, bpm, origin, ...body } = parse(LookCreate, req.body);
+    const { automation, globals, bpm, origin, ...body } = parse(LookCreate, req.body);
     const user = req.user!;
     // An import of a look the importer has (SPEC-looks "Look files"): the file overrules it, as a PUT would.
     const had = origin && store.looks.list((l) => l.owner === user.id && (l.id === origin || l.origin === origin))[0];
@@ -168,11 +168,6 @@ export function lookRoutes({ store, auth, bakes, dropFrames, previews, codeGate,
     if (bpm != null) look.bpm = bpm;
     if (origin) look.origin = origin;
     if (look.shared) look.sharedAt = stamp();
-    if (ideaId != null) {
-      const idea = store.ideas.get(ideaId);
-      if (!idea || idea.owner !== user.id) throw new HttpError(400, 'ideaId does not name one of your ideas.');
-      look.ideaId = idea.id;
-    }
     roomForLook(store, user.id, (why) => new HttpError(429, why), look);
     reply.code(201);
     const made = store.looks.create(look);

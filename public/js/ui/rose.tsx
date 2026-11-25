@@ -1,5 +1,5 @@
 // The rose window as SVG: sixteen lancet petals in the real window's seven rings round a hub. The brand mark, the
-// loader, an idea's progress, and the petal and cell pickers; colour and motion live in CSS (.rose in base.css,
+// loader, and the petal and cell pickers; colour and motion live in CSS (.rose in base.css,
 // pages.css, params.css).
 import { useMemo } from 'preact/hooks';
 

@@ -1,17 +1,15 @@
-// The core as the boxes take it, from its source with no build (src/core-script.ts, generate/fleet.ts copyModule):
-// one script for the render box's realm, and module copies the Fleet worker imports. TypeScript modules work as
-// well: their types are stripped as Node strips them.
+// The core as the render box takes it, from its source with no build (src/core-script.ts): one script for its realm.
+// TypeScript modules work as well: their types are stripped as Node strips them.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 import { afterAll, test } from 'vitest';
 
 import { bundle, moduleFiles } from '../src/core-script.ts';
-import { copyModule } from '../src/generate/fleet.ts';
 
 const CORE = fileURLToPath(new URL('../public/js/pattern-core.ts', import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-core-script-'));
@@ -34,7 +32,7 @@ test('the core as one script: its modules, dependencies first, with no relative 
   assert.equal(ctx.out, 'functionfunction');
 });
 
-test('TypeScript modules: types stripped for the realm, imported as they are from a copy', async () => {
+test('TypeScript modules: types stripped for the realm', () => {
   write('ts/lib/maths.ts', 'export type N = number;\nexport const twice = (n: N): N => n * 2;\n');
   write('ts/entry.ts', "import { twice } from './lib/maths.ts';\nexport const four: number = twice(2);\n");
   const { text, files } = bundle(path.join(tmp, 'ts/entry.ts'));
@@ -43,14 +41,4 @@ test('TypeScript modules: types stripped for the realm, imported as they are fro
   const ctx = vm.createContext({});
   vm.runInContext(`${text.replace(/^export\s+/gm, '')}\nglobalThis.out = four;`, ctx);
   assert.equal(ctx.out, 4);
-  await copyModule(path.join(tmp, 'ts/entry.ts'), path.join(tmp, 'box'), 'core.ts');
-  assert.ok(fs.existsSync(path.join(tmp, 'box/lib/maths.ts')));
-  assert.equal((await import(pathToFileURL(path.join(tmp, 'box/core.ts')).href)).four, 4);
-});
-
-test('the Fleet copy of the real core imports and renders', async () => {
-  await copyModule(CORE, path.join(tmp, 'fleet'));
-  const core = await import(pathToFileURL(path.join(tmp, 'fleet/pattern-core.ts')).href);
-  assert.equal(typeof core.renderFrame, 'function');
-  assert.ok(fs.existsSync(path.join(tmp, 'fleet/core/compile.ts')));
 });

@@ -30,18 +30,16 @@ const dataDir = path.resolve(c.STUDIO_DATA || path.join(here, 'data'));
 
 const app = await createServer({ config: c, dataDir, publicDir: path.join(here, 'public'),
   distDir: path.join(here, 'dist'), curators: c.STUDIO_CURATORS || '', admins: c.STUDIO_ADMINS || '',
-  secureCookies: c.STUDIO_SECURE_COOKIES ?? false, generatorName: c.STUDIO_GENERATOR || '',
+  secureCookies: c.STUDIO_SECURE_COOKIES ?? false,
   trustProxy: c.STUDIO_TRUST_PROXY ?? false, framesQuality: c.STUDIO_FRAMES_BROTLI_QUALITY || undefined,
-  framesMaxBytes: c.STUDIO_FRAMES_MAX_BYTES,
-  ideaLogs: { keep: c.STUDIO_IDEA_LOGS, maxBytes: c.STUDIO_IDEA_LOGS_MAX_BYTES } }).catch((err) => {
+  framesMaxBytes: c.STUDIO_FRAMES_MAX_BYTES }).catch((err) => {
   if (!(err instanceof DataLockedError)) throw err;
   console.error(`[studio] not started: ${err.message}`);
   process.exit(1);
 });
 const addr = await app.listen(port, host);
 const where = `http://${host.includes(':') ? `[${host}]` : host}:${addr.port}/`;
-console.log(`[studio] Folly Studio on ${where} (data ${dataDir}`
-  + `${app.models ? `, models ${app.models.file}, default ${app.adapterName}` : ', no generators'})`);
+console.log(`[studio] Folly Studio on ${where} (data ${dataDir})`);
 if (c.STUDIO_FLASH_CHECK === false) {
   console.warn('[studio] STUDIO_FLASH_CHECK=off: flashing blocks nothing (local only)');
 }

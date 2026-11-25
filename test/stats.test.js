@@ -58,32 +58,29 @@ describe('the request log and the stats', () => {
     assert.equal(today.errors, 0);
     assert.ok(json.uptime >= 0 && json.memory.rss > 0 && json.memory.heap > 0);
     assert.deepEqual(json.bakes, { done: 0, failed: 0, waiting: 0 });
-    assert.deepEqual(json.ideas, { made: 0, failed: 0, waiting: 0 });
     assert.deepEqual(json.slowest, []);
   });
 });
 
 describe('the counts', () => {
-  const store = { ideas: { list: () => [] }, looks: { list: () => [] } };
+  const store = { looks: { list: () => [] } };
   const req = (url, route = url) => ({ url, method: 'GET', ip: '10.1.2.3', headers: {}, routeOptions: { url: route } });
   const reply = (ms, status = 200) => ({ statusCode: status, elapsedTime: ms, getHeader: () => undefined });
 
-  test('slow requests, the slowest kept; a long poll is never slow; a day ends', async () => {
+  test('slow requests, the slowest kept; a day ends', async () => {
     vi.useFakeTimers({ now: new Date(2026, 9, 21, 23, 59) });
     try {
-      const stats = createStats({ log, store, ideas: false });
-      await stats.onResponse(req('/api/ideas/x?wait=1', '/api/ideas/:id'), reply(25_000));
+      const stats = createStats({ log, store });
       await stats.onResponse(req('/api/looks'), reply(1500, 500));
       for (let i = 0; i < 12; i++) await stats.onResponse(req('/api/library'), reply(1000 + i));
       let s = stats.read();
-      assert.equal(s.ideas, undefined);
-      assert.deepEqual(s.days.map((d) => [d.day, d.requests, d.slow, d.errors]), [['2026-10-21', 14, 13, 1]]);
+      assert.deepEqual(s.days.map((d) => [d.day, d.requests, d.slow, d.errors]), [['2026-10-21', 13, 13, 1]]);
       assert.equal(s.slowest.length, 10);
       assert.equal(s.slowest[0].ms, 1011);
       vi.setSystemTime(new Date(2026, 9, 22, 0, 1));
       await stats.onResponse(req('/'), reply(5));
       s = stats.read();
-      assert.deepEqual(s.days.map((d) => [d.day, d.requests]), [['2026-10-22', 1], ['2026-10-21', 14]]);
+      assert.deepEqual(s.days.map((d) => [d.day, d.requests]), [['2026-10-22', 1], ['2026-10-21', 13]]);
     } finally {
       vi.useRealTimers();
     }

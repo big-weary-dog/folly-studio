@@ -233,10 +233,9 @@ describe('render box (bubblewrap)', () => {
 
   test('through the API: a strobe is blocked from review, one on the spirelets only warns, a calm one passes',
     async () => {
-    const app = await createServer({ generators: true, customCode: true,
+    const app = await createServer({ customCode: true,
       dataDir: path.join(tmpRoot, 'data'),
       publicDir: PUBLIC,
-      generator: { enqueue() {}, async idle() {} },
       curators: 'cur',
       renderBox: createRenderBox({ customCode: true, publicDir: PUBLIC, seconds: 4, log: quiet }),
       log: quiet,

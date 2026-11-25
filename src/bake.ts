@@ -1,8 +1,7 @@
-// Baked frames on the trusted side (SPEC "Baked frames"): their files (<STUDIO_DATA>/frames/<lookId>.fseq),
-// the queue that runs the render box one look at a time (in the low-priority lane it shares with frame
-// encoding), and what review needs. The fleet-box bake (the Fleet worker's, generate/fleet.ts) is advisory;
-// the render-box bake (src/render-box.ts) is authoritative. Bakes are deterministic, so a look that renders
-// what another already baked (the same renderKey) takes its frames instead of baking again (look.bake: Bake).
+// Baked frames on the trusted side (SPEC "Baked frames"): their files (<STUDIO_DATA>/frames/<lookId>.fseq), the
+// queue that runs the render box (src/render-box.ts) one look at a time (in the low-priority lane it shares with frame
+// encoding), and what review needs. Bakes are deterministic, so a look that renders what another already baked (the
+// same renderKey) takes its frames instead of baking again (look.bake: Bake).
 
 import { createHash } from 'node:crypto';
 import { promises as fs, readFileSync } from 'node:fs';

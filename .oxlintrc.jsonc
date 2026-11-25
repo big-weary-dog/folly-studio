@@ -44,8 +44,8 @@
       }
     },
     {
-      // The render box and its limits, the Fleet foundry, and the generators' one-shot CLI calls (no shell).
-      "files": ["src/render-box.ts", "src/box-limits.ts", "src/generate/fleet.ts", "src/generate/proc.ts"],
+      // The render box and its limits.
+      "files": ["src/render-box.ts", "src/box-limits.ts"],
       "rules": {
         "no-restricted-imports": ["error", {
           "paths": [
@@ -65,13 +65,13 @@
             { "name": "node:child_process", "message": "processes only box untrusted work" }
           ],
           "patterns": [
-            { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
+            { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
               "message": "browser code imports only from public/ and packages" },
             { "regex": "^(?:[a-z]+:)?//", "message": "remote URL: the app runs offline under a self-only CSP" },
-            // All of shared/ but idea-status.ts, plays.ts, policy.ts and standard-modules.ts, which are pure (the regex
-            // has no look-ahead: "not id…, not pl…, not po…, not st…").
-            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^ips]|i[^d]|p[^lo]|s[^t])", "allowTypeImports": true,
-              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident; shared/idea-status.ts, shared/plays.ts, shared/policy.ts and shared/standard-modules.ts are pure" }
+            // All of shared/ but plays.ts, policy.ts and standard-modules.ts, which are pure (the regex has no
+            // look-ahead: "not pl…, not po…, not st…").
+            { "regex": "^\\.{1,2}/(?:.*/)?shared/(?:[^ps]|p[^lo]|s[^t])", "allowTypeImports": true,
+              "message": "browser code takes shared/ schemas as types (import type), so zod is not shipped by accident; shared/plays.ts, shared/policy.ts and shared/standard-modules.ts are pure" }
           ]
         }]
       }
@@ -82,7 +82,7 @@
       "rules": {
         "no-restricted-imports": ["error", { "patterns": [
           { "regex": "^node:", "message": "shared/ runs in the browser too: no Node built-ins" },
-          { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|fleet-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
+          { "regex": "^\\.{1,2}/(?:.*/)?(?:src|render-box|tools|test)/|^\\.{1,2}/(?:.*/)?server\\.[jt]s$",
             "message": "shared/ imports only zod, itself and the core's constants and data from public/" },
           { "group": ["**/public/**", "!**/public/js/pattern-core.*", "!**/public/**/*.json"],
             "message": "shared/ imports only zod, itself and the core's constants and data from public/" }
@@ -139,8 +139,8 @@
       }
     },
     {
-      // Library patterns are scripts the compiler reads by name, and their signatures are the API the AI copies.
-      "files": ["public/patterns/**", "test/fixtures/generate/library/**"],
+      // Library patterns are scripts the compiler reads by name, and their signatures are their API.
+      "files": ["public/patterns/**"],
       "rules": {
         "no-unused-vars": ["error", { "varsIgnorePattern": "^(?:params|pixel|warp|filter|frame|spatial|stage|history|upgrade)$", "args": "none" }]
       }

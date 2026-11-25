@@ -240,7 +240,7 @@ async function measure(browser, origin, cookie, lookId, run, rate) {
     longest: Math.max(0, ...p.tasks), tasks: p.tasks.length, stats, heavy, errors };
 }
 
-test.use({ serverOptions: { generator: { enqueue() {} },
+test.use({ serverOptions: {
   renderBox: { probe: async () => ({ ok: false, reason: 'off' }), render: async () => ({}) } } });
 
 let cookie, look;

@@ -65,7 +65,7 @@ export async function serveApp(app: FastifyInstance, { distDir = DEFAULT_DIST_DI
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       throw new HttpError(405, 'Method not allowed.', { Allow: 'GET, HEAD' });
     }
-    // SPA routes (/studio, /ideas/abc, …) get the app shell; dotfiles (.vite/, .env) nothing.
+    // SPA routes (/studio, /looks/abc, …) get the app shell; dotfiles (.vite/, .env) nothing.
     if (!path.extname(pathname) && !/\/\./.test(pathname) && existsSync(shell)) return reply.sendFile('index.html');
     if (!warned && !existsSync(shell)) {
       warned = true;
@@ -75,7 +75,7 @@ export async function serveApp(app: FastifyInstance, { distDir = DEFAULT_DIST_DI
   });
 }
 
-// Loaders shared with the generator: synchronous, re-read only when their files change.
+// Loaders for the library and the rig: synchronous, re-read only when their files change.
 const statSig = (file: string) => {
   try { const st = statSync(file); return st.isFile() ? `${st.size}:${st.mtimeMs}` : '-'; } catch { return '-'; }
 };

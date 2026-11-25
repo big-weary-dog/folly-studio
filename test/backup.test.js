@@ -66,7 +66,7 @@ test('a dated archive of the JSON files; frames only with --frames, never the wi
 test('while the server rewrites its files, the snapshot holds whole files from one moment', async () => {
   const data = path.join(tmp, 'busy');
   const store = await createStore(data);
-  for (let i = 0; i < 200; i++) store.ideas.create({ text: `idea ${i}`.repeat(20) });
+  for (let i = 0; i < 200; i++) store.users.create({ username: `user ${i}`.repeat(20) });
   store.looks.create({ title: 'first' });
   await store.flush();
   let writing = true, writes = 0;
@@ -75,7 +75,7 @@ test('while the server rewrites its files, the snapshot holds whole files from o
   const churn = (async () => {
     while (writing) {
       for (let burst = 0; burst < 3; burst++) {
-        store.ideas.create({ text: `more ${writes++}` });
+        store.users.create({ username: `more ${writes++}` });
         store.looks.create({ title: `look ${writes}` });
         await store.flush();
       }
@@ -85,10 +85,10 @@ test('while the server rewrites its files, the snapshot holds whole files from o
   try {
     for (let i = 0; i < 5; i++) {
       const files = await snapshot(data);
-      const ideas = JSON.parse(files.find((f) => f.name === 'ideas.json').body);
+      const users = JSON.parse(files.find((f) => f.name === 'users.json').body);
       const looks = JSON.parse(files.find((f) => f.name === 'looks.json').body);
-      assert.ok(ideas.length >= 200);
-      assert.ok(Math.abs(ideas.length - 200 - (looks.length - 1)) <= 1, 'the two files are from about one moment');
+      assert.ok(users.length >= 200);
+      assert.ok(Math.abs(users.length - 200 - (looks.length - 1)) <= 1, 'the two files are from about one moment');
     }
   } finally {
     writing = false;

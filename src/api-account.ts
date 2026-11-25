@@ -1,5 +1,5 @@
-// An account's own settings (SPEC-access "Your account"): a new password, or the account deleted with its looks and
-// ideas. Each needs the password; wrong ones are limited per address and account, as failed sign-ins are.
+// An account's own settings (SPEC-access "Your account"): a new password, or the account deleted with its looks.
+// Each needs the password; wrong ones are limited per address and account, as failed sign-ins are.
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { AccountDelete, PasswordChange } from '../shared/schemas/api.ts';
@@ -33,14 +33,13 @@ export function accountRoutes(api: FastifyInstance, { store, auth, dropFrames, p
       await withPassword(req, body.password, () => auth.changePassword(req.user!, body, req.cookies[COOKIE_NAME]));
       return { ok: true };
     },
-    // The account, its sessions, ideas and looks (shared ones too), and the looks' frames and previews.
+    // The account, its sessions and looks (shared ones too), and the looks' frames and previews.
     'DELETE /me': async (req: FastifyRequest, reply: FastifyReply) => {
       const { password } = parse(AccountDelete, req.body);
       const user = req.user!;
       await withPassword(req, password, async () => {
         const looks = store.looks.list((l) => l.owner === user.id).map((l) => l.id);
         for (const id of looks) store.looks.remove(id);
-        for (const idea of store.ideas.list((i) => i.owner === user.id)) store.ideas.remove(idea.id);
         auth.removeUser(user.id);
         await Promise.all(looks.map((id) => Promise.all([dropFrames(id), previews?.drop(id)]).catch((err) => {
           log.error?.(`account: could not remove the frames or previews of look ${id}:`, err);
