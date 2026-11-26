@@ -182,9 +182,6 @@ settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The d
 [Environment](#environment)) keeps a studio off a folder another one has open, so a dev studio pointed at
 `~/folly-data` by mistake stops at start.
 
-A `-pi` unit an earlier deploy left (the archived Pi engine's dry run, ARCHIVE.md) is stopped and removed, with its
-Pi bundles in `~/.cache/folly-studio/<unit>/`.
-
 Later, `dev.folly.swampkat.com`: a second hostname in the tunnel's ingress, to `127.0.0.1:8781`, behind a Cloudflare
 Access application that admits the owner alone, which the owner sets up in the Cloudflare dashboard.
 
@@ -207,8 +204,7 @@ node attribute). People reach it without installing Tailscale.
 (`src/config.ts`; all of them under "Every setting" below) and logs what is set. A value it cannot read stops it,
 naming the variable: on/off takes `1`, `true`, `on` or `yes`, or `0`, `false`, `off` or `no` (any case); a duration
 takes a unit (`500ms`, `90s`, `5m`, `2h`), and a bare number is in seconds; a size takes `k`, `m` or `g` (`2GB`). A
-`STUDIO_` name it does not read is warned of (a typo?), but for retired ones an older file may still hold, which it
-ignores. Unset, each setting has its default.
+`STUDIO_` name it does not read is warned of (a typo, or a retired setting). Unset, each setting has its default.
 
 ```sh
 HOST=127.0.0.1
@@ -378,12 +374,15 @@ systemctl --user start folly-studio
 The archive's files replace those in the data folder; baked frames, previews and bug reports stay as they are. Keep
 `folly-data.before-restore` until you are sure.
 
-### Library only
+### Rewrite stored looks
 
-The library-only step (spec/looks "Library only") drops stored looks and versions that hold code other than the
-library's, logging each one, after copying `looks.json` and `users.json` beside themselves. Only you run it, once
-per data folder: the server never does. First see what it would do (it writes nothing):
-`node tools/library-only.ts --data ~/folly-data`; then stop the server and add `--apply`.
+Looks stored by an older Studio still hold their modules' code, old globals and params saved before a pattern's
+`upgrade()`; the server reads them as they play now. `tools/rewrite-looks.ts` writes each look and version in the
+current shape once: the old globals gone (energy a macro where it plays), params through `upgrade()`, and the hash of
+the code each was saved with kept before the code is dropped. What plays does not change, so a current bake stays
+current. Only you run it, once per data folder. First see what it would change (it writes nothing):
+`node tools/rewrite-looks.ts --data ~/folly-data`; then stop the server and add `--apply`, which keeps the old file as
+`looks.pre-rewrite-<time>.json`. Running it again changes nothing.
 
 ## Monitoring
 

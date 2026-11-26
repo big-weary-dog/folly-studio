@@ -81,8 +81,8 @@ undoes an edit.
 | `lx ly lz` | 0..1 across the pixels this layer targets (so a pattern fills what it lands on) |
 | `a r` | angle 0..1 (clockwise from 12 o'clock, seen from the front) and radius 0..1, in the façade (z–y) plane round the middle of this layer's LEDs (their mean: on City of Gods the rose) |
 | `u i n` | position 0..1 along its fixture, index along it, fixture length |
-| `zone zi fixture` | zone name, zone index, fixture index (`strand`: the same) |
-| `ring sector` | the rig's `ring` and `sector` attrs, 0 / −1 where it has none (the Folly's rose: ring 1–7, petal 0–15); `row petal` are the same |
+| `zone zi fixture` | zone name, zone index, fixture index |
+| `ring sector` | the rig's `ring` and `sector` attrs, 0 / −1 where it has none (the Folly's rose: ring 1–7, petal 0–15) |
 | `attr(name, d = 0)` | the rig's per-pixel attr `name`, `d` where it has none |
 | `is(tag)` | true when the pixel is in a group tagged `tag` |
 | `part(tag)` `parts(tag)` `partUp(tag)` | which of `tag`'s parts holds the pixel (0 up, −1 none; the first that does), how many, and its height in that part (0 its foot, 1 its top; in none, the rig's): the parts are the groups tagged `tag`, or if one, its smallest groups (rig order; none empty) |
@@ -96,9 +96,9 @@ undoes an edit.
 `clamp(v, lo=0, hi=1)`, `fract(x)`, `mix(a, b, t)` (numbers, or colours faded in OKLab), `step(edge, x)`,
 `smoothstep(e0, e1, x)`, `soft(edge, x, width)` (an anti-aliased step: 0 below `edge − width/2`, 1 above
 `edge + width/2`, smooth between; width 0 is `step`), `band(x, centre, halfWidth, softness)` (1 within `halfWidth`
-of `centre`, else 0, each edge a `soft` one `softness` wide), `wave(x)` = ½+½·sin(2πx), `tri(x)`, `saw(x)`, `pulse(x, width)`
+of `centre`, else 0, each edge a `soft` one `softness` wide), `tri(x)`, `pulse(x, width)`
 (1 near 0 falling to 0 at ±width, wrapping), `hash(n)` and `rand(a, b?, c?)` (stable 0..1),
-`noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`, `hsl(h, s, l)`,
+`noise(x, y?, z?, w?)` (smooth 0..1), `fbm(x, y, z, octaves=4)`, `hsv(h, s, v)`,
 `rgb(r, g, b)`, `hex('#rrggbb')`, `scale(c, k)`, `add(c1, c2)`, `gradient(t, [c0, c1, ...])`,
 `cosPalette(t, a, b, c, d)` (Inigo Quilez), `beat(t, bpm)` (phase 0..1 from the downbeat), `dist(x1,y1,z1,x2,y2,z2)`,
 `pal(name, t = 0)` (t 0..1 along colour param `name`'s pick; a bare role `low|body|accent|high` walks the look
@@ -217,7 +217,7 @@ each sub-layer runs on a copy of `q` (bent by its own warps) into a colour of it
 sub-layer plays on its groups' LEDs as a layer does, at the real LED, so a warp after the composite bends what each
 sub-layer draws but not where it plays (as a layer's Plays on). Module ids are unique across the whole layer,
 sub-layers' too. A composite has no code of its own: its `code` is `''` or absent (one with any other, or without
-sub-layers, is malformed: a save refuses it and the library-only step drops it), and its sub-layers' modules are
+sub-layers, is malformed: a save refuses it), and its sub-layers' modules are
 stored by `ref` as any other. A sub-layer holds no stage end (its colours are at bent pixels, not real LEDs) and
 composites nest two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by
 its own id. Each sub-layer's modules count toward its own limit of 8.
@@ -512,8 +512,8 @@ Compute is decoupled from drawing: the app keeps one `frame` request in flight a
 30 and then 20 while the worker's `ms` (smoothed) is over budget, 80 % of the frame interval, and back up once it is
 well under the faster rate's; the 3D view draws at display rate when something changed, and idles otherwise. A layer
 whose smoothed `layerMs` is over 40 % of a 40 fps frame's budget (8 ms) is marked heavy on its card.
-A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Live frames keep
-the look's clock continuous across a new look (`prepareLook(look, previous)`); renders start it afresh, as bakes do.
+A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Pattern time is
+show time, in live frames as in renders and bakes.
 Watchdog: while the worker owes an answer (a frame, a look's compile, an export) and says nothing for 1 s (6 s while
 it prepares the scene), the look has stopped responding. The runtime terminates the worker, starts a fresh one without
 the look, fails an export in progress, and shows that the look stopped responding until the look changes, which sends
@@ -527,18 +527,18 @@ export restarts the worker too.
 spec/library "Palettes"), `readPick(value) → { groups, blend, range, rotate } | null` and `pickText(groups)` (a pick read leniently,
 and as text), `readText(value) → string | null` (a text param's value: printable ASCII, at most `TEXT_MAX`, 256,
 characters), `layerModules(layer) → modules`
-(a layer with `code` and no `modules` → one source), `flatModules(modules) → modules` (a composite's too, depth first),
+(those that are objects; none without `modules`), `flatModules(modules) → modules` (a composite's too, depth first),
 `attachedTo(modules, j) → id | null` (the source whose attached run module j may join),
 `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (spec/looks "Looks"), `tagMask(scene, tag) → Uint8Array`,
 `tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `flashLimits(partial?) → limits` and
-`new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled | compiled[])
+`new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled[])
 → prepared`
 (keeps `normalizeClips(layer.clips)`; a chain with spatial modules or `soften` gets its stage buffers here),
 `neighbourGraph(scene) → { space, wire }` (each CSR: pixel k's neighbours `nb[off[k]]…nb[off[k + 1] − 1]` at
 distances `d`, nearest first; Int32Array, Int32Array, Float32Array; cached on the scene), `MAX_RADIUS` (1.5),
-`BLUR_MODES`, `DEFAULT_SOFTEN`, `prepareLook({ globals, automation, bpm }, previous?) → look`,
+`BLUR_MODES`, `DEFAULT_SOFTEN`, `prepareLook({ globals, automation, bpm }) → look`,
 `renderFrame(scene, preparedLayers, t, out?, look?, result?) → { rgb, errors }` (an optional previous result reuses
 its object and errors array, clearing errors each frame; level × `layerEnvelope`, or a wipe's
 `transitionWeight` per pixel; skips layers at 0; allocation-free per layer; sets each prepared layer's `ms`, its time this frame), `normalizeGlobals(globals)`, `automationAt(points, t)`, `PALETTE_ROLES`,

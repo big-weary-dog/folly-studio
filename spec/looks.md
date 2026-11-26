@@ -46,8 +46,8 @@ below.
   and each version keep the hash of the code they were saved with (`codeHash`, never handed out). When the library
   changes that code, a read gives the look without its bake or review (`reviewed` false, no `reviewedBy` or
   `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Every rule on a look's
-  modules (this one, the save check, the library-only step, a bake's key) walks them by one walk
-  (`shared/look-modules.ts`): each module that runs code, in order, a layer that is one source and composites'
+  modules (this one, the save check, a bake's key) walks them by one walk
+  (`shared/look-modules.ts`): each module that runs code, in order, composites'
   sub-layers' modules at any depth among them, a composite itself (no code: spec/library "Composites") never.
   Filters and updates see the look as a read gives it, so what it leaves out stays out. A
   module whose `ref` the library has is standard: it keeps the
@@ -61,8 +61,8 @@ below.
   (spec/library "Attached modules"); `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
   `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
-  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. A stored layer with `code`
-  (+ `params`) and no `modules` reads and plays as a one-source chain; a body's layer has `modules`.
+  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. Every layer has `modules`: one
+  without plays nothing.
 - **chain**: `2`, the one rule (spec/library "Modules"). Without it a warp bends every module after it, on through blurs and
   trails, so a look without `chain: 2` (stored, or a body to `POST`/`PUT` without it) is converted once on its way
   in (`shared/chain-order.ts`, by the code its refs name), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage
@@ -103,35 +103,8 @@ below.
 
 ### Library only
 
-Stored looks hold library modules alone (spec/frames "Library only"). A module is library when its `ref` names a module
-the index lists (its stored code, if any, is ignored, as every read ignores it), or, with no such ref, when its code is
-exactly (by SHA-256) the current file of one. Each data folder is brought under this rule (`src/library-only-data.ts`),
-by hand alone: `node tools/library-only.ts [--data <dir>] [--apply]`, with the server stopped. The server never runs
-it, so stored looks may still hold code. Without `--apply` it is a dry run: it lists what it would do and writes
-nothing. With it:
-
-- it copies `looks.json` and `users.json` beside themselves (`<name>.pre-library-only-<time>.json`) and stops,
-  changing nothing, if a copy fails or the folder is in use;
-- a module naming a retired pattern (`src/retired-patterns.ts`) is switched to today's closest library pattern, a
-  preset's modules in its place: butterfly-classic to butterfly, plasma-classic to plasma, lighthouse-classic to
-  lighthouse (a module naming the preset, the pattern's name before, too). The preset's source takes the module's id, blend, `as` and `enabled`, and of its params those that
-  mean the same there (Colours; lighthouse's Beams as Bars); the preset's warps follow attached to it (`on`), ahead
-  of what was attached. A layer holding tendril or stained-glass, which have no match, is dropped, the look kept; so
-  is a layer a switch would take past 8 modules;
-- a look whose layers have any other module is dropped, with its frames (its previews and wire frames go at the
-  server's next start, as no look names them); so is a version with one. Each drop, the dry run's too, says why: the
-  module that is custom code, or the shape that breaks. Every kept version, and the look itself, has its number
-  written, so none is renumbered;
-- kept modules (composites' sub-layers' too) name their entry as `ref` and carry its current file. A look whose
-  code changes so plays differently: its bake, frames and review
-  (`reviewed`, `reviewedBy`, `flashOverride`) go, to be baked and reviewed afresh; a version whose code changes loses
-  its `reviewed`;
-- looks lose `ideaId` and users `access`, which nothing reads;
-- each look changed is listed, the dry run's too, by look id, title and owner: each layer switched or dropped and
-  why, and apart, each module whose stored code was not its ref's current file (an edited or earlier copy, played as
-  the library's). `migrations.json`'s `library-only` and `retired-patterns` (when it ran) mark it done, so it never
-  runs again; a folder with only the first gets the step again, for the switch. Without the library it changes
-  nothing.
+Stored looks hold library modules alone (spec/frames "Library only"). Every data folder was brought under this rule
+once, by hand; ARCHIVE.md says where the step that did it is kept.
 
 ### Timeline
 

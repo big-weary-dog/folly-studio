@@ -9,8 +9,9 @@ import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
-import { compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame } from '../../core/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../../core/pattern-core.ts';
 import { reference, timer } from './perf-calibrate.js';
+import { sourceLayer } from '../fixtures/layers.js';
 import { libraryCode as source, libraryIndex } from '../fixtures/patterns.js';
 
 // In references, which run in about 3 ms on a typical runner: a 25 ms frame for a source or a chain, 150 ms for the
@@ -66,7 +67,7 @@ test('the library: each source, the long chains and the whole stack, against the
     expect(errors).toEqual([]);
     return median(ratios);
   };
-  const layer = (name, extra) => prepareLayer(scene, { id: name, ...extra }, compilePattern(source(name)));
+  const layer = (name, extra) => sourceLayer(scene, { id: name, ...extra, code: source(name) });
   const results = [
     ...sources.map((name) => ['source', name, [layer(name, { groups: ['cathedral'] })]]),
     ...Object.entries(CHAINS).map(([what, modules]) => ['chain', what,

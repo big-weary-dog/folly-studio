@@ -9,7 +9,7 @@ approved by a curator and exported as `.fseq` for FPP or xLights.
 
 ## Quick start
 
-Node ≥ 22.18 and Python 3.
+Node 22.18 or later (23 from 23.8, for zstd) and Python 3.
 
 ```sh
 npm ci                 # the dependencies, exactly as package-lock.json pins them

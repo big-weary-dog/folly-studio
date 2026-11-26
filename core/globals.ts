@@ -119,25 +119,22 @@ function lanesOf(automation: Automation | null | undefined, g: ReturnType<typeof
   return lanes;
 }
 
-/** A look's globals and automation for renderFrame (upgradeGlobals: as it plays now); `previous` (the look it
- * replaces) keeps the clock continuous. */
-export function prepareLook(look?: Loaded & { bpm?: number | null } | null, previous?: Clock) {
+/** A look's globals and automation for renderFrame (upgradeGlobals: as it plays now). */
+export function prepareLook(look?: Loaded & { bpm?: number | null } | null) {
   const now = look ? upgradeGlobals(look) : look, g = normalizeGlobals(now?.globals);
   const lanes = lanesOf(now?.automation, g), bpm = isNum(look?.bpm) && look.bpm > 0 ? look.bpm : 120;
   const G: G = { bpm, palette: paletteColours(g.palette) || paletteColours(DEFAULT_PALETTE)! };
   for (const m of g.macros) G[m.name] = m.value;
   Object.seal(G);
   const ranges = new Map<string, Range>(g.macros.map((m) => [m.name, m] as const));
-  // Where each name's static value lives (read when used, so a live engine may set it in place).
-  const fixed = new Map<string, () => number>(g.macros.map((m) => [m.name, () => m.value] as const));
+  const fixed = new Map<string, number>(g.macros.map((m) => [m.name, m.value] as const));
   const laneOf = new Map(lanes.map((l) => [l.name, l.points]));
   // Modulators: macros a binding moves (SPEC "Globals"), unless a lane does.
   const moving = g.macros.flatMap((m) => (m.mod && !laneOf.has(m.name)
     ? [[m.name, modOf(m.name, m.mod, m.min, m.max, m.value, null)!] as const] : []));
-  const movingOf = new Map(moving), paceOffset = new Map<string, number>();
+  const movingOf = new Map(moving);
   const L = {
     G, g, lanes, bpm, palette: G.palette, beat0: 0, moving,
-    offset: 0, lastT: NaN, T: 0, paceOffset,
     norm(name: string) {
       const r = ranges.get(name);
       return r ? clamp(((G[name] as number) - r.min) / (r.max - r.min)) : 0;
@@ -147,41 +144,31 @@ export function prepareLook(look?: Loaded & { bpm?: number | null } | null, prev
     normAt(name: string, t: number): number {
       const r = ranges.get(name), lane = laneOf.get(name), m = lane ? undefined : movingOf.get(name);
       if (!r) return 0;
-      return clamp(((lane ? automationAt(lane, t) : m ? L.modAt(m, t) : fixed.get(name)!()) - r.min) / (r.max - r.min));
+      return clamp(((lane ? automationAt(lane, t) : m ? L.modAt(m, t) : fixed.get(name)!) - r.min) / (r.max - r.min));
     },
     /** A modulator's binding at show time t. */
     modAt(m: Mod, t: number): number { return modValue(m, t, m.kind === 1 ? L.normAt(m.name, t) : 0, 1, L); },
     /** ∫ from 0 to t of a fader's value, what a `pace` multiplies an LFO's phase by: exact on a lane. */
     paceAt(name: string, t: number): number {
       const lane = laneOf.get(name), f = fixed.get(name);
-      return lane ? integral(lane, t) : f ? f() * t + (paceOffset.get(name) ?? 0) : t;
-    },
-    /** A live engine set fader `name` from `from` to `to` at show time `at`: what it paces goes on unbroken. */
-    repace(name: string, from: number, to: number, at: number) {
-      paceOffset.set(name, (paceOffset.get(name) ?? 0) + (from - to) * at);
+      return lane ? integral(lane, t) : f !== undefined ? f * t : t;
     },
   };
-  if (previous && Number.isFinite(previous.lastT)) { L.offset = previous.offset; L.lastT = previous.lastT; }
   return L;
 }
 
 export type PreparedLook = ReturnType<typeof prepareLook>;
-type Clock = { offset: number, lastT: number };
 
-/** Frame t: G (statics, then automation), the clock (show time, plus the offset a followed engine gives), RUN.
- * No allocation. */
+/** Frame t: G (statics, then automation), RUN. No allocation. */
 export function lookFrame(L: PreparedLook, t: number) {
-  if (t < L.lastT) { L.offset = 0; L.paceOffset.clear(); }   // looped, restarted or sought back: the canonical clocks
-  L.lastT = t;
   const G = L.G, g = L.g;
   G.bpm = L.bpm; G.palette = L.palette;
   for (let i = 0; i < g.macros.length; i++) G[g.macros[i].name] = g.macros[i].value;
   for (let i = 0; i < L.lanes.length; i++) G[L.lanes[i].name] = automationAt(L.lanes[i].points, t);
   for (let i = 0; i < L.moving.length; i++) G[L.moving[i][0]] = L.modAt(L.moving[i][1], t);
-  L.T = L.offset + t;
   RUN.G = G;
   RUN.palette = L.palette;
-  RUN.t = t; RUN.T = L.T; RUN.look = L;
+  RUN.t = t; RUN.look = L;
 }
 
 /** The composite clamped to 0..1. */

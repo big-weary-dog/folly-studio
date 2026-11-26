@@ -1,7 +1,7 @@
 // Only library patterns save (spec/frames "Library only"): a look saved, by hand or by an import, has each module name
 // a library module by `ref`, and plays that module's current file. A ref the library lacks is refused.
 import { findModule } from '../shared/look-modules.ts';
-import { libraryFiles } from './library-files.ts';
+import type { LibraryEntry } from '../shared/schemas/rig.ts';
 
 const named = (v: unknown) => (typeof v === 'string' ? v.slice(0, 60) : '');
 
@@ -19,13 +19,13 @@ export function unknownRef(layers: unknown, refs: ReadonlySet<string>) {
   return `Only looks made of library patterns save; ${what} names none.`;
 }
 
-/** The check in front of saving: check(layers, fail) throws fail(why) when a module names no library module. */
-export function createCodeGate({ patternsDir }: { patternsDir: string }) {
-  let files: ReturnType<typeof libraryFiles> | undefined;   // the library changes only with a deploy, which restarts
-  const library = () => (files ??= libraryFiles(patternsDir));
+/** The check in front of saving: check(layers, fail) throws fail(why) when a module names no library module (the
+ * loader's, src/static.ts). */
+export function createCodeGate(loadLibrary: () => readonly LibraryEntry[]) {
   return {
     async check(layers: unknown, fail: (why: string) => Error) {
-      const why = unknownRef(layers, new Set((await library()).modules.keys()));
+      const refs = new Set(loadLibrary().flatMap((e) => (e.kind === 'preset' ? [] : [e.name])));
+      const why = unknownRef(layers, refs);
       if (why) throw fail(why);
     },
   };

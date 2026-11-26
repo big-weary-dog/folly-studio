@@ -17,9 +17,6 @@
 #
 # A commit's host.sh without the next line predates releases, and is refused:
 # deploys: releases
-#
-# A $STUDIO_UNIT-pi service an earlier deploy left (the archived Pi engine's dry run, ARCHIVE.md) is stopped and
-# removed, with its Pi bundles.
 set -euo pipefail
 
 die() { echo "host: $*" >&2; exit 1; }
@@ -212,12 +209,6 @@ systemctl --user daemon-reload
 systemctl --user enable --quiet "$unit" "$unit-backup.timer"
 systemctl --user restart "$unit"
 systemctl --user restart "$unit-backup.timer"
-if [ -f "$units/$unit-pi.service" ]; then
-  systemctl --user disable --now --quiet "$unit-pi" || true
-  rm -f "$units/$unit-pi.service"
-  systemctl --user daemon-reload
-fi
-rm -rf "$HOME/.cache/folly-studio/$unit"
 
 url="http://${host/::1/[::1]}:$port"
 for _ in $(seq 60); do

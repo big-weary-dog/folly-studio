@@ -7,8 +7,8 @@ import type { Scene } from './scene.ts';
 
 /** What the contract reads and writes on a pixel (render.ts makePixel). */
 type Q = { x: number, y: number, z: number, X: number, Y: number, Z: number, lx: number, ly: number, lz: number,
-  a: number, r: number, u: number, i: number, n: number, zone: string, zi: number, fixture: number, strand: number,
-  ring: number, row: number, sector: number, petal: number, k: number, seed: number,
+  a: number, r: number, u: number, i: number, n: number, zone: string, zi: number, fixture: number,
+  ring: number, sector: number, k: number, seed: number,
   ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, sr: number, cy: number, cz: number,
   due: number };
 /** What a layer brings: its pixels (rig indices), their bounds, and the grid once built. */
@@ -111,8 +111,8 @@ export function nearFor(S: Scene, L: Pick<Layer, 'idx' | 'bounds'>): Near {
 function led(S: Scene, q: Q, k: number) {
   q.u = S.u[k]; q.i = S.i[k]; q.n = S.n[k];
   const zi = S.zone[k];
-  q.zi = zi; q.zone = S.zones[zi]; q.fixture = q.strand = S.fixture[k];
-  q.ring = q.row = S.ring[k]; q.sector = q.petal = S.sector[k];
+  q.zi = zi; q.zone = S.zones[zi]; q.fixture = S.fixture[k];
+  q.ring = S.ring[k]; q.sector = S.sector[k];
   q.k = k; q.seed = S.seed[k];
 }
 
@@ -152,7 +152,7 @@ export function settle(q: Q) {
  *  string, destructures an object, reads a computed key, or runs another pattern (use). toward() and region() settle
  *  what they read themselves, as slide() does. */
 export const readsLed = (code: string | undefined) => code === undefined
-  || /[.'"`](u|i|n|zone|zi|fixture|strand|ring|row|sector|petal|k|seed|attr|is|part|partUp)\b/.test(code)
+  || /[.'"`](u|i|n|zone|zi|fixture|ring|sector|k|seed|attr|is|part|partUp)\b/.test(code)
   || /\{[^{}]*\}\s*=[^=>]|\(\s*\{|\w\s*\[\s*[A-Za-z_$]|\buse\s*\(/.test(code);
 
 /** move(q, lx, ly, lz): q samples the point (lx, ly, lz) of its frame. */

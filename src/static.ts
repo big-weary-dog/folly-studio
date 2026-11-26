@@ -73,7 +73,8 @@ export async function serveApp(app: FastifyInstance, { distDir = DEFAULT_DIST_DI
   });
 }
 
-// Loaders for the library and the rig: synchronous, re-read only when their files change.
+// Loaders for the library and the rig: synchronous, re-read only when their files change, so `npm run dev` edits
+// are live. The server's one reader of the library: the code gate and the look views read it here.
 const statSig = (file: string) => {
   try { const st = statSync(file); return st.isFile() ? `${st.size}:${st.mtimeMs}` : '-'; } catch { return '-'; }
 };
@@ -87,13 +88,13 @@ function readJson(file: string, log: Log) {
   }
 }
 
-/** fn(), recomputed only when the stats of files() change; callers get copies. */
+/** fn(), recomputed only when the stats of files() change: the same value until then, so callers only read it. */
 function memo<T>(files: () => string[], fn: () => T) {
   let sig: string | null = null, value: T;
   return (): T => {
     const s = files().map(statSig).join('|');
     if (s !== sig) [sig, value] = [s, fn()];
-    return structuredClone(value);
+    return value;
   };
 }
 
@@ -104,7 +105,8 @@ const Index = z.array(z.unknown()).catch([]).transform((list) => {
 });
 
 // createLoaders(publicDir) → { loadLibrary() → [{ name, title, summary, tags, kind, category, code, … }] (a preset:
-//   its layers, code ''; one that names a module the library lacks is dropped),
+//   its layers, code ''; one that names a module the library lacks is dropped; frozen, the same array until a file
+//   changes),
 //   loadRig() → `rigFile` (default: the Folly's) as SPEC "Rig" has it (null until it exists), loadGroups() → its
 //   `groups`,
 //   version() → a string that changes when any of their files does }
@@ -127,14 +129,15 @@ export function createLoaders(publicDir = DEFAULT_PUBLIC_DIR, { log, rigFile = r
       if (lost) log.warn?.(`static: preset ${e.name} names ${lost.ref}, which the library lacks; dropped`);
       return lost ? [] : [{ ...e, code: '' }];
     });
-    return [...modules, ...presets] as LibraryEntryType[];
+    return Object.freeze([...modules, ...presets].map((e) => Object.freeze(e))) as readonly LibraryEntryType[];
   });
-  const loadRig = memo(() => [rigFile], () => {
+  const rig = memo(() => [rigFile], () => {
     const json = readJson(rigFile, log);
     const rig = json && Rig.safeParse(json);
     if (rig && !rig.success) log.warn?.(`static: ${rigFile} is not a rig (SPEC "Rig"): ${problem(rig.error)}`);
     return rig?.success ? json as RigType : null;
   });
+  const loadRig = () => structuredClone(rig());     // a copy: its callers may change it
   const loadGroups = (): RigGroup[] => loadRig()?.groups ?? [];
   const version = () => [indexFile, rigFile, ...codeFiles()].map(statSig).join('|');
   return { loadLibrary, loadRig, loadGroups, version };
