@@ -93,22 +93,37 @@ test('a message that answers nothing asked leaves the watchdog on what is owed',
   assert.equal(workers.length, 2, 'and its hang is found');
 });
 
-test('only its own heartbeat keeps a request alive', () => {
+test('a heartbeat pattern code forges keeps nothing alive', () => {
   playing([]);
-  workers[0].say({ type: 'compiled', layers: [] });
   for (let i = 0; i < 3; i++) {
     vi.advanceTimersByTime(500);
     workers[0].say({ type: 'compiling' });
     workers[0].say({ type: 'progress', seq: 1, done: i + 1 });
   }
-  assert.equal(workers.length, 2, 'a frame owed, and neither counts');
+  assert.equal(workers.length, 2);
 });
 
-test('a worker that keeps answering is never restarted', () => {
+test('an export\'s progress counts once per frame of it', async () => {
   const rt = playing([]);
+  workers[0].say({ type: 'compiled', layers: [] });
+  workers[0].say({ type: 'frame', seq: 1 });
+  const failed = rt.render({ frames: 2, light: {} }).catch((e) => e.message);
+  for (let i = 0; i < 6; i++) {
+    vi.advanceTimersByTime(500);
+    workers[0].say({ type: 'progress', seq: rt.render_?.seq, done: Math.min(i + 1, 3) });
+  }
+  assert.equal(workers.length, 2);
+  assert.match(await failed, /stopped responding/);
+});
+
+test('an export that keeps progressing is never restarted', () => {
+  const rt = playing([]);
+  workers[0].say({ type: 'compiled', layers: [] });
+  workers[0].say({ type: 'frame', seq: 1 });
+  void rt.render({ frames: 20, light: {} }).catch(() => {});
   for (let i = 0; i < 10; i++) {
     vi.advanceTimersByTime(500);
-    workers[0].say({ type: 'compiling' });
+    workers[0].say({ type: 'progress', seq: rt.render_.seq, done: i + 1 });
   }
   assert.equal(workers.length, 1);
   rt.destroy();

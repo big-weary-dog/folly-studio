@@ -4,7 +4,7 @@ import type { FrameError, ToSandbox } from './runtime.ts';
 
 export type Layer = Extract<ToSandbox, { type: 'look' }>['layers'][number];
 /** What the worker says; every field is checked before it is used. */
-export type FromWorker = { type: 'ready' | 'compiled' | 'frame' | 'rendered' | 'progress' | 'compiling' | 'error';
+export type FromWorker = { type: 'ready' | 'compiled' | 'frame' | 'rendered' | 'progress' | 'error';
   seq?: unknown; done?: unknown; layers?: unknown; rgb?: unknown; errors?: unknown; ms?: unknown;
   layerMs?: unknown; channels?: unknown; request?: unknown; error?: unknown };
 type Reported = { id?: unknown; ok?: unknown; error?: unknown; params?: unknown; upgraded?: unknown;

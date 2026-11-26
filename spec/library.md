@@ -502,8 +502,7 @@ runtime terminates its worker and says nothing more.
 | `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
-The worker also says `{ type: 'compiling' }` before each module it compiles, and `{ type: 'error', seq?, request, error
-}` for a request that threw. The runtime reads what the worker says as data (`js/sandbox-messages.ts`), since pattern
+The worker also says `{ type: 'error', seq?, request, error }` for a request that threw. The runtime reads what the worker says as data (`js/sandbox-messages.ts`), since pattern
 code shares its thread and can post too: a frame's `rgb` not exactly count × 3 floats is a black frame; `errors` keep at most one per layer of the
 look; `ms` and `layerMs` are times (finite, ≥ 0), `layerMs` only the look's layers'; a render's `channels` not exactly
 its frames × the rig's frame channels is an `error`; and error text is one printable line of at most 300 characters.

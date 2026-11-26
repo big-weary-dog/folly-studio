@@ -41,7 +41,6 @@ function compiled(layerId: string, m: ReturnType<typeof layerModules>[number], k
   if (!entry || entry.code !== m.code || entry.kind !== kind) {
     entry = { code: m.code, kind, compiled: null, error: '' };
     compiledByKey.set(key, entry);
-    post({ type: 'compiling' });                // the watchdog hears it is busy, not stuck
     try { entry.compiled = compileModule(m.code, kind); } catch (e) { entry.error = message(e); }
   }
   return entry;

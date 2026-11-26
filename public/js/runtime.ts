@@ -274,14 +274,14 @@ export class Runtime {
   _message(m: FromWorker) {
     if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
     const r = this.render_, head = this.jobs[0];
-    // Pattern code can post too: only the answer to the request at the head ends it, and only its heartbeat
-    // ('compiling' for a look, an export's progress) counts as the worker being busy.
+    // Pattern code can post too, even from a loop that hangs: only the answer to the request at the head ends it,
+    // and only an export's progress, each frame once, counts as the worker being busy.
     const mine = head === 'frame' ? m.seq === this.frameInFlight?.seq : head === 'render' ? m.seq === r?.seq : !!head;
     if (mine && (m.type === 'error' ? m.request === head : m.type === REPLY[head!])) {
       this.jobs.shift();
       this.jobLooks.shift();
-    } else if (!(m.type === 'compiling' && head === 'look')
-      && !(m.type === 'progress' && mine && head === 'render' && Number(m.done) > r!.done)) return;
+    } else if (!(m.type === 'progress' && mine && head === 'render' && Number(m.done) > r!.done
+      && Number(m.done) <= r!.frames)) return;
     this.heard = performance.now();
     this.overdue = false;
     switch (m.type) {
@@ -321,7 +321,7 @@ export class Runtime {
         else this.onStatus('warning', error);
         break;
       }
-      default:   // 'compiling': the worker is busy, not stuck
+      default:
     }
   }
 
