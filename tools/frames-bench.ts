@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
-import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../core/pattern-core.ts';
+import { compileLayer, prepareLayer, prepareScene, renderFrame, toChannels } from '../core/pattern-core.ts';
 import type { LayerInput } from '../core/pattern-core.ts';
 import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { parseFseq } from '../src/frames.ts';
@@ -37,7 +37,8 @@ const ranges = ledRanges(rig);
 const channels = ranges.reduce((n, r) => n + r[1], 0);
 
 const NOISE = 'noise (worst case)';
-type Layer = LayerInput & { code: string };
+/** A layer of one pattern: its code plays as the chain's one source. */
+type Layer = LayerInput & { code: string, params?: Record<string, number> };
 const LOOKS = ([
   ...index.filter((p) => (p.kind ?? 'source') === 'source')
     .map(({ name }): [string, Layer[]] => [name, [{ id: 'a', code: source(name) }]]),
@@ -54,7 +55,10 @@ const LOOKS = ([
 ] as [string, Layer[]][]).filter(([name]) => !ONLY || ONLY.split(',').some((o) => name.startsWith(o)));
 
 function bake(layers: Layer[]) {
-  const prepared = layers.map((l) => prepareLayer(scene, l, compilePattern(l.code)));
+  const prepared = layers.map(({ code, params, ...l }) => {
+    const chain = { ...l, modules: [{ id: 'm1', kind: 'source' as const, code, ...(params ? { params } : {}) }] };
+    return prepareLayer(scene, chain, compileLayer(chain));
+  });
   const frames = Math.round(SECONDS * FPS);
   const rgb = new Float32Array(scene.count * 3);
   const full = new Uint8Array(scene.frameChannels);

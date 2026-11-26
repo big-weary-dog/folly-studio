@@ -168,15 +168,11 @@ export function chainWires(mods: Module[]) {
     : m.blend || (i === first ? 'over' : 'add'))) };
 }
 
-type RawLayer = Partial<Layer> & { code?: string; params?: Module['params'] };
-/** A layer's modules: its own, or (a look from before chains) its code and params as one source. */
-const modulesOf = (l: RawLayer): Partial<Module>[] => (Array.isArray(l.modules) ? l.modules
-  : [{ id: 'm1', kind: 'source', title: l.title || 'Pattern', code: l.code, params: l.params }]);
-
-/** Only the fields a saved look keeps (SPEC "Looks"); every layer as a chain. */
-export function cleanLayer(l: RawLayer): Layer {
+/** Only the fields a saved look keeps (SPEC "Looks"). */
+export function cleanLayer(l: Partial<Layer>): Layer {
   return {
-    id: String(l.id), title: String(l.title || 'Layer'), modules: modulesOf(l).map(cleanModule),
+    id: String(l.id), title: String(l.title || 'Layer'),
+    modules: (Array.isArray(l.modules) ? l.modules : []).map(cleanModule),
     ...(Array.isArray(l.groups) ? { groups: [...l.groups] } : {}), ...(l.tags?.length ? { tags: [...l.tags] } : {}),
     blend: isBlend(l.blend) ? l.blend : 'add',
     level: Number.isFinite(Number(l.level)) ? Math.min(1, Math.max(0, Number(l.level))) : 1,
@@ -189,7 +185,7 @@ export function cleanLayer(l: RawLayer): Layer {
 /** Normalise layers from the server or a file: layer and module ids unique, fields present. */
 export function normaliseLayers(layers: unknown, rig: Rig | null) {
   const seen = new Set<string>();
-  return (Array.isArray(layers) ? layers : []).map((l: RawLayer) => {
+  return (Array.isArray(layers) ? layers : []).map((l: Partial<Layer>) => {
     const c = cleanLayer(l || {});
     if (!c.id || seen.has(c.id)) c.id = randomId('l');
     seen.add(c.id);

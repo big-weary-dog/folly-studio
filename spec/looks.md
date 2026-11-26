@@ -47,7 +47,7 @@ below.
   changes that code, a read gives the look without its bake or review (`reviewed` false, no `reviewedBy` or
   `flashOverride`), to be baked and reviewed afresh, and the version `reviewed` false. Every rule on a look's
   modules (this one, the save check, a bake's key) walks them by one walk
-  (`shared/look-modules.ts`): each module that runs code, in order, a layer that is one source and composites'
+  (`shared/look-modules.ts`): each module that runs code, in order, composites'
   sub-layers' modules at any depth among them, a composite itself (no code: spec/library "Composites") never.
   Filters and updates see the look as a read gives it, so what it leaves out stays out. A
   module whose `ref` the library has is standard: it keeps the
@@ -61,8 +61,8 @@ below.
   (spec/library "Attached modules"); `as` is only
   `'input'`; `blend` as for layers, or `under` (a source's only). `kind` is `source`, `warp`, `filter` or
   `composite`: no code, its `layers` 1–4 sub-layers, each a chain of its own that counts as one source to the chain
-  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. A stored layer with `code`
-  (+ `params`) and no `modules` reads and plays as a one-source chain; a body's layer has `modules`.
+  round it (spec/library "Composites"); ids are unique across a layer's sub-layers too. Every layer has `modules`: one
+  without plays nothing.
 - **chain**: `2`, the one rule (spec/library "Modules"). Without it a warp bends every module after it, on through blurs and
   trails, so a look without `chain: 2` (stored, or a body to `POST`/`PUT` without it) is converted once on its way
   in (`shared/chain-order.ts`, by the code its refs name), exactly wherever it can be: warps leading a stage move to its end, reversed; a stage

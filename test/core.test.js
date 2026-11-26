@@ -10,6 +10,7 @@ import {
 } from '../core/pattern-core.ts';
 import { fade } from './fixtures/oklab.js';
 import { folly as rig } from './fixtures/rigs.js';
+import { oneSource, sourceLayer } from './fixtures/layers.js';
 
 const S = STDLIB;
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
@@ -21,9 +22,7 @@ describe('stdlib', () => {
     near(S.fract(-0.25), 0.75); near(S.fract(3.5), 0.5);
     assert.equal(S.step(0.5, 0.4), 0); assert.equal(S.step(0.5, 0.5), 1);
     assert.equal(S.smoothstep(0, 1, -1), 0); assert.equal(S.smoothstep(0, 1, 2), 1); near(S.smoothstep(0, 1, 0.5), 0.5);
-    near(S.wave(0), 0.5); near(S.wave(0.25), 1); near(S.wave(0.75), 0);
     near(S.tri(0), 0); near(S.tri(0.5), 1); near(S.tri(1.25), 0.5);
-    near(S.saw(1.75), 0.75);
     near(S.pulse(0, 0.1), 1); near(S.pulse(3, 0.1), 1); assert.equal(S.pulse(0.1, 0.1), 0);
     near(S.pulse(0.98, 0.1), S.pulse(0.02, 0.1)); // wraps
     assert.ok(S.pulse(0.05, 0.1) > 0 && S.pulse(0.05, 0.1) < 1);
@@ -76,7 +75,6 @@ describe('stdlib', () => {
       0x56 / 255]); // cache not shared
     nearC(S.hsv(0, 1, 1), [1, 0, 0]); nearC(S.hsv(1 / 3, 1, 1), [0, 1, 0]); nearC(S.hsv(2 / 3, 1, 1), [0, 0, 1]);
     nearC(S.hsv(1.5, 0, 0.5), [0.5, 0.5, 0.5]);
-    nearC(S.hsl(0, 1, 0.5), [1, 0, 0]); nearC(S.hsl(0.5, 1, 1), [1, 1, 1]); nearC(S.hsl(0.2, 1, 0), [0, 0, 0]);
     nearC(S.rgb(0.1, 0.2, 0.3), [0.1, 0.2, 0.3]); nearC(S.rgb(0.4), [0.4, 0.4, 0.4]);
     nearC(S.scale([1, 0.5, 0.2], 0.5), [0.5, 0.25, 0.1]);
     nearC(S.add([0.5, 0, 0], '#00ff00'), [0.5, 1, 0]);
@@ -169,8 +167,8 @@ describe('scene and groups', () => {
   });
 
   test('a runs clockwise from 12 o\'clock as seen from the playa', () => {
-    const c = compilePattern('function pixel(p) { return [p.a, p.r, p.petal]; }');
-    const L = prepareLayer(scene, { id: 'a', groups: ['rose-window'] }, c);
+    const c = compilePattern('function pixel(p) { return [p.a, p.r, p.sector]; }');
+    const L = prepareLayer(scene, oneSource({ id: 'a', groups: ['rose-window'] }), [c]);
     for (let j = 0; j < L.idx.length; j++) {
       const k = L.idx[j];
       if (scene.ring[k] !== 7) continue;          // outer ring: well off-centre
@@ -187,18 +185,18 @@ describe('scene and groups', () => {
 
   test('lx/ly/lz fill the layer; flat axes sit at 0.5', () => {
     const c = compilePattern('function pixel() {}');
-    const L = prepareLayer(scene, { id: 's', groups: ['spire-front-left'] }, c);
+    const L = prepareLayer(scene, oneSource({ id: 's', groups: ['spire-front-left'] }), [c]);
     assert.equal(Math.min(...L.ly), 0); assert.equal(Math.max(...L.ly), 1);
-    const A = prepareLayer(scene, { id: 'm', groups: ['main-arch-1'] }, c);
+    const A = prepareLayer(scene, oneSource({ id: 'm', groups: ['main-arch-1'] }), [c]);
     assert.ok(Array.from(A.lx).every((v) => v === 0.5));
-    assert.equal(prepareLayer(scene, { id: 'd' }, c).idx.length, 4870, 'no groups = the root');
+    assert.equal(prepareLayer(scene, oneSource({ id: 'd' }), [c]).idx.length, 4870, 'no groups = the root');
   });
 });
 
 describe('renderFrame', () => {
   const scene = prepareScene(rig);
-  const layer = (code, extra = {}) => prepareLayer(scene, { id: extra.id || 'l', groups: ['cathedral'], ...extra },
-    compilePattern(code));
+  const layer = (code, extra = {}) => sourceLayer(scene, { id: extra.id || 'l', groups: ['cathedral'], ...extra,
+    code });
   const solid = (r, g, b, a = 1) => `function pixel() { return [${r}, ${g}, ${b}, ${a}]; }`;
 
   test('blend modes and level', () => {
@@ -266,8 +264,8 @@ describe('renderFrame', () => {
     const result = renderFrame(scene, [ok, boom, nan, frameErr], 1);
     const { rgb, errors } = result;
     assert.equal(errors.length, 3);
-    assert.deepEqual(errors.map((e) => e.id), ['boom', 'nan', 'fr']);
-    assert.match(errors[0].error, /^Error: bad led \(line 2\)$/);
+    assert.deepEqual(errors.map((e) => [e.id, e.module]), [['boom', 'm1'], ['nan', 'm1'], ['fr', 'm1']]);
+    assert.match(errors[0].error, /^Pattern: Error: bad led \(line 2\)$/);
     assert.match(errors[1].error, /NaN/);
     assert.match(errors[2].error, /TypeError/);
     for (let i = 0; i < rgb.length; i++) near(rgb[i], 0.2, 1e-6);

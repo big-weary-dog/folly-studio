@@ -16,7 +16,7 @@ const post = self.postMessage.bind(self) as (msg: object, transfer?: Transferabl
 let scene: Scene | null = null;
 let prepared: PreparedLayer[] = [];           // render order, bottom first
 let globals: Extra | null = null;             // the newest look's globals, automation and bpm
-let live: PreparedLook | null = null;         // its prepared globals, the clock kept continuous across looks
+let live: PreparedLook | null = null;         // its prepared globals
 const result: ReturnType<typeof renderFrame> = { rgb: new Float32Array(0), errors: [] };
 let layerMs: Record<string, number> = {};     // layer id → its ms last frame: one object, refilled each frame
 // layer id + module id -> the same code keeps its instance and state
@@ -53,14 +53,14 @@ type ModuleReport = { id?: string, ok: boolean, params: Record<string, unknown>,
  * first: spec/library "Composites"); the first enabled module's error into first.error, leaving out a switched-off
  * composite's or sub-layer's. */
 function compileChain(layerId: string, mods: ReturnType<typeof layerModules>, keep: Set<string>,
-  reports: ModuleReport[], first: { error: string, params: Record<string, unknown> | null }, modular: boolean) {
+  reports: ModuleReport[], first: { error: string, params: Record<string, unknown> | null }) {
   const list: (CompiledLink | null)[] = [];
   for (const m of mods) {
     if (m.kind === 'composite') {
       reports.push({ id: m.id, ok: true, params: {} });
       const off = { error: '', params: {} };     // a switched-off composite's or sub-layer's errors don't count
       const subs = (m.layers ?? []).map((s) => compileChain(layerId, s.modules, keep, reports,
-        m.enabled === false || s.enabled === false ? off : first, modular));
+        m.enabled === false || s.enabled === false ? off : first));
       list.push(m.enabled === false ? null : { kind: 'composite', subs });
       continue;
     }
@@ -71,7 +71,7 @@ function compileChain(layerId: string, mods: ReturnType<typeof layerModules>, ke
     reports.push(entry.compiled ? { id: m.id, ok: true, params: schema, ...(upgraded ? { upgraded } : {}) }
       : { id: m.id, ok: false, error: entry.error, params: schema });
     if (!entry.compiled && m.enabled !== false) {
-      first.error ||= modular ? `${m.title || m.id}: ${entry.error}` : entry.error;
+      first.error ||= `${m.title || m.id}: ${entry.error}`;
     }
     list.push(m.enabled === false ? null : entry.compiled);
   }
@@ -82,11 +82,11 @@ function onLook(msg: Message<'look'>) {
   const layers = Array.isArray(msg.layers) ? msg.layers : [];
   const report = [], next = [], keep = new Set<string>();
   for (const layer of layers) {
-    const id = layer.id, modular = Array.isArray(layer.modules);
+    const id = layer.id;
     const modules: ModuleReport[] = [];
     const first = { error: scene ? '' : 'sandbox has no rig yet (send init first)', params: null as
       Record<string, unknown> | null };
-    const list = scene ? compileChain(id, layerModules(layer), keep, modules, first, modular) : [];
+    const list = scene ? compileChain(id, layerModules(layer), keep, modules, first) : [];
     let error = first.error;
     const params = first.params;
     try {
@@ -101,7 +101,7 @@ function onLook(msg: Message<'look'>) {
   prepared = next;
   layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
   globals = extrasOf(msg);
-  live = prepareLook(globals, live ?? undefined);
+  live = prepareLook(globals);
   post({ type: 'compiled', layers: report });
 }
 
