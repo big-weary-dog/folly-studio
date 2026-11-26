@@ -119,6 +119,21 @@ test('--apply leaves a folder a server holds alone', async () => {
   assert.ok(!readdirSync(dir).some((f) => f.startsWith('looks.pre-rewrite')));
 });
 
+test('a chain from before the one rule converted inexactly: its bake is not kept, nor its review', async () => {
+  const mod = (name, kind) => ({ id: name, kind, title: name, ref: name, code: file(name), params: {} });
+  const look = { id: 'v1', owner: 'u1', title: 'Old', reviewed: true,
+    layers: [{ id: 'l1', modules: [mod('twist', 'warp'), mod('bars', 'source'), mod('trails', 'filter')] }] };
+  const bake = { status: 'done', source: 'render-box', layersHash: layersHash(renderFields(read(look))) };
+  const was = { ...look, bake };
+  const dir = folder('inexact', [was]);
+  const { rewrites } = await rewriteLooks({ dataDir: dir, publicDir, apply: true });
+  assert.equal(rewrites[0].bake, 'stale');
+  const now = read(looksIn(dir)[0]);
+  assert.equal(now.chain, 2);
+  assert.notEqual(now.bake?.layersHash, layersHash(renderFields(now)));
+  assert.equal(now.reviewed, false);
+});
+
 test('a module saved with no ref takes its code\'s before upgrade(), so one run does it all', async () => {
   const was = stored('noref');
   for (const l of [was, was.versions[0]]) delete l.layers[0].modules[0].ref;

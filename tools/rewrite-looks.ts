@@ -65,10 +65,14 @@ function upgradeNode(node: Node, filledLayers: unknown) {
 export function rewriteLook(stored: Look, refs: Refs, upgraderOf: (ref: unknown) => ReturnType<typeof compileModule>
   | null): { look: Look, rewrite: Rewrite } {
   const filled = (look: Look) => refs.read(structuredClone(look));
-  const before = filled(stored);
-  const current = !!stored.bake && !!before.bake && stored.bake.layersHash === layersHash(renderFields(before));
+  // A bake is kept when current before and after the chain conversion (which leaves it stale when not exact).
+  const isCurrent = (look: Look) => {
+    const read = filled(look);
+    return !!look.bake && !!read.bake && look.bake.layersHash === layersHash(renderFields(read));
+  };
   const changes: string[] = [];
   const up = structuredClone(upgradeStored(stored, { ...refs, filled })) as Look & Node;
+  const current = isCurrent(stored) && isCurrent(up);
   if (json(up) !== json(stored)) changes.push('chain or remaps converted');
   const read = filled(up) as Look & Node;
   for (const [node, i] of [[up, -1], ...versionsOf(up).map((v, j) => [v, j] as const)] as [Node, number][]) {
