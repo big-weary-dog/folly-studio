@@ -374,6 +374,16 @@ systemctl --user start folly-studio
 The archive's files replace those in the data folder; baked frames, previews and bug reports stay as they are. Keep
 `folly-data.before-restore` until you are sure.
 
+### Rewrite stored looks
+
+Looks stored by an older Studio still hold their modules' code, old globals and params saved before a pattern's
+`upgrade()`; the server reads them as they play now. `tools/rewrite-looks.ts` writes each look and version in the
+current shape once: the old globals gone (energy a macro where it plays), params through `upgrade()`, and the hash of
+the code each was saved with kept before the code is dropped. What plays does not change, so a current bake stays
+current. Only you run it, once per data folder. First see what it would change (it writes nothing):
+`node tools/rewrite-looks.ts --data ~/folly-data`; then stop the server and add `--apply`, which keeps the old file as
+`looks.pre-rewrite-<time>.json`. Running it again changes nothing.
+
 ## Monitoring
 
 - **Crashes restart.** An uncaught exception is logged (`[studio] uncaught exception, exiting: …`); the server saves
