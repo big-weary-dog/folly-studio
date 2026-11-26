@@ -225,8 +225,6 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
     p: qs[0], qs, warps: bent.order, c: [0.5, 0, 0, 0],
     buf: new Float64Array(m * 4), ms: 0, stages: prepareStages(scene, layer, chain, idx),
-    beforeComposite: null as null | ((scene: Scene, T: number, G: G, t: number, env: number,
-      look: PreparedLook) => string | null | void),
     runs: prepareRuns(scene, chain, idx),
   };
 }
@@ -252,7 +250,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
   const LK = look || (plainLook ||= prepareLook(null));
   lookFrame(LK, t);
   RUN.scene = PLACE.scene = scene;
-  const T = look ? LK.T : t, G = LK.G;
+  const G = LK.G;
   for (let n = 0; n < (layers?.length ?? 0); n++) {
     const L = layers![n];
     if (!L || !L.chain) continue;
@@ -267,13 +265,9 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
       if (M.mods.length) applyMods(M.mods, M.P, t, env, LK);
       if (M.picks) M.picks.frame();
     }
-    const err = runChain(scene, L, T, G);
+    const err = runChain(scene, L, t, G);
     if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
     else {
-      if (L.beforeComposite) {
-        const error = L.beforeComposite(scene, T, G, t, env, LK);
-        if (error) { errors.push({ id: L.id, module: L.failed, error }); L.ms = clock() - t0; continue; }
-      }
       if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, clipFade(clip!, t) < 0);
       composite(rgb, L, level);
     }
