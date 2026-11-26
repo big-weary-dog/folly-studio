@@ -53,7 +53,7 @@
 .chain-kinds { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 1px; }
 .chain-row .kind-badge { padding: 1px 4px; }
 /* a failing module's name says so (its title says how) */
-.chain-row:is([data-status=compile], [data-status=runtime], [data-status=hung]) .chain-name { color: var(--ruby); }
+.chain-row:is([data-status=compile], [data-status=runtime]) .chain-name { color: var(--ruby); }
 /* how a source combines or which input a filter reads: in the row's line, a mouse's size (wide screens only) */
 .chain-select { flex: 0 0 74px; width: 74px; min-height: 0; height: 22px; padding: 0 14px 0 5px; font-size: 11.5px;
   line-height: 18px; background-position: calc(100% - 11px) 55%, calc(100% - 6px) 55%; }

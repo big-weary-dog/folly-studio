@@ -22,13 +22,6 @@ export async function exportFseq(st: Studio, pv: Preview) {
     `Mute and Solo affect this preview export. It excludes ${excluded.map((l) => `“${l.title}”`).join(', ')}. `
     + 'Save, JSON export and Check & bake include the full look. Export this preview anyway?',
     { title: 'Export the current preview?', ok: 'Export preview' }))) return;
-  const paused = st.look.peek().layers.filter((l) => st.status.of(l.id).kind === 'hung');
-  if (paused.length) {
-    const many = paused.length > 1, names = paused.map((l) => `“${l.title}”`).join(', ');
-    const why = `${names} ${many ? 'are' : 'is'} paused because ${many ? 'they' : 'it'} hung, so the export would `
-      + `leave ${many ? 'them' : 'it'} out. Export the rest anyway?`;
-    if (!(await confirmDialog(why, { title: 'A layer is paused', ok: 'Export anyway' }))) return undefined;
-  }
   const { exportShape, packFrames, writeFseq } = await import('../../../../core/fseq.ts');
   const rig = st.data.rig as NonNullable<typeof st.data.rig>, L = st.look.peek();
   const { fps, stepMs, frameChannels: channelCount, ranges, used } = exportShape(rig);
@@ -45,7 +38,7 @@ export async function exportFseq(st: Studio, pv: Preview) {
       channelCount={channelCount} ranges={ranges} used={used} duration={L.duration} running={(on) => { running = on; }}
       write={(frames, full) => writeFseq({ frames, stepMs, data: packFrames(full, frames, channelCount, ranges),
         ranges })} /> });
-  // An export can find a layer that hangs: show where things stand now, even when paused.
+  // An export can stop the look: show where things stand now.
   runtime.refresh();
   pv.kick();
   return undefined;

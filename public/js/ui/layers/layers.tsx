@@ -14,7 +14,7 @@ import type { Studio } from '../studio/store.ts';
 import { tourName } from '../tour/view.ts';
 
 const STATUS_TEXT: Record<string, string> = { ok: 'Running', pending: 'Compiling…', compile: 'Compile error',
-  runtime: 'Runtime error', hung: 'Hung — paused', muted: 'Muted' };
+  runtime: 'Runtime error', muted: 'Muted' };
 type Props = { st: Studio; pv: Preview };
 type EditOptions = Parameters<Studio['edit']>[1];
 
@@ -113,7 +113,7 @@ function LayerRow({ l, index, st, grip, drop, dragging }: { l: Layer; index: num
   const said = STATUS_TEXT[status.kind] || status.kind;
   // A failing layer adds nothing while the rest play on; its line says why, in place of its groups (the same height,
   // so an error that comes and goes never moves the panel).
-  const failing = status.kind === 'compile' || status.kind === 'runtime' || status.kind === 'hung';
+  const failing = status.kind === 'compile' || status.kind === 'runtime';
   const muted = st.muted.value.has(id), soloed = st.solo.value.has(id), selected = id === st.selectedId.value;
   const ms = st.heavy.value.get(id), blendId = useId(), select = () => st.select(id);
   return (

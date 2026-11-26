@@ -10,7 +10,6 @@ test('hold drops the reply in flight and stops the live frames until a pump', ()
   const shown = [], asked = [];
   const rt = new Runtime({ time: () => 0.5, onFrame: (rgb) => shown.push(rgb),
     onCompiled() {}, onFrameErrors() {}, onStatus() {} });
-  clearInterval(rt.watchdog);
   Object.assign(rt, { phase: 'ready', _post: (m) => { if (m.type === 'frame') asked.push(m.seq); } });
   const reply = () => rt._frame({ type: 'frame', seq: rt.seq, rgb: new Float32Array(3), errors: [] },
     rt.frameInFlight);

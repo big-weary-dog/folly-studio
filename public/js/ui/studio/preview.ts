@@ -191,7 +191,9 @@ export function createPreview(st: Studio) {
         onStatus: (state, detail) => {
           if (state === 'loading' && !everReady) msg.value = { text: 'Starting the pattern engine…' };
           else if (state === 'ready') { everReady = true; msg.value = null; kick(); }
-          else if (state === 'dead') msg.value = { text: detail || 'The pattern engine stopped.', error: true };
+          else if (state === 'dead' || state === 'stopped') {
+            msg.value = { text: detail || 'The pattern engine stopped.', error: true };
+          }
           else if (state === 'warning' && detail) toast(detail, { kind: 'warn' });
         },
       });
