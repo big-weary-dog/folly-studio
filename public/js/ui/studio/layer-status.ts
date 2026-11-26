@@ -1,25 +1,20 @@
-// What the sandbox says about each layer and module: compile results, the last code that compiled (it runs while new
-// code is broken), params schemas, runtime errors. Reading a state follows `rev`, which moves when they change.
+// What the sandbox says about each layer and module: compile results, params schemas, runtime errors. Reading a state
+// follows `rev`, which moves when they change.
 import { signal } from '@preact/signals';
 
 import type { Module } from '../../../../shared/schemas/look.ts';
 import type { FrameError, Report } from '../../runtime.ts';
 import type { Layer } from './model.ts';
-import { flatModules } from '../../../../core/tree.ts';
 
 type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime';
 export interface State { kind: StateKind; message?: string }
-interface Problem { kind: 'compile' | 'runtime'; message: string; running?: boolean }
+interface Problem { kind: 'compile' | 'runtime'; message: string }
 export const ISSUE_LABELS: Record<string, string> = { compile: 'Compile error', runtime: 'Runtime error' };
 const RUNTIME_ERROR_HOLD_MS = 1200;
 const K = (layerId: string, moduleId: string) => `${layerId}/${moduleId}`;
 
 export function createLayerStatus(layerById: (id: string) => Layer | null, silent: (id: string) => boolean) {
-  const compiled = new Map<string, { ok: boolean; params: Record<string, unknown>; code: string;
-    upgraded?: unknown }>();
-  const good = new Map<string, string>();                            // module key → last code that compiled
-  const bad = new Map<string, { code: string; error: string }>();    // module key → newest code that failed
-  const schemas = new Map<string, Record<string, unknown>>();        // module key → last good params schema
+  const compiled = new Map<string, Report['modules'][number]>();    // module key → its newest report
   const layerErr = new Map<string, string>();                        // layer id → an error not of one module
   const runtimeErr = new Map<string, { error: string; module?: string; at: number }>();
   const rev = signal(0);
@@ -27,30 +22,14 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
 
   const S = {
     rev,
-    /** A compile report → true when a module falls back to its last good code (send the look again). */
+    /** A compile report. */
     compiled(layers: Report[]) {
-      let fallback = false;
       for (const r of layers) {
-        const l = layerById(r.id);
-        let moduleFailed = false;
-        for (const mr of r.modules) {
-          const key = K(r.id, mr.id), m = l && flatModules(l.modules).find((x) => x.id === mr.id);
-          compiled.set(key, { ok: mr.ok, params: mr.params, code: mr.code, upgraded: mr.upgraded });
-          if (mr.ok) {
-            good.set(key, mr.code);
-            schemas.set(key, mr.params);
-            if (m && m.code === mr.code) bad.delete(key);
-          } else {
-            moduleFailed = true;
-            bad.set(key, { code: mr.code, error: mr.error || 'Compile error' });
-            if (good.has(key) && good.get(key) !== mr.code && m && m.code === mr.code) fallback = true;
-          }
-        }
-        if (!r.ok && !moduleFailed) layerErr.set(r.id, r.error || 'error'); else layerErr.delete(r.id);
+        for (const mr of r.modules) compiled.set(K(r.id, mr.id), mr);
+        if (!r.ok && r.modules.every((mr) => mr.ok)) layerErr.set(r.id, r.error || 'error'); else layerErr.delete(r.id);
         if (r.ok) runtimeErr.delete(r.id);
       }
       rev.value++;
-      return fallback;
     },
 
     /** A frame's errors; panels redraw only when what they show changed. */
@@ -66,18 +45,11 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
       if (key !== shownKey) { shownKey = key; rev.value++; }
     },
 
-    /** The code to run: the module's own, or its last good code while the new one fails. */
-    codeFor(layerId: string, m: Module) {
-      const key = K(layerId, m.id), b = bad.get(key);
-      return b && b.code === m.code && good.has(key) ? good.get(key) as string : m.code;
-    },
-
     module(layerId: string, m: Module): State {
       void rev.value;     // what reads a state redraws when it changes
-      const key = K(layerId, m.id), b = bad.get(key);
-      if (b && b.code === m.code) return { kind: 'compile', message: b.error };
-      const c = compiled.get(key);
-      if (!c || c.code !== m.code) return { kind: 'pending', message: b ? b.error : '' };
+      const c = compiled.get(K(layerId, m.id));
+      if (!c) return { kind: 'pending' };
+      if (!c.ok) return { kind: 'compile', message: c.error || 'Compile error' };
       const rt = runtimeErr.get(layerId);
       if (rt && rt.module === m.id) return { kind: 'runtime', message: rt.error };
       return { kind: m.enabled === false ? 'off' : 'ok' };
@@ -106,10 +78,8 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
     problem(layerId: string, m: Module | null): Problem | null {
       void rev.value;
       if (!m) return null;
-      const st = S.module(layerId, m), key = K(layerId, m.id);
-      if (st.kind === 'compile' || (st.kind === 'pending' && st.message)) {
-        return { kind: 'compile', message: st.message || '', running: good.has(key) };
-      }
+      const st = S.module(layerId, m);
+      if (st.kind === 'compile') return { kind: 'compile', message: st.message || '' };
       const rt = runtimeErr.get(layerId);
       if (rt && (rt.module === m.id || rt.module == null)) return { kind: 'runtime', message: rt.error };
       const err = layerErr.get(layerId);
@@ -120,11 +90,9 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
      * is no schema. */
     params(layerId: string, m: Module) {
       void rev.value;
-      const key = K(layerId, m.id), c = compiled.get(key);
-      const schema = (c?.ok && c.params) || schemas.get(key) || null;
-      const note = bad.has(key) && !schemas.get(key) ? 'Fix the code’s error to get its controls.'
-        : !c && !schema ? 'Compiling…' : '';
-      return { schema, note, upgraded: c?.ok ? c.upgraded : undefined };
+      const c = compiled.get(K(layerId, m.id));
+      const note = !c ? 'Compiling…' : c.ok ? '' : 'Fix the code’s error to get its controls.';
+      return { schema: c?.ok ? c.params : null, note, upgraded: c?.ok ? c.upgraded : undefined };
     },
   };
   return S;

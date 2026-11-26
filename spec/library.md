@@ -497,8 +497,8 @@ runtime terminates its worker and says nothing more.
 
 | runtime → worker | worker → runtime |
 |---|---|
-| `{ type: 'init', rig, library? }` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (the worker has prepared the scene) |
-| `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, "Pattern code") |
+| `{ type: 'init', rig, library? }` (library: `[{ name, kind, code }]`, every module the library has, hidden ones too: the sources for `use`, and the code each `ref` names) | `{ type: 'ready' }` (the worker has prepared the scene) |
+| `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved: each module runs the code of its `ref` in init's library, whatever code it holds; a ref the library lacks fails to compile) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, "Pattern code") |
 | `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
