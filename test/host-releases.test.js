@@ -60,7 +60,7 @@ describe('npm run host: releases', () => {
     const settings = path.join(home, '.config', 'folly-studio');
     mkdirSync(settings, { recursive: true });
     writeFileSync(path.join(settings, 'studio.env'),
-      ['STUDIO_DATA="my data"', 'STUDIO_MODELS=data/models.json', ''].join('\n'));
+      ['STUDIO_DATA="my data"', ''].join('\n'));
     chmodSync(path.join(settings, 'studio.env'), 0o600);
     mkdirSync(path.join(home, 'bin'));
     for (const [name, body] of Object.entries(STUBS))
@@ -90,7 +90,7 @@ describe('npm run host: releases', () => {
     assert.equal(git(checkout, 'status', '--porcelain'), '');
     const unit = readFileSync(path.join(home, '.config', 'systemd', 'user', 'folly-studio.service'), 'utf8');
     assert.match(unit, new RegExp(`^WorkingDirectory=${checkout}/current$`, 'm'));
-    // The data folder is the checkout's, not the release's, as one argument; a retired setting is left alone.
+    // The data folder is the checkout's, not the release's, as one argument.
     assert.ok(unit.includes(`\nExecStart=/usr/bin/env "STUDIO_DATA=${checkout}/my data" /`), unit);
     assert.match(unit, /^Restart=on-failure$/m);
   });
