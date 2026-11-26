@@ -5,8 +5,6 @@
 import { extrasOf, type ExtraKey } from '../../shared/plays.ts';
 import type { Automation, Globals } from '../../shared/schemas/look.ts';
 import type { LibraryEntry, Rig } from '../../shared/schemas/rig.ts';
-import { flatModules } from '../../core/tree.ts';
-import { fromLibrary } from './library-fill.ts';
 import type { LayerInput, Light } from '../../core/pattern-core.ts';
 import {
   channelsOf, compiledReport, frameErrors, frameRgb, type FromWorker, isTime, type Layer as Sent, type LayerReport,
@@ -36,12 +34,12 @@ const STOPPED = 'This look stopped responding: a frame or its code ran for over 
 /** A look's globals, automation and tempo, as the sandbox takes them. */
 export type Extra = { [K in ExtraKey]?: { globals: Globals | null, automation: Automation | null, bpm: number }[K] };
 
-/** A layer's compile report (SPEC "Sandbox protocol"), each module's code added. */
-export type Report = LayerReport & { modules: { code: string }[] };
+/** A layer's compile report (SPEC "Sandbox protocol"). */
+export type Report = LayerReport;
 /** A layer (or one of its modules) that failed this frame. */
 export type FrameError = { id: string; module?: string; error: string };
 /** What the app asks of the worker (SPEC "Sandbox protocol"). */
-export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] }
+export type ToSandbox = { type: 'init'; rig: Rig; library: Pick<LibraryEntry, 'name' | 'kind' | 'code'>[] }
   | ({ type: 'look'; layers: (LayerInput & { id: string })[] } & Extra)
   | { type: 'frame'; seq: number; t: number }
   | { type: 'render'; seq: number; start: number; frames: number; fps: number; brightness: number;
@@ -57,8 +55,7 @@ const spawnWorker = () => new Worker(new URL('./sandbox-worker.ts', import.meta.
   { type: 'module', name: 'folly-patterns' });
 
 export class Runtime {
-  rig!: Rig; library: Pick<LibraryEntry, 'name' | 'code'>[] = []; worker: Worker | null = null;
-  codes: ReadonlyMap<string, string> = new Map();   // every library module's code by name, hidden ones too
+  rig!: Rig; library: Pick<LibraryEntry, 'name' | 'kind' | 'code'>[] = []; worker: Worker | null = null;
   black = new Float32Array(0);                      // the frame for an rgb that is not the rig's
   playing = false; held = false; stopped = false;   // stopped: the look stopped responding, until it changes
   phase: 'idle' | 'init' | 'ready' | 'dead' = 'idle';
@@ -68,7 +65,7 @@ export class Runtime {
   frame: Frame = { seq: 0, t: 0, look: 0 };     // reused: no garbage per frame
   frameMsg: { type: 'frame'; seq: number; t: number } = { type: 'frame', seq: 0, t: 0 };
   frameInFlight: Frame | null = null;
-  lookQueue: { layers: Sent[]; codes: Map<string, Map<string, string>> }[] = [];   // per look sent, not compiled yet
+  lookQueue: Sent[][] = [];                         // each look's layers as sent, not compiled yet
   // Each request the worker has not answered, oldest (what it works on) first: its type, and the look it is for.
   jobs: ToSandbox['type'][] = []; jobLooks: number[] = [];
   heard = 0; overdue = false; timer = 0; lastTick = 0;   // when the worker last spoke or was given work; the watchdog
@@ -82,11 +79,10 @@ export class Runtime {
     Object.assign(this, o);
   }
 
-  /** The rig, and the library's modules: its sources for use(), and every module's code for the look's refs. */
+  /** The rig, and every library module, hidden ones too: the code the look's refs name. */
   start(rig: Rig, modules: Pick<LibraryEntry, 'name' | 'kind' | 'code'>[]) {
-    const library = modules.filter((e) => (e.kind || 'source') === 'source').map(({ name, code }) => ({ name, code }));
-    Object.assign(this, { rig, library, codes: new Map(modules.map((e) => [e.name, e.code])),
-      black: new Float32Array(Math.max(0, rig.count | 0) * 3) });
+    const library = modules.map(({ name, kind, code }) => ({ name, kind, code }));
+    Object.assign(this, { rig, library, black: new Float32Array(Math.max(0, rig.count | 0) * 3) });
     this._spawn();
   }
 
@@ -229,11 +225,9 @@ export class Runtime {
   _sendLook() {
     this.lookDirty = false;
     this.lookVersion++;
-    const msg = { type: 'look', ...this.extra, layers: fromLibrary(this.layers, this.codes) } as const;
-    const codes = (l: Layer) => new Map(flatModules(l.modules).map((m) => [m.id, m.code ?? '']));
-    this._post(msg);
-    this.sent = msg.layers;
-    this.lookQueue.push({ layers: msg.layers, codes: new Map(this.layers.map((l) => [l.id, codes(l)])) });
+    this._post({ type: 'look', ...this.extra, layers: this.layers });
+    this.sent = this.layers;
+    this.lookQueue.push(this.layers);
   }
 
   /** A frame came back; while playing, one that came late asks for the next at once. */
@@ -294,8 +288,7 @@ export class Runtime {
       case 'compiled': {
         const q = this.lookQueue.shift();
         if (!q) break;
-        this.onCompiled(compiledReport(q.layers, m.layers).map((l) => ({ ...l,
-          modules: l.modules.map((x) => ({ ...x, code: q.codes.get(l.id)?.get(x.id) ?? '' })) })));
+        this.onCompiled(compiledReport(q, m.layers));
         break;
       }
       case 'frame':

@@ -186,7 +186,7 @@ export function createPreview(st: Studio) {
       runtime = new Runtime({
         onFrame: (rgb: Float32Array) => show(rgb, performance.now()),
         time: () => (last ? (c.t + ((performance.now() - last) / 1000) * st.speed.peek()) % duration.peek() : c.t),
-        onCompiled: (layers) => { if (st.status.compiled(layers)) st.fallbackRev.value++; kick(); },
+        onCompiled: (layers) => { st.status.compiled(layers); kick(); },
         onFrameErrors: (errors) => st.status.frameErrors(errors),
         onStatus: (state, detail) => {
           if (state === 'loading' && !everReady) msg.value = { text: 'Starting the pattern engine…' };

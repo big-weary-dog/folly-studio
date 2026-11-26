@@ -95,8 +95,11 @@ describe('the built app', () => {
     vm.runInNewContext(r.text, { self, performance, console });
     const rig = JSON.parse(readFileSync(new URL('../public/data/rig-folly.json', import.meta.url), 'utf8'));
     const code = libraryCode('clouds');
-    onMessage({ data: { type: 'init', rig, library: [] } });
-    onMessage({ data: { type: 'look', layers: [oneSource({ id: 'a', code, groups: [rig.groups[0].id], level: 1 })] } });
+    onMessage({ data: { type: 'init', rig, library: [{ name: 'clouds', kind: 'source', code }] } });
+    const layer = oneSource({ id: 'a', code: 'function pixel() { throw new Error("the look\'s own") }',
+      groups: [rig.groups[0].id], level: 1 });
+    layer.modules[0].ref = 'clouds';     // the library's code runs, not the code the look holds
+    onMessage({ data: { type: 'look', layers: [layer] } });
     onMessage({ data: { type: 'frame', seq: 1, t: 2.5 } });
     assert.deepEqual(out.map((m) => m.type), ['ready', 'compiled', 'frame']);
     assert.equal(out[1].layers[0].ok, true, out[1].layers[0].error);

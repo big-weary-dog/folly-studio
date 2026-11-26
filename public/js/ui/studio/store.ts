@@ -13,7 +13,7 @@ import { replaceUrl, setTitle } from '../session.ts';
 import { pref, reducedMotion, toast } from '../kit.tsx';
 import { changes, CONTENT, createSteps, type EditOptions, type Step } from '../history/steps.ts';
 import { createLayerStatus } from './layer-status.ts';
-import { flatModules, mapEvery, mapModule } from '../../../../core/tree.ts';
+import { flatModules, mapModule } from '../../../../core/tree.ts';
 import {
   buildGroupIndex, cleanLayer, type GroupIndex, type Layer, layerFromPattern, newLayer, normaliseLayers,
 } from './model.ts';
@@ -74,7 +74,6 @@ export function createStudio(me: User | null) {
   const folded = signal(wasFolded === '1');
   const side = signal<SideView>(['layers', 'params'].includes(pref('studio.side') ?? '')
     ? pref('studio.side') as SideView : 'split');
-  const fallbackRev = signal(0);       // a module fell back to its last good code: send the look again
   const data = { rig: null as Rig | null, index: null as GroupIndex | null, library: [] as LibraryEntry[] };
   const clock = { t: 0 };       // show time (per frame, not a signal)
   const playing = signal(!reducedMotion()), speed = signal(1), baked = signal(false);
@@ -98,13 +97,11 @@ export function createStudio(me: User | null) {
   const lookId = computed(() => look.value.id);
   /** The selected module's problem, which the dock's head shows. */
   const problem = computed(() => (selected.value ? status.problem(selected.value.id, module.value) : null));
-  /** The look as the sandbox runs it: each module's last good code, silent layers off. */
+  /** The look as the sandbox runs it, silent layers off. */
   const sandboxLook = computed(() => {
-    void fallbackRev.value;
     const L = look.value;
     const layers = L.layers.map((l) => {
       const c = cleanLayer(l);
-      c.modules = mapEvery(c.modules, (m) => ({ ...m, code: status.codeFor(l.id, m) }));
       return silent(l.id) ? { ...c, level: 0, enabled: false } : c;
     });
     return { layers, extra: extrasOf(L) };
@@ -118,7 +115,7 @@ export function createStudio(me: User | null) {
 
   const st = {
     look, server, saved, ready, saving, sharing, copyOnSave, selectedId, picked, muted, solo, heavy, hoverGroup,
-    pinnedGroup, groupsFor, newGroups, focusKey, narrow, dock, tab, folded, side, fallbackRev, data, clock, playing,
+    pinnedGroup, groupsFor, newGroups, focusKey, narrow, dock, tab, folded, side, data, clock, playing,
     speed, baked, status, body, dirty, selected, module, sandboxLook, layerById, silent, groupNames, problem,
     lookId, previewing, work, history,
     /** The work's revision now (rev above). */

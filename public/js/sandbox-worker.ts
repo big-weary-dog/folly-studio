@@ -8,6 +8,7 @@ import {
   type PreparedLook, prepareLight, prepareLook, prepareScene, renderFrame, type Scene, setLibrary, upgradedParams,
 } from '../../core/pattern-core.ts';
 import { extrasOf } from '../../shared/plays.ts';
+import { fromLibrary } from './library-fill.ts';
 import type { Extra, ToSandbox } from './runtime.ts';
 
 type Message<T> = Extract<ToSandbox, { type: T }>;
@@ -21,6 +22,7 @@ const result: ReturnType<typeof renderFrame> = { rgb: new Float32Array(0), error
 let layerMs: Record<string, number> = {};     // layer id → its ms last frame: one object, refilled each frame
 // layer id + module id -> the same code keeps its instance and state
 const compiledByKey = new Map<string, { code?: string; kind: string; compiled: Compiled | null; error: string }>();
+let codes: ReadonlyMap<string, string> = new Map();   // every library module's code by name, from init
 const now = () => performance.now();
 const message = (e: unknown) => ((e as Error)?.message || String(e));
 
@@ -28,6 +30,7 @@ function onInit(msg: Message<'init'>) {
   scene = prepareScene(msg.rig);
   linkMap(scene);                             // with blur's neighbours: here, in init's budget, not a look's
   setLibrary(msg.library);
+  codes = new Map((Array.isArray(msg.library) ? msg.library : []).map((e) => [e.name, e.code]));
   prepared = [];
   compiledByKey.clear();
   post({ type: 'ready' });
@@ -78,7 +81,7 @@ function compileChain(layerId: string, mods: ReturnType<typeof layerModules>, ke
 }
 
 function onLook(msg: Message<'look'>) {
-  const layers = Array.isArray(msg.layers) ? msg.layers : [];
+  const layers = fromLibrary(Array.isArray(msg.layers) ? msg.layers : [], codes);
   const report = [], next = [], keep = new Set<string>();
   for (const layer of layers) {
     const id = layer.id;
