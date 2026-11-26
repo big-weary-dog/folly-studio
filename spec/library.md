@@ -217,7 +217,7 @@ each sub-layer runs on a copy of `q` (bent by its own warps) into a colour of it
 sub-layer plays on its groups' LEDs as a layer does, at the real LED, so a warp after the composite bends what each
 sub-layer draws but not where it plays (as a layer's Plays on). Module ids are unique across the whole layer,
 sub-layers' too. A composite has no code of its own: its `code` is `''` or absent (one with any other, or without
-sub-layers, is malformed: a save refuses it and the library-only step drops it), and its sub-layers' modules are
+sub-layers, is malformed: a save refuses it), and its sub-layers' modules are
 stored by `ref` as any other. A sub-layer holds no stage end (its colours are at bent pixels, not real LEDs) and
 composites nest two deep at most (a composite in a sub-layer holds none); a failing module inside one is reported by
 its own id. Each sub-layer's modules count toward its own limit of 8.

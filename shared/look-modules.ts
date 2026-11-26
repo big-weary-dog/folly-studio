@@ -1,5 +1,5 @@
-// The one walk over a look's modules (spec/looks "Modules"): every rule on them (the save check, the library-only
-// step, code filled from refs, a bake's key) goes through it, so a new one lands in one place. It meets each module
+// The one walk over a look's modules (spec/looks "Modules"): every rule on them (the save check, code filled from
+// refs, a bake's key) goes through it, so a new one lands in one place. It meets each module
 // that runs code, in order: a chain's, a layer that is one source, and a composite's sub-layers' at any depth, a
 // sub-layer read as a layer. A composite runs none of its own (spec/library "Composites"): one with code, or without
 // sub-layers, breaks the shape, as does an entry that is not an object.
@@ -11,11 +11,10 @@ export const isNode = (v: unknown): v is Node => !!v && typeof v === 'object' &&
 type Met = { module: Node, fault?: undefined, layer: Node, at: number }
   | { module?: Node, fault: 'layer' | 'module' | 'composite', layer?: Node, at: number };
 
-/** A composite (a chain's module of that kind) holds sub-layers, and its own code is '' or absent; compositeCode says
- * it has other. */
+/** A composite (a chain's module of that kind) holds sub-layers, and its own code is '' or absent. */
 const isComposite = (m: Node) => m.kind === 'composite';
-export const compositeCode = (m: Node) => m.code !== undefined && m.code !== '';
-const brokenComposite = (m: Node) => compositeCode(m) || !Array.isArray(m.layers) || !m.layers.length;
+const brokenComposite = (m: Node) => (m.code !== undefined && m.code !== '') || !Array.isArray(m.layers)
+  || !m.layers.length;
 
 /** Each thing met in `layers`, in order, given to `visit` until it returns true; the one it stopped at. */
 export function findModule(layers: unknown, visit: (met: Met) => unknown): Met | undefined {
@@ -64,24 +63,4 @@ export function moduleCodes(layers: unknown): unknown[] {
   const codes: unknown[] = [];
   eachModule(layers, (m) => codes.push(m.code));
   return codes;
-}
-
-/** `layers` with each module that runs code `swap`ped, composites rebuilt round their sub-layers'; null when the
- * shape breaks anywhere or `swap` gives null for any. */
-export function mapModules(layers: unknown, swap: (m: Node) => Node | null): Node[] | null {
-  if (!Array.isArray(layers)) return null;
-  const one = (node: unknown): Node | null => {
-    if (!isNode(node)) return null;
-    if (!Array.isArray(node.modules)) return swap(node);
-    const modules = node.modules.map((m) => {
-      if (!isNode(m)) return null;
-      if (!isComposite(m)) return swap(m);
-      if (brokenComposite(m)) return null;
-      const subs = mapModules(m.layers, swap);
-      return subs && { ...m, layers: subs };
-    });
-    return modules.every(Boolean) ? { ...node, modules } : null;
-  };
-  const out = layers.map(one);
-  return out.every(Boolean) ? out as Node[] : null;
 }

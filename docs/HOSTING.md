@@ -378,13 +378,6 @@ systemctl --user start folly-studio
 The archive's files replace those in the data folder; baked frames, previews and bug reports stay as they are. Keep
 `folly-data.before-restore` until you are sure.
 
-### Library only
-
-The library-only step (spec/looks "Library only") drops stored looks and versions that hold code other than the
-library's, logging each one, after copying `looks.json` and `users.json` beside themselves. Only you run it, once
-per data folder: the server never does. First see what it would do (it writes nothing):
-`node tools/library-only.ts --data ~/folly-data`; then stop the server and add `--apply`.
-
 ## Monitoring
 
 - **Crashes restart.** An uncaught exception is logged (`[studio] uncaught exception, exiting: …`); the server saves

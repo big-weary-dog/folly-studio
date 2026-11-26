@@ -1,5 +1,5 @@
 // A stored module is its ref: reads fill the library's current file, writes keep no code, a module naming no library
-// module takes the ref of its exact file, and every module the library-only step keeps resolves.
+// module takes the ref of its exact file.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -9,7 +9,6 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import { layersHash, renderFields } from '../src/bake.ts';
-import { libraryFiles } from '../src/library-files.ts';
 import { libraryRefs } from '../src/library-refs.ts';
 import { createLoaders } from '../src/static.ts';
 import { createStore } from '../src/store.ts';
@@ -76,13 +75,6 @@ test('a bake of other code than the look\'s now is left out, with its review; a 
     assert.deepEqual(Object.keys(shared.layers[0].modules[0]), ['id', 'kind', 'title', 'ref', 'code', 'params']);
     await store.flush();
   });
-
-test('every module the library-only step keeps names a module a read fills', async () => {
-  const kept = (await libraryFiles(patterns, { strict: true })).modules;
-  const modules = new Map(loadLibrary().filter((e) => e.kind !== 'preset').map((e) => [e.name, e.code]));
-  assert.deepEqual([...kept].filter(([name, f]) => modules.get(name) !== f.code).map(([name]) => name), []);
-  assert.deepEqual([...modules.keys()].filter((name) => !kept.has(name)), []);
-});
 
 test('a stored module keeps no code; a ref alone saves when the library has it', async () => {
   const app = await startApp({ publicDir, dataDir: path.join(fx.tmp, 'refs') });
