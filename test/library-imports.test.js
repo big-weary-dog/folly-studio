@@ -11,6 +11,7 @@ import { test } from 'vitest';
 import { createCodeGate } from '../src/library-gate.ts';
 import { parseFseq } from '../src/frames.ts';
 import { createRenderBox } from '../src/render-box.ts';
+import { createLoaders } from '../src/static.ts';
 import { signup } from './fixtures/app.js';
 import { quiet } from './fixtures/quiet.js';
 import { fx, startApp, useFixture } from './fixtures/server.js';
@@ -75,7 +76,7 @@ test('library only: an earlier Noise imports by its ref, as playable code; what 
 test('the gate: a ref the library has passes, whatever code it carries; code naming nothing, or a retired ref, does '
   + 'not', async () => {
   const patternsDir = path.join(publicDir, 'patterns');
-  const gate = createCodeGate({ patternsDir });
+  const gate = createCodeGate(createLoaders(publicDir, { log: quiet }).loadLibrary);
   const allows = (m) => gate.check([{ modules: [{ id: 'm1', kind: 'source', title: 'N', ...m }] }],
     (why) => new Error(why)).then(() => true, () => false);
   assert.equal(await allows({ ref: 'noise', code: oldNoise }), true);

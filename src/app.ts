@@ -77,7 +77,7 @@ export async function createServer(opts: Options = {}) {
   // Bakes and previews go through the admin's bake setting.
   const baking = createBakingStore({ file: path.join(dataDir, 'baking.json'), log });
   const bakeBox = governBox(box, baking.mode);
-  const codeGate = createCodeGate({ patternsDir: path.join(publicDir, 'patterns') });
+  const codeGate = createCodeGate(loaders.loadLibrary);
   // Baked frames are encoded for streaming as soon as they are stored (src/frames-cache.ts); bakes and those
   // encodes take turns at low priority, and evicted frames are baked again on demand.
   const lane = createLane();
