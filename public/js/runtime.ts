@@ -28,6 +28,8 @@ const HEAVY = 0.4;        // a layer over this share of a 40 fps frame's budget 
 const budget = (rate: number) => (BUDGET * 1000) / rate;
 const SLACK_MS = 4;              // a frame due this soon goes now, on this display frame
 const ema = (old: number | undefined, v: number) => (old ? old + (v - old) * 0.15 : v);  // smoothed over ~10 frames
+const REPLY: Record<string, string | undefined> = {   // each request's answer
+  init: 'ready', look: 'compiled', frame: 'frame', render: 'rendered' };
 const STOPPED = 'This look stopped responding: a frame or its code ran for over 1 s, so the preview stopped. '
   + 'Change the look to try again.';
 
@@ -67,7 +69,8 @@ export class Runtime {
   frameMsg: { type: 'frame'; seq: number; t: number } = { type: 'frame', seq: 0, t: 0 };
   frameInFlight: Frame | null = null;
   lookQueue: { layers: Sent[]; codes: Map<string, Map<string, string>> }[] = [];   // per look sent, not compiled yet
-  jobs: number[] = [];   // each request the worker has not answered, oldest (what it works on) first: its look version
+  // Each request the worker has not answered, oldest (what it works on) first: its type, and the look it is for.
+  jobs: ToSandbox['type'][] = []; jobLooks: number[] = [];
   heard = 0; overdue = false; timer = 0; lastTick = 0;   // when the worker last spoke or was given work; the watchdog
   rate = RATES[0]; due = 0; rateAt = 0; layerMs = new Map<string, number>(); stats = { fps: 0, ms: 0 };
   fpsCount = 0; fpsSince = performance.now();
@@ -182,7 +185,8 @@ export class Runtime {
   _kill() {
     this.worker?.terminate();
     clearInterval(this.timer);
-    Object.assign(this, { worker: null, frameInFlight: null, lookQueue: [], jobs: [], timer: 0, overdue: false });
+    Object.assign(this, { worker: null, frameInFlight: null, lookQueue: [], jobs: [], jobLooks: [], timer: 0,
+      overdue: false });
   }
 
   _failRender(message: string) {
@@ -214,7 +218,8 @@ export class Runtime {
     if (!this.worker) return;
     if (!this.owed || !this.timer) this.heard = performance.now();   // the silence that counts starts now
     this.worker.postMessage(msg);
-    this.jobs.push(this.lookVersion);
+    this.jobs.push(msg.type);
+    this.jobLooks.push(this.lookVersion);
     if (!this.timer) {
       this.lastTick = performance.now();
       this.timer = window.setInterval(() => this._tick(), TICK_MS);
@@ -268,10 +273,15 @@ export class Runtime {
 
   _message(m: FromWorker) {
     if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
-    const r = this.render_;
+    const r = this.render_, head = this.jobs[0];
+    // Pattern code can post too: only the answer to the request at the head ends it.
+    if (head && (m.type === 'error' ? m.request === head : m.type === REPLY[head] && (head !== 'frame'
+      || m.seq === this.frameInFlight?.seq) && (head !== 'render' || m.seq === r?.seq))) {
+      this.jobs.shift();
+      this.jobLooks.shift();
+    } else if (m.type !== 'compiling' && m.type !== 'progress') return;
     this.heard = performance.now();
     this.overdue = false;
-    if (m.type !== 'compiling' && m.type !== 'progress') this.jobs.shift();   // the rest each answer one request
     switch (m.type) {
       case 'ready':
         if (this.phase !== 'init') break;
@@ -322,7 +332,7 @@ export class Runtime {
     if (now - this.heard <= (this.phase === 'init' ? INIT_MS : BUSY_MS)) return;
     if (!this.overdue) { this.overdue = true; return; }   // overdue on two ticks in a row: a queued reply had its turn
     // The look the worker was on stops, unless a newer one is sent or waiting: that one gets its turn.
-    if (this.phase === 'ready' && !this.lookDirty && this.jobs[0] === this.lookVersion) this.stopped = true;
+    if (this.phase === 'ready' && !this.lookDirty && this.jobLooks[0] === this.lookVersion) this.stopped = true;
     this._failRender('Export stopped: the look stopped responding (a frame took over 1 s).');
     this._restart();
   }

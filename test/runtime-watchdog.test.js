@@ -80,6 +80,17 @@ test('a look sent and then hung while compiling stops', () => {
   assert.equal(statuses.at(-1), 'stopped');
 });
 
+test('a message that answers nothing asked leaves the watchdog on what is owed', () => {
+  const rt = playing([]);
+  for (const data of [{ type: 'frame', seq: 1 }, { type: 'error', request: 'frame' }, { type: 'rendered' }]) {
+    workers[0].say(data);
+  }
+  workers[0].say({ type: 'compiled', layers: [] });
+  assert.ok(rt.frameInFlight, 'the frame is still owed');
+  vi.advanceTimersByTime(1500);
+  assert.equal(workers.length, 2, 'and its hang is found');
+});
+
 test('a worker that keeps answering is never restarted', () => {
   const rt = playing([]);
   for (let i = 0; i < 10; i++) {
