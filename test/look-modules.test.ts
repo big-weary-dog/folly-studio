@@ -1,10 +1,10 @@
 // The one walk over a look's modules (spec/looks "Modules"): what it meets and in what order, where the shape breaks,
-// the map the library-only step takes, and the save check and bake key that go through it.
+// and the save check and bake key that go through it.
 import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { eachModule, findModule, mapModules, moduleCodes } from '../shared/look-modules.ts';
+import { eachModule, findModule, moduleCodes } from '../shared/look-modules.ts';
 import { renderFields } from '../src/bake.ts';
 import { unknownRef } from '../src/library-gate.ts';
 
@@ -45,20 +45,6 @@ test('says where the shape breaks, and still walks a broken composite\'s sub-lay
   const seen: unknown[] = [];
   eachModule([null, { modules: [comp([{ modules: [mod('a')] }], { code: 'x' })] }], (m) => seen.push(m.id));
   assert.deepEqual(seen, ['a'], 'eachModule passes over where it breaks');
-});
-
-test('maps each module, composites rebuilt round theirs; null where the shape breaks or the map refuses', () => {
-  const up = mapModules(LAYERS, (m) => ({ ...m, code: String(m.code).toUpperCase() }));
-  assert.deepEqual(moduleCodes(up), ['ONE', 'A', 'B', 'C', 'D', 'E']);
-  assert.equal((up![1]!.modules as { title: string }[])[1]!.title, 'Comp', 'the composite kept');
-  assert.equal(moduleCodes(LAYERS)[1], 'a', 'the layers given are not changed');
-  assert.equal(mapModules(LAYERS, (m) => (m.code === 'c' ? null : m)), null);
-  assert.equal(mapModules([{ modules: [comp([{ modules: [mod('a')] }], { code: 'x' })] }], (m) => m), null);
-  assert.equal(mapModules([{ modules: [null] }], (m) => m), null);
-  for (const broken of [comp([]), comp(undefined), comp([{ modules: [mod('a')] }], { code: null })]) {
-    assert.equal(mapModules([{ modules: [broken] }], (m) => m), null, 'a malformed composite is not kept');
-  }
-  assert.equal(mapModules('nope', (m) => m), null);
 });
 
 test('the save check: each module names a library module, whatever code it carries; a broken shape names none', () => {
