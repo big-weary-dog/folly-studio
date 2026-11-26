@@ -88,10 +88,9 @@ export function openSandbox(send: (msg: object) => void): Sandbox {
   }
 
   const layerId = (l: Layer, n: number) => (l && l.id !== undefined ? l.id : 'layer-' + n);
-  /** All of a layer's code, its modules' or its own: what a pause is keyed on. */
-  const codeOf = (l: Layer) => (Array.isArray(l.modules)
-    ? l.modules.map((m) => (m && typeof m.code === 'string' ? m.code : '')).join('\u0000')
-    : typeof l.code === 'string' ? l.code : '');
+  /** All of a layer's modules' code: what a pause is keyed on. */
+  const codeOf = (l: Layer) => (Array.isArray(l.modules) ? l.modules : [])
+    .map((m) => (m && typeof m.code === 'string' ? m.code : '')).join('\u0000');
 
   /** Why a layer is held back from the worker, or null. */
   function paused(l: Layer): Paused | null {

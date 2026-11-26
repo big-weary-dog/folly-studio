@@ -6,10 +6,11 @@ import { describe, test } from 'vitest';
 
 import { ledRanges } from '../core/fseq.ts';
 import {
-  compilePattern, FlashWatch, groupsByTag, LIGHT, ledChannels, lightOf, pixelsForGroups, prepareLayer, prepareLight,
+  FlashWatch, groupsByTag, LIGHT, ledChannels, lightOf, pixelsForGroups, prepareLight,
   prepareScene, renderFrame, tagCentres, toChannels,
 } from '../core/pattern-core.ts';
 import { mini, RIGS } from './fixtures/rigs.js';
+import { sourceLayer } from './fixtures/layers.js';
 
 for (const [name, rig] of Object.entries(RIGS)) {
   describe(`the ${name} rig`, () => {
@@ -83,7 +84,7 @@ for (const [name, rig] of Object.entries(RIGS)) {
 describe('the mini rig: its own axes, attrs, tags and addressing', () => {
   const scene = prepareScene(mini);
   const probe = (code, layer = {}) => {
-    const L = prepareLayer(scene, { id: 'p', ...layer }, compilePattern(code));
+    const L = sourceLayer(scene, { id: 'p', ...layer, code });
     const { rgb, errors } = renderFrame(scene, [L], 0);
     assert.deepEqual(errors, []);
     return { L, rgb };
@@ -131,7 +132,7 @@ describe('the mini rig: its own axes, attrs, tags and addressing', () => {
   });
 
   test('tags carry a look between rigs: unknown ids fall back to them, known ids win, no tags is an error', () => {
-    const lit = (layer) => prepareLayer(scene, { id: 'l', ...layer }, compilePattern('function pixel() {}')).idx.length;
+    const lit = (layer) => sourceLayer(scene, { id: 'l', ...layer, code: 'function pixel() {}' }).idx.length;
     assert.equal(lit({ groups: ['rose-window'], tags: ['rose'] }), 64, 'the Folly\'s rose lands on the panel');
     assert.equal(lit({ groups: ['main-arches', 'gate'], tags: ['wash'] }), 80 + 4, 'known ids plus the tags');
     assert.equal(lit({ groups: ['gate'], tags: ['wash'] }), 80, 'every id known: tags change nothing');

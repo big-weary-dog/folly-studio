@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, beforeEach, describe, test } from 'vitest';
 
 import {
-  compilePattern, layerEnvelope, normalizeClips, prepareLayer, prepareScene, renderFrame,
+  layerEnvelope, normalizeClips, prepareLayer, prepareScene, renderFrame,
 } from '../core/pattern-core.ts';
 import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { validateLayers } from '../src/api-looks.ts';
@@ -18,6 +18,7 @@ import { parseFseq } from '../src/frames.ts';
 import { quiet } from './fixtures/quiet.js';
 import { serve, signup } from './fixtures/app.js';
 import { stubBox } from './fixtures/box.js';
+import { oneSource, sourceLayer } from './fixtures/layers.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
@@ -102,8 +103,8 @@ describe('renderFrame with clips', () => {
 
   test('outside its clips a layer does not run at all: no frame(), no pixel()', () => {
     const s = spy();
-    const L = prepareLayer(scene, { id: 'a', clips: [{ start: 4, end: 5 }, { start: 1, end: 2, fadeIn: 0.5 }] },
-      s.compiled);
+    const L = prepareLayer(scene, oneSource({ id: 'a', clips: [{ start: 4, end: 5 }, { start: 1, end: 2,
+      fadeIn: 0.5 }] }), [s.compiled]);
     assert.deepEqual(L.clips, [clip(1, 2, 0.5), clip(4, 5)]);
     const out = new Float32Array(scene.count * 3);
     for (const t of [0, 0.999, 2, 2.5, 30]) {
@@ -112,7 +113,7 @@ describe('renderFrame with clips', () => {
     }
     assert.equal(s.pixels, 0);
     assert.equal(s.frames, 0);
-    const on = prepareLayer(scene, { id: 'on' }, compilePattern('function pixel() { return [0.25, 0.5, 0.75]; }'));
+    const on = sourceLayer(scene, { id: 'on', code: 'function pixel() { return [0.25, 0.5, 0.75]; }' });
     const { rgb, errors } = renderFrame(scene, [L, on], 3, out);
     assert.deepEqual(errors, []);
     assert.equal(s.pixels, 0);
@@ -127,7 +128,8 @@ describe('renderFrame with clips', () => {
 
   test('the envelope scales the level; t stays show time', () => {
     const s = spy([0.8, 0.4, 0.2]);
-    const L = prepareLayer(scene, { id: 'a', level: 0.5, clips: [{ start: 10, end: 20, fadeIn: 4 }] }, s.compiled);
+    const L = prepareLayer(scene, oneSource({ id: 'a', level: 0.5, clips: [{ start: 10, end: 20, fadeIn: 4 }] }),
+      [s.compiled]);
     const { rgb } = renderFrame(scene, [L], 11);
     near(rgb[0], 0.8 * 0.5 * 0.25, 1e-6);
     near(rgb[1], 0.4 * 0.5 * 0.25, 1e-6);
@@ -138,8 +140,8 @@ describe('renderFrame with clips', () => {
     }
     assert.equal(s.t, 11, 'pattern time is show time, not clip time');
     // Blends other than add see the scaled level too.
-    const base = prepareLayer(scene, { id: 'base' }, compilePattern('function pixel() { return [0, 0, 1]; }'));
-    const over = prepareLayer(scene, { id: 'o', blend: 'over', clips: [clip(0, 2, 2)] }, compilePattern(RED));
+    const base = sourceLayer(scene, { id: 'base', code: 'function pixel() { return [0, 0, 1]; }' });
+    const over = sourceLayer(scene, { id: 'o', blend: 'over', clips: [clip(0, 2, 2)], code: RED });
     const mixed = renderFrame(scene, [base, over], 1).rgb;
     near(mixed[0], 0.5, 1e-6);
     near(mixed[2], 0.5, 1e-6);
@@ -279,8 +281,8 @@ describe('baking a sequenced look in the render box', () => {
   test('a 2-clip layer over a dim base: lit in its clips, dark between, for the look\'s duration', async () => {
     const box = createRenderBox({ seconds: 120, log: quiet });
     const layers = [
-      { id: 'base', code: 'function pixel() { return [0, 0, 0.2]; }', groups: ['cathedral'] },
-      { id: 'hits', code: RED, groups: ['cathedral'], clips: [clip(0.5, 1.5), clip(2.5, 3.5, 0.5)] },
+      oneSource({ id: 'base', code: 'function pixel() { return [0, 0, 0.2]; }', groups: ['cathedral'] }),
+      oneSource({ id: 'hits', code: RED, groups: ['cathedral'], clips: [clip(0.5, 1.5), clip(2.5, 3.5, 0.5)] }),
     ];
     const { bytes, seconds } = await box.render({ layers, seconds: 4 });
     assert.equal(seconds, 4);
