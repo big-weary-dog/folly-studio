@@ -318,7 +318,8 @@ export class Runtime {
     if (!this.owed) { clearInterval(this.timer); this.timer = 0; return; }
     if (now - this.heard <= (this.phase === 'init' ? INIT_MS : BUSY_MS)) return;
     if (!this.overdue) { this.overdue = true; return; }   // overdue on two ticks in a row: a queued reply had its turn
-    if (this.phase === 'ready') this.stopped = true;
+    // The look the worker had stops, unless a newer one is waiting: that one gets its turn on the fresh worker.
+    if (this.phase === 'ready' && !this.lookDirty) this.stopped = true;
     this._failRender('Export stopped: the look stopped responding (a frame took over 1 s).');
     this._restart();
   }

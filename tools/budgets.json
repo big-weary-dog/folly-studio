@@ -10,7 +10,7 @@
     "render-box": { "lines": 253, "reason": "The render box's child: it runs a look's library code in a stdlib-only realm under limits, checks its parent between frames and streams deterministic FSEQ." },
     "shared": { "lines": 1003, "reason": "What the browser and the server both hold: the look, API and rig schemas, permissions, what plays, the conversion of chains from before the one rule, and the one walk over a look's modules every rule on them takes." },
     "src": { "lines": 5240, "reason": "The server: accounts, sessions and People; the looks API with versions, review, moderation and limits; the library gate and refs; bakes, the render box, wire frames and previews; light settings, stats, reports; and the owner-run library-only step on stored data." },
-    "test": { "lines": 19603, "reason": "Unit, API and browser tests of every area, with fixtures (rigs, frozen looks, FSEQ digests) that hold rendering and export to the bit, stand-ins for npm and systemd, the library-only step on looks like the owner's, and the tools' own checks (malformed budget files, sACN send failures)." },
+    "test": { "lines": 19675, "reason": "Unit, API and browser tests of every area, with fixtures (rigs, frozen looks, FSEQ digests) that hold rendering and export to the bit, stand-ins for npm and systemd, the library-only step on looks like the owner's, and the tools' own checks (malformed budget files, sACN send failures), and the sandbox's watchdog against a stand-in worker." },
     "tools": { "lines": 2314, "reason": "Tools that build and check rig, palette and rose-expansion data, enforce budgets, seed and back up data folders, run the library-only step and benchmark rendering." }
   }
 }
