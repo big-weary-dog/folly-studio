@@ -99,10 +99,10 @@ describe('the mini rig: its own axes, attrs, tags and addressing', () => {
     assert.ok(side('post-left').every((z) => z < 0.5) && side('post-right').every((z) => z > 0.5), 'left is left');
   });
 
-  test('ring and sector (and row, petal), attr(), is() and centres() read the rig', () => {
+  test('ring, attr(), is() and centres() read the rig', () => {
     const panel = mini.fixtures.find((f) => f.id === 'panel');
     const { rgb } = probe(`function pixel(p) {
-      return [p.ring === p.row && p.sector === p.petal ? p.ring / 4 : 9, p.attr('col') / 7 + p.attr('nope', 0),
+      return [p.ring / 4, p.attr('col') / 7 + p.attr('nope', 0),
         p.is('rose') ? 1 : p.is('flood') ? 0.5 : 0];
     }`);
     for (let k = 0; k < mini.count; k++) {

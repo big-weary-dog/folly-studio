@@ -37,9 +37,7 @@ function band(x: number, centre: number, halfWidth: number, softness = 0) {
   return soft(centre - halfWidth, x, softness) - soft(centre + halfWidth, x, softness);
 }
 
-function wave(x: number) { return 0.5 + 0.5 * Math.sin(TAU * x); }
 function tri(x: number) { return 1 - Math.abs(2 * (x - Math.floor(x)) - 1); }
-const saw = fract;
 
 /** pulse(x, width): 1 at every whole number, easing to 0 at ±width (so it wraps). */
 function pulse(x: number, width = 0.1) {
@@ -172,11 +170,6 @@ function hsv(h: number, s = 1, v = 1): RGB {
   }
 }
 
-function hsl(h: number, s = 1, l = 0.5) {
-  const v = l + s * Math.min(l, 1 - l);
-  return hsv(h, v === 0 ? 0 : 2 * (1 - l / v), v);
-}
-
 function mix(a: Colour, b: Colour, t: number): number | RGB {
   if (typeof a === 'number' && typeof b === 'number') return a + (b - a) * t;
   return fadeInto(col(a), col(b), t, [0, 0, 0] as RGB);   // colours fade in OKLab
@@ -248,12 +241,12 @@ export function paletteColours(palette?: PaletteHex | null): PaletteColours | nu
 }
 
 const ORIGIN: Centres = Object.freeze([Object.freeze([0, 0, 0]), Object.freeze([0, 0, 0])]);
-/** Set by renderFrame for pal(), palette(), centres(), extent(), use() and clock(): the frame's show time t,
- * pattern time T and the look (a PreparedLook); dt, the running module's pixel's time offset (an instance's, p.dt). */
+/** Set by renderFrame for pal(), palette(), centres(), extent(), use() and clock(): the frame's show time t (which
+ * is pattern time) and the look (a PreparedLook); dt, the running module's pixel's time offset (an instance's p.dt). */
 export const RUN: { G: G | null, palette: PaletteColours,
-  scene: { centresOf(tag: string): Centres, extent: Centres } | null, extent: Centres, t: number, T: number, dt: number,
+  scene: { centresOf(tag: string): Centres, extent: Centres } | null, extent: Centres, t: number, dt: number,
   look: PreparedLook | null, frame: number } = {
-  G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, T: 0, dt: 0, look: null,
+  G: null, palette: paletteColours(DEFAULT_PALETTE)!, scene: null, extent: ORIGIN, t: 0, dt: 0, look: null,
   frame: 0 };
 
 function fadeAlong(list: Centres, t: number): RGB {
@@ -382,8 +375,8 @@ export const STDLIB = Object.freeze({
   PI, TAU, sin: Math.sin, cos: Math.cos, tan: Math.tan, asin: Math.asin, acos: Math.acos, atan: Math.atan,
   atan2: Math.atan2, abs: Math.abs, min: Math.min, max: Math.max, floor: Math.floor, ceil: Math.ceil,
   round: Math.round, sqrt: Math.sqrt, pow: Math.pow, exp: Math.exp, log: Math.log, hypot: Math.hypot, sign: Math.sign,
-  clamp, fract, mix, step, smoothstep, soft, band, wave, tri, saw, pulse, hash, rand, noise, fbm,
-  hsv, hsl, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist, DIRECTIONS, toward,
+  clamp, fract, mix, step, smoothstep, soft, band, tri, pulse, hash, rand, noise, fbm,
+  hsv, rgb, hex, scale, add, gradient, cosPalette, pal, palette, centres, extent, beat, dist, DIRECTIONS, toward,
   region, regions, move, turn, slide, links, waveStep, wireDistance, rowOrder,
 });
 export const STDLIB_NAMES = Object.freeze(Object.keys(STDLIB));

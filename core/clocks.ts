@@ -50,7 +50,7 @@ export function newClocks() {
       if (last === name && frame === RUN.frame && offset === RUN.dt) return value;
       last = name; frame = RUN.frame; offset = RUN.dt;
       const L = RUN.look, t = RUN.t, m = L ? bound.get(name) : undefined;
-      if (!m) { const v = P[name]; return value = typeof v === 'number' ? v * (RUN.T + RUN.dt) : 0; }
+      if (!m) { const v = P[name]; return value = typeof v === 'number' ? v * (t + RUN.dt) : 0; }
       let s = sums.get(name);
       if (!s || s.at !== t || s.look !== L) s = sum(m, s, name, t, L);
       return value = RUN.dt ? s.value + RUN.dt * s.rate : s.value;

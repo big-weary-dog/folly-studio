@@ -25,7 +25,7 @@ export function identity(k) {
 // Time-invariant: R = global index, G = zone, B = strand, each mod 251 (exact through toChannels).
 export const ADDRESS_CODE = `// Address test: every LED's identity in its colour.
 function pixel(p, t, P) {
-  return [(p.k % 251) / 255, ((p.zi * 7) % 251) / 255, ((p.strand * 13) % 251) / 255];
+  return [(p.k % 251) / 255, ((p.zi * 7) % 251) / 255, ((p.fixture * 13) % 251) / 255];
 }`;
 
 // Each top-level group its own colour, so a wrong address shows up as a wrong colour. Mini arch 5
@@ -45,8 +45,8 @@ const table = ${JSON.stringify(ZONE_COLOURS.map(([prefix, colour]) => [prefix, c
 const colours = table.map(([prefix, colour]) => [prefix, hex(colour)]);
 const miniFive = ${JSON.stringify(MINI_FIVE)};
 function pixel(p, t, P) {
-  if (p.petal >= 0) return hsv(p.petal / 16, 1, 1);
-  if (miniFive.includes(p.strand)) return hex('#ff00c0');
+  if (p.sector >= 0) return hsv(p.sector / 16, 1, 1);
+  if (miniFive.includes(p.fixture)) return hex('#ff00c0');
   for (const [prefix, c] of colours) if (p.zone.startsWith(prefix)) return c;
   return [0, 0, 0];
 }`;
