@@ -15,6 +15,7 @@ import { createRenderBox } from '../src/render-box.ts';
 import { parseFseq } from '../src/frames.ts';
 import { quiet } from './fixtures/quiet.js';
 import { serve, signup } from './fixtures/app.js';
+import { oneSource } from './fixtures/layers.js';
 
 const STUDIO = fileURLToPath(new URL('../', import.meta.url));
 const PUBLIC = path.join(STUDIO, 'public');
@@ -26,8 +27,8 @@ const unavailable = `render box unavailable here: ${probe.reason}`;
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-bake-'));
 afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
-const layer = (code, extra = {}) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1,
-  params: {}, ...extra });
+const layer = (code, extra = {}) => oneSource({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add',
+  level: 1, params: {}, ...extra });
 const BREATHE = 'function pixel(p, t) { return scale([0.2, 0.4, 1], 0.5 + 0.5 * sin(TAU * t * 0.25)); }';
 /** A layer of one library module, as the API takes them. */
 const lib = (ref, params, extra = {}) => ({ id: 'l1', title: 'x', groups: ['cathedral'], params: {},

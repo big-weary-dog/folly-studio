@@ -14,6 +14,7 @@ import {
 import { LookCreate } from '../shared/schemas/api.ts';
 import { dropRemaps } from '../shared/schemas/look.ts';
 import { fade } from './fixtures/oklab.js';
+import { oneSource } from './fixtures/layers.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
@@ -53,7 +54,7 @@ describe('pal(role, t) as before', () => {
   for (const [name, sums] of Object.entries(FROZEN)) {
     test(`${name} renders pixel for pixel as before`, () => {
       [null, SPARSE].forEach((palette, i) => {
-        const layer = { id: 'a', code: LIB[name].code };
+        const layer = oneSource({ id: 'a', code: LIB[name].code });
         const L = prepareLayer(scene, layer, compileLayer(layer));
         const look = prepareLook({ globals: { palette }, layers: [layer] });
         const h = createHash('sha256'), rgb = new Float32Array(scene.count * 3);

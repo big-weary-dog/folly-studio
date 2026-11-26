@@ -16,6 +16,7 @@ import { CACHE_IMMUTABLE, CACHE_PAGE, CSP_APP, CSP_WORKER } from '../src/static.
 import { builtApp, removeBuiltApp } from './fixtures/build.js';
 import { serve, signup } from './fixtures/app.js';
 import { libraryCode } from './fixtures/patterns.js';
+import { oneSource } from './fixtures/layers.js';
 
 const KB = 1024;
 const BUDGET = { total: 350 * KB, login: 40 * KB }; // CONTRIBUTING "Performance budgets"
@@ -95,7 +96,7 @@ describe('the built app', () => {
     const rig = JSON.parse(readFileSync(new URL('../public/data/rig-folly.json', import.meta.url), 'utf8'));
     const code = libraryCode('clouds');
     onMessage({ data: { type: 'init', rig, library: [] } });
-    onMessage({ data: { type: 'look', layers: [{ id: 'a', code, groups: [rig.groups[0].id], level: 1 }] } });
+    onMessage({ data: { type: 'look', layers: [oneSource({ id: 'a', code, groups: [rig.groups[0].id], level: 1 })] } });
     onMessage({ data: { type: 'frame', seq: 1, t: 2.5 } });
     assert.deepEqual(out.map((m) => m.type), ['ready', 'compiling', 'compiled', 'frame']);
     assert.equal(out[2].layers[0].ok, true, out[2].layers[0].error);

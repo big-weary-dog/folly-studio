@@ -6,10 +6,11 @@ import { readFileSync } from 'node:fs';
 
 import { describe, test } from 'vitest';
 
-import { compileLayer, compilePattern, prepareLayer, prepareLook, prepareScene, renderFrame } from
+import { compileLayer, prepareLayer, prepareLook, prepareScene, renderFrame } from
   '../core/pattern-core.ts';
 import { folly, mini } from './fixtures/rigs.js';
 import { libraryCode as source, libraryIndex } from './fixtures/patterns.js';
+import { sourceLayer } from './fixtures/layers.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const index = libraryIndex();
@@ -17,7 +18,7 @@ const { palettes } = JSON.parse(readFileSync(here('../public/data/palettes.json'
 const scene = prepareScene(folly);
 const sources = index.filter((e) => e.kind === 'source').map((e) => e.name);
 const SECOND = palettes.find((p) => p.name === 'vapour');
-const layer = (name, groups = ['cathedral']) => prepareLayer(scene, { id: name, groups }, compilePattern(source(name)));
+const layer = (name, groups = ['cathedral']) => sourceLayer(scene, { id: name, groups, code: source(name) });
 
 function check(rgb, what) {
   for (let i = 0; i < rgb.length; i++) {

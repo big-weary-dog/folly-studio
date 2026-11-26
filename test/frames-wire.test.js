@@ -6,13 +6,14 @@ import zlib from 'node:zlib';
 
 import { describe, test } from 'vitest';
 
-import { compilePattern, prepareLayer, prepareScene, renderFrame, toChannels } from '../core/pattern-core.ts';
+import { prepareScene, renderFrame, toChannels } from '../core/pattern-core.ts';
 import {
   autoFetchAllowed, decodeChunk, fetchManifest, MODES, openFrameStream, parseManifest, readFrame,
 } from '../public/js/frames-stream.ts';
 import {
   CHUNK_FRAMES, encodeWire, gzipChunk, layoutChunk, MODES as SERVER_MODES, wireHash,
 } from '../src/frames-wire.ts';
+import { sourceLayer } from './fixtures/layers.js';
 
 /** A small deterministic random source (tests stay reproducible). */
 function random(seed = 1) {
@@ -101,7 +102,7 @@ describe('wire format', () => {
     const lib = JSON.parse(readFileSync(new URL('./fixtures/library-v1.json', import.meta.url), 'utf8'));
     for (const name of ['palette-drift', 'meteors']) {
       const { code } = lib[name];
-      const layer = prepareLayer(scene, { id: name, groups: ['cathedral'] }, compilePattern(code));
+      const layer = sourceLayer(scene, { id: name, groups: ['cathedral'], code });
       const F = CHUNK_FRAMES + 20;
       const data = new Uint8Array(F * C);
       const rgb = new Float32Array(scene.count * 3);

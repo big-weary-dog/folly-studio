@@ -13,6 +13,7 @@ import { analyzeFrames, FseqError, flickerReason, flickerWarning, MAX_CHANNELS, 
 import { folly } from './fixtures/rigs.js';
 import { fseqOf } from './fixtures/fseq-of.js';
 import { libraryCode as lib } from './fixtures/patterns.js';
+import { oneSource } from './fixtures/layers.js';
 
 // 100 LEDs, 3 channels each: the body (zone body) on universe 1, a small spire (5 LEDs) on universe 2.
 // Top-level groups: parts (the body) and the spire.
@@ -221,16 +222,17 @@ describe('flash check on looks: a wave a second is fine, a strobe is not', () =>
         `shockwave on the rose every ${every} s`);
     }
     for (const hz of [1, 2]) {
-      passes(check([{ id: 'p', code: `function pixel(p, t) { return pulse(fract(t * ${hz}), 0.25); }` }]),
+      const code = `function pixel(p, t) { return pulse(fract(t * ${hz}), 0.25); }`;
+      passes(check([oneSource({ id: 'p', code })]),
         `a full white pulse at ${hz} Hz`);
     }
   });
 
   test('a 5 Hz strobe over everything blocks; on the spirelets alone it warns', () => {
-    const all = check([{ id: 'x', code: strobe(5) }], 2);
+    const all = check([oneSource({ id: 'x', code: strobe(5) })], 2);
     assert.equal(all.flicker.ok, false);
     assert.equal(all.flicker.maxHz, 5);
-    const small = check([{ id: 'x', code: strobe(5), groups: ['spirelets'] }], 2);
+    const small = check([oneSource({ id: 'x', code: strobe(5), groups: ['spirelets'] })], 2);
     assert.equal(small.flicker.ok, true);
     assert.deepEqual(small.flicker.small.regions, ['spirelets']);
     assert.equal(small.flicker.small.maxHz, 5);

@@ -10,6 +10,7 @@ import {
   compileLayer, compilePattern, prepareLayer, prepareScene, renderFrame, toChannels,
 } from '../core/pattern-core.ts';
 import { libraryCode as source, libraryIndex } from './fixtures/patterns.js';
+import { oneSource, sourceLayer } from './fixtures/layers.js';
 
 const here = (p) => new URL(p, import.meta.url);
 const rig = JSON.parse(readFileSync(here('../public/data/rig-folly.json'), 'utf8'));
@@ -36,7 +37,7 @@ describe('each source', () => {
       const compiled = compilePattern(code);
       let element = false;
       for (const groups of GROUPS) {
-        const L = prepareLayer(scene, { id: name, groups }, compiled);
+        const L = prepareLayer(scene, oneSource({ id: name, groups }), [compiled]);
         let lit = 0, colours = new Set();
         for (const t of TIMES) {
           const { rgb, errors } = renderFrame(scene, [L], t);
@@ -61,7 +62,7 @@ describe('each source', () => {
       for (const end of ['min', 'max']) {
         const params = Object.fromEntries(Object.entries(compiled.params)
           .filter(([, p]) => p.type === 'number').map(([k, p]) => [k, p[end]]));
-        const L = prepareLayer(scene, { id: name, groups: ['cathedral'], params }, compiled);
+        const L = prepareLayer(scene, oneSource({ id: name, groups: ['cathedral'], params }), [compiled]);
         for (const t of [0, 2.5]) {
           const { rgb, errors } = renderFrame(scene, [L], t);
           assert.deepEqual(errors, [], `${name} with params at ${end}`);
@@ -103,8 +104,8 @@ describe('each warp and filter, in a chain over a source', () => {
 
 test('the whole library stacked renders cleanly, into the buffer it is given', () => {
   const blends = ['add', 'over', 'max', 'multiply'];
-  const layers = sources.map(({ name }, i) => prepareLayer(scene,
-    { id: name, groups: GROUPS[i % GROUPS.length], blend: blends[i % 4], level: 0.8 }, compilePattern(source(name))));
+  const layers = sources.map(({ name }, i) => sourceLayer(scene,
+    { id: name, groups: GROUPS[i % GROUPS.length], blend: blends[i % 4], level: 0.8, code: source(name) }));
   const out = new Float32Array(scene.count * 3);
   const ch = new Uint8Array(scene.frameChannels);
   const frames = 40;
