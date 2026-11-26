@@ -9,7 +9,7 @@ import { describe, test } from 'vitest';
 
 import { ledRanges, writeFseq } from '../core/fseq.ts';
 import { parseFseq } from '../src/frames.ts';
-import { compressFseq, HAS_ZSTD } from '../src/fseq-codec.ts';
+import { compressFseq } from '../src/fseq-codec.ts';
 import {
   cidBytes, e131Packet, fillSlots, multicastAddress, parseArgs, play, readShow, SacnSender,
 } from '../tools/sacn-play.ts';
@@ -152,7 +152,7 @@ describe('reading shows', () => {
     }
   });
 
-  for (const codec of HAS_ZSTD ? ['zstd', 'zlib'] : ['zlib']) {
+  for (const codec of ['zstd', 'zlib']) {
     test(`a ${codec}-compressed file plays the same bytes as the plain one`, async () => {
       const packed = await compressFseq(parseFseq(sparse), { codec });
       const show = readShow(packed);

@@ -8,7 +8,7 @@ import { describe, test } from 'vitest';
 import { fseqBlocks, MAX_BLOCKS, writeFseq } from '../core/fseq.ts';
 import { checkFrames } from '../src/box-output.ts';
 import { FseqError, parseFseq } from '../src/frames.ts';
-import { compressFseq, FSEQ_CODEC, HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
+import { compressFseq, inflateBlock } from '../src/fseq-codec.ts';
 import { lineRig } from './fixtures/rigs.js';
 
 const RANGES = [[0, 3], [510, 3]];
@@ -16,7 +16,7 @@ const C = 6;
 const F = 203;
 const data = new Uint8Array(F * C).map((_, i) => (i % C < 3 ? 40 + (i % 3) : Math.floor(i / C) & 255));
 const plain = writeFseq({ frames: F, data, ranges: RANGES, media: 'song.mp3', uniqueId: 42 });
-const CODECS = HAS_ZSTD ? ['zstd', 'zlib'] : ['zlib'];
+const CODECS = ['zstd', 'zlib'];
 
 /** The raw header fields, read independently of src/frames.ts. */
 function header(file) {
@@ -31,9 +31,7 @@ const rejects = (bytes, re, opts = { decompress: inflateBlock }) =>
   assert.throws(() => parseFseq(bytes, opts), (e) => e instanceof FseqError && re.test(e.message));
 
 describe('compressed FSEQ', () => {
-  test(`zstd when this Node has it (${FSEQ_CODEC} here); blocks of 80 frames, at most ${MAX_BLOCKS}`, () => {
-    assert.equal(FSEQ_CODEC, HAS_ZSTD ? 'zstd' : 'zlib');
-    assert.equal(HAS_ZSTD, typeof zlib.zstdCompressSync === 'function');
+  test(`blocks of 80 frames, at most ${MAX_BLOCKS}`, () => {
     assert.deepEqual(fseqBlocks(F), [[0, 80], [80, 80], [160, 43]]);
     assert.deepEqual(fseqBlocks(5), [[0, 5]]);
     const long = fseqBlocks(600 * 40);

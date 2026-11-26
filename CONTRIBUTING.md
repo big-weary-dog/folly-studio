@@ -1,8 +1,8 @@
 # Contributing to Folly Studio
 
-You need Node ≥ 22.18 (it runs TypeScript by stripping the types) and Python 3; `npm ci` installs the
-dependencies from `package-lock.json`. `SPEC.md` indexes the contracts between the pieces, in `spec/`;
-change the relevant file first, in the same change.
+You need Node 22.18 or later, 23 from 23.8 (it runs TypeScript by stripping the types, and compresses with zstd)
+and Python 3; `npm ci` installs the dependencies from `package-lock.json`. `SPEC.md` indexes the contracts between
+the pieces, in `spec/`; change the relevant file first, in the same change.
 
 ## Run, check, regenerate
 
@@ -190,7 +190,7 @@ Everything installation-specific is one file, the rig `STUDIO_RIG` picks (SPEC "
 | `src/frames.ts` | Pure: strict FSEQ parsing and frame analysis (brightness, flicker) |
 | `src/bake.ts`, `render-box.ts`, `box-output.ts`, `core-script.ts` | The one-at-a-time bake queue and frame files; the render box, its own process under limits; what a box hands back, read as data; the core from its source for the boxes |
 | `src/baking.ts`, `library-gate.ts` | `spec/frames "Where bakes run"`: the admin's bake setting (on, throttled, off) in front of the box, and its routes; the gate on saving (each module a library ref) |
-| `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks |
+| `src/frames-wire.ts`, `frames-cache.ts`, `frames-http.ts`, `fseq-codec.ts`, `quietly.ts` | Baked frames on the wire: the stream encoder; the chunks and downloads kept by hash under a disk cap, made one job at a time by the encoder thread; their routes; FSEQ zstd/zlib blocks; Node's experimental warnings (zstd, type stripping) kept out of the logs |
 | `src/frames-worker.ts` | The encoder thread, at low priority |
 | `src/stats.ts` | The request log and Admin → Stats (spec/http "Stats"): a journal line per request worth reading, and the day's counts kept in memory, bounded |
 | `src/api-reports.ts`, `src/reports/` | F8 bug reports (SPEC "Bug reports"): their routes; `store.ts` (a folder per report, pruned by count, bytes and days), `build.ts` (the checkout's commit) |
