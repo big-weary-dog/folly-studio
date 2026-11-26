@@ -12,7 +12,7 @@ import { BLEND_MODES, KIND_LABELS, type Reach } from '../studio/model.ts';
 import type { TreeDrag } from './tree-drag.ts';
 
 const STATE_TEXT: Record<string, string> = { ok: 'Running', off: 'Off', pending: 'Compiling…',
-  compile: 'Compile error', runtime: 'Runtime error', hung: 'Hung' };
+  compile: 'Compile error', runtime: 'Runtime error' };
 const INPUT_ONLY = 'input';
 // How a source joins.
 const GLYPHS: Record<string, string> = { over: '●', under: '○', add: '+', multiply: '×', max: '▴' };

@@ -7,14 +7,11 @@ import type { FrameError, Report } from '../../runtime.ts';
 import type { Layer } from './model.ts';
 import { flatModules } from '../../../../core/tree.ts';
 
-type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime' | 'hung';
+type StateKind = 'ok' | 'off' | 'muted' | 'pending' | 'compile' | 'runtime';
 export interface State { kind: StateKind; message?: string }
-interface Problem { kind: 'compile' | 'runtime' | 'hung'; message: string; running?: boolean }
-export const ISSUE_LABELS: Record<string, string> = { compile: 'Compile error', runtime: 'Runtime error',
-  hung: 'Hung' };
+interface Problem { kind: 'compile' | 'runtime'; message: string; running?: boolean }
+export const ISSUE_LABELS: Record<string, string> = { compile: 'Compile error', runtime: 'Runtime error' };
 const RUNTIME_ERROR_HOLD_MS = 1200;
-const HUNG_RE = /^Pattern hung\b/;    // the sandbox's message for a layer it paused
-const hungOr = (msg: string, kind: 'compile' | 'runtime') => (HUNG_RE.test(msg) ? 'hung' : kind);
 const K = (layerId: string, moduleId: string) => `${layerId}/${moduleId}`;
 
 export function createLayerStatus(layerById: (id: string) => Layer | null, silent: (id: string) => boolean) {
@@ -82,7 +79,7 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
       const c = compiled.get(key);
       if (!c || c.code !== m.code) return { kind: 'pending', message: b ? b.error : '' };
       const rt = runtimeErr.get(layerId);
-      if (rt && rt.module === m.id) return { kind: hungOr(rt.error, 'runtime'), message: rt.error };
+      if (rt && rt.module === m.id) return { kind: 'runtime', message: rt.error };
       return { kind: m.enabled === false ? 'off' : 'ok' };
     },
 
@@ -101,7 +98,7 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
       if (layerErr.has(id)) return { kind: 'compile', message: layerErr.get(id) };
       if (pending) return pending;
       const rt = runtimeErr.get(id);
-      if (rt) return { kind: hungOr(rt.error, 'runtime'), message: rt.error };
+      if (rt) return { kind: 'runtime', message: rt.error };
       return { kind: silent(id) ? 'muted' : 'ok' };
     },
 
@@ -111,12 +108,10 @@ export function createLayerStatus(layerById: (id: string) => Layer | null, silen
       if (!m) return null;
       const st = S.module(layerId, m), key = K(layerId, m.id);
       if (st.kind === 'compile' || (st.kind === 'pending' && st.message)) {
-        return { kind: hungOr(st.message || '', 'compile'), message: st.message || '', running: good.has(key) };
+        return { kind: 'compile', message: st.message || '', running: good.has(key) };
       }
       const rt = runtimeErr.get(layerId);
-      if (rt && (rt.module === m.id || rt.module == null)) {
-        return { kind: hungOr(rt.error, 'runtime'), message: rt.error };
-      }
+      if (rt && (rt.module === m.id || rt.module == null)) return { kind: 'runtime', message: rt.error };
       const err = layerErr.get(layerId);
       return err ? { kind: 'compile', message: err } : null;
     },

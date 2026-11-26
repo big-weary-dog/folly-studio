@@ -1,5 +1,5 @@
 // The sandbox's worker (SPEC "Sandbox protocol"): runs the look's layers, each a chain of modules, on the core.
-// Vite builds it with the core into one script, sandbox-worker-<hash>.js, which the relay starts as a module Worker.
+// Vite builds it with the core into one script, sandbox-worker-<hash>.js, which runtime.ts starts as a module Worker.
 // It exports nothing: it is a script.
 import './worker-lockdown.ts';   // first: before the core, and any pattern code, runs
 import {
@@ -41,7 +41,6 @@ function compiled(layerId: string, m: ReturnType<typeof layerModules>[number], k
   if (!entry || entry.code !== m.code || entry.kind !== kind) {
     entry = { code: m.code, kind, compiled: null, error: '' };
     compiledByKey.set(key, entry);
-    post({ type: 'compiling', id: layerId });   // so a hang can be pinned on this layer
     try { entry.compiled = compileModule(m.code, kind); } catch (e) { entry.error = message(e); }
   }
   return entry;
@@ -128,7 +127,7 @@ function onRender(msg: Message<'render'>) {
     const { errors } = renderFrame(scene, prepared, start + f / fps, rgb, look, result);
     for (const e of errors) if (!seen.has(e.id)) seen.set(e.id, e.error);
     channels.set(ledChannels(scene, rgb, light, frame, cap), f * size);
-    post({ type: 'progress', seq: msg.seq, done: f + 1 });   // the page's watchdog counts these
+    post({ type: 'progress', seq: msg.seq, done: f + 1 });   // the watchdog hears these
   }
   const errors = [...seen].map(([id, error]) => ({ id, error }));
   post({ type: 'rendered', seq: msg.seq, channels, frames, channelCount: size, errors }, [channels.buffer]);

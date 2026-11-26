@@ -491,19 +491,19 @@ the origin's storage, the network or other contexts from its global and `navigat
 (`indexedDB`, `caches`, `navigator.storage`, `navigator.locks`, `fetch`, `BroadcastChannel`, `Worker`, …). It has
 no cookies or DOM, and the compiler shadows globals besides (`core/compile.ts`). The dev server sends it without a CSP.
 
-The relay (`js/sandbox-relay.ts`, `openSandbox(toApp) → { post(msg), close() }`) runs in the app page: it starts the
-worker, relays the messages below both ways (direct calls on the page's side, `postMessage` to the worker) and keeps
-time. A `close()`d relay terminates its workers, the probes' too (`js/sandbox-probe.ts`), and says nothing more.
+The runtime (`js/runtime.ts`, `new Runtime(hooks)`, `start(rig, library)`, `destroy()`) runs in the app page: it
+starts the worker, sends it the messages below and reads its answers, keeps time and paces the frames. A destroyed
+runtime terminates its worker and says nothing more.
 
-| app → relay | relay → app |
+| runtime → worker | worker → runtime |
 |---|---|
 | `{ type: 'init', rig, library? }` (library: `[{ name, code }]` sources for `use`) | `{ type: 'ready' }` (the worker has prepared the scene) |
 | `{ type: 'look', layers, globals?, automation?, bpm? }` (as saved) | `{ type: 'compiled', layers: [{ id, ok, error?, params, modules: [{ id, ok, error?, params, upgraded? }] }] }` (`params`: the first source's schema; `upgraded`: each param a module's `upgrade()` changes, `[saved, upgraded]`, "Pattern code") |
-| `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred from the worker; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
+| `{ type: 'frame', seq, t }` | `{ type: 'frame', seq, rgb: Float32Array(count×3), errors: [{ id, module?, error }], ms, layerMs: { <layer id>: ms } }` (rgb transferred; `ms` the frame's, `layerMs` each layer's, timed in the worker) |
 | `{ type: 'render', seq, start, frames, fps, brightness, light }` (light: the settings, Light and output; brightness: a linear cap) | `{ type: 'progress', seq, done }` … then `{ type: 'rendered', seq, channels: Uint8Array(frames × frame channels) }` |
 
-The relay reads what the worker says as data (`js/sandbox-messages.ts`), since pattern code shares its thread and can
-post too: a frame's `rgb` not exactly count × 3 floats is a black frame; `errors` keep at most one per layer of the
+The worker also says `{ type: 'error', seq?, request, error }` for a request that threw. The runtime reads what the worker says as data (`js/sandbox-messages.ts`), since pattern
+code shares its thread and can post too: a frame's `rgb` not exactly count × 3 floats is a black frame; `errors` keep at most one per layer of the
 look; `ms` and `layerMs` are times (finite, ≥ 0), `layerMs` only the look's layers'; a render's `channels` not exactly
 its frames × the rig's frame channels is an `error`; and error text is one printable line of at most 300 characters.
 
@@ -513,13 +513,11 @@ well under the faster rate's; the 3D view draws at display rate when something c
 whose smoothed `layerMs` is over 40 % of a 40 fps frame's budget (8 ms) is marked heavy on its card.
 A layer that throws or returns NaN goes black for that frame and is reported in `errors`. Pattern time is
 show time, in live frames as in renders and bakes.
-Watchdog (the relay's): a frame, live or exported, running over 1 s, or new code compiling for
-over 0.7 s, has hung. The relay terminates the worker, finds the layer to blame (the one being
-compiled, or each layer run alone for one frame in a throwaway worker), starts a fresh worker
-without it and reports it as an error starting `Pattern hung`; it stays paused until its code
-changes. Every `frame` request is answered within 1.5 s. A worker that cannot load is an `error` before `ready`, and
-the app stops. The app (runtime.ts) closes the relay and opens a fresh one if it stops answering for 4 s (8 s during
-an export, while the relay probes a hung layer), and when an export is cancelled.
+Watchdog: while the worker owes an answer (a frame, a look's compile, an export) and says nothing for 1 s (6 s while
+it prepares the scene), the look has stopped responding. The runtime terminates the worker, starts a fresh one without
+the look, fails an export in progress, and shows that the look stopped responding until the look changes, which sends
+it again. A worker that cannot load or prepare the scene is fatal, as are more than 5 restarts in 20 s. A cancelled
+export restarts the worker too.
 
 `core/pattern-core.ts` exports (used by the sandbox's worker, the boxes and the Node tests), and its types (`Scene`,
 `PreparedLayer`, `PreparedLook`, `Compiled`, `ParamSchema`, `Pixel`, `G`, `LayerInput`, …):
