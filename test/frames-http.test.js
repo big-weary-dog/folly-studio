@@ -17,7 +17,7 @@ import { parseFseq } from '../src/frames.ts';
 import { IMMUTABLE } from '../src/frames-http.ts';
 import { glowLayer, writeLibrary } from './fixtures/library.js';
 import { lineRig } from './fixtures/rigs.js';
-import { HAS_ZSTD, inflateBlock } from '../src/fseq-codec.ts';
+import { inflateBlock } from '../src/fseq-codec.ts';
 import { serve, signup } from './fixtures/app.js';
 import { stubBox } from './fixtures/box.js';
 
@@ -202,7 +202,7 @@ describe('.fseq downloads', () => {
     assert.equal(plain.status, 200);
     const data = Uint8Array.from(parseFseq(plain.body).data);
     assert.deepEqual(data, bakedData(8));
-    for (const [ask, type] of [['1', HAS_ZSTD ? 1 : 2], ['zlib', 2], ...(HAS_ZSTD ? [['zstd', 1]] : [])]) {
+    for (const [ask, type] of [['1', 1], ['zlib', 2], ['zstd', 1]]) {
       const res = await get(alice, `${url}?compress=${ask}`, { 'accept-encoding': 'gzip' });
       assert.equal(res.status, 200, ask);
       assert.equal(res.headers['content-encoding'], undefined, 'already compressed');

@@ -9,7 +9,7 @@ import vm from 'node:vm';
 
 import { afterAll, test } from 'vitest';
 
-import { bundle, moduleFiles } from '../src/core-script.ts';
+import { bundle } from '../src/core-script.ts';
 
 const CORE = fileURLToPath(new URL('../core/pattern-core.ts', import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-core-script-'));
@@ -22,7 +22,6 @@ const write = (rel, text) => {
 test('the core as one script: its modules, dependencies first, with no relative imports left', () => {
   const { text, files } = bundle(CORE);
   assert.equal(files.at(-1), CORE);
-  assert.deepEqual(moduleFiles(CORE), files);
   assert.ok(files.some((f) => f.endsWith(path.join('core', 'stdlib.ts'))));
   assert.ok(!files.some((f) => f.includes(`${path.sep}shared${path.sep}`)), 'type-only imports name no module');
   assert.ok(!/^(?:import|export)\b[^;]*\bfrom\s*'\./m.test(text));

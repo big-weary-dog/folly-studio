@@ -12,7 +12,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { lookRoutes } from './api-looks.ts';
 import { framesPath } from './bake.ts';
 import type { createFramesCache } from './frames-cache.ts';
-import { FSEQ_CODEC, HAS_ZSTD } from './fseq-codec.ts';
+import { FSEQ_CODEC } from './fseq-codec.ts';
 import { etagMatches, forAnyone, HttpError, pickEncoding } from './http.ts';
 
 /** Private: who may fetch a look's frames is checked per request, and a look can stop being shared. */
@@ -24,8 +24,7 @@ type Req = FastifyRequest<{ Params: { id: string, hash: string, n: string }, Que
 function codecFor(v: string | undefined) {
   if (v === undefined || v === '' || v === '0' || v === 'none') return null;
   if (v === '1' || v === 'true') return FSEQ_CODEC;
-  if (v === 'zlib' || (v === 'zstd' && HAS_ZSTD)) return v;
-  if (v === 'zstd') throw new HttpError(400, 'This server has no zstd; ask for compress=zlib.');
+  if (v === 'zlib' || v === 'zstd') return v;
   throw new HttpError(400, 'compress must be 1, zstd or zlib.');
 }
 

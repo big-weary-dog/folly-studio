@@ -101,9 +101,8 @@ as here; any other failure says why and points to Check & bake.
   ahead are fetched, a seek fetches its chunk, deltas are undone in place once per chunk, and
   frames are read without allocating. On a phone, a cellular link, Save-Data or below 4G the
   first press of Play only shows the download size; the second plays.
-- **Downloads.** `?compress=1` (zstd when this Node has `zlib.zstdCompress`, else zlib), `zstd` or
-  `zlib`: FSEQ v2 with 80-frame blocks (zstd level 19, zlib 9), as FPP's FSEQFile writes them, keeping the baked
-  file's `uniqueId`, so the same bake downloads as the same bytes;
+- **Downloads.** `?compress=1` (zstd), `zstd` or `zlib`: FSEQ v2 with 80-frame blocks (zstd level 19, zlib 9), as
+  FPP's FSEQFile writes them, keeping the baked file's `uniqueId`, so the same bake downloads as the same bytes;
   plain (no `compress`) is the stored file, gzip transfer-encoded.
 
 ## Where bakes run

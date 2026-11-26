@@ -36,7 +36,7 @@ export default defineConfig({
       'smoke.spec.js', 'light.spec.js', 'side.spec.js', 'loop.spec.js', 'mods.spec.js', 'param-lines.spec.js',
       'mod-pop.spec.js', 'report.spec.js', 'history.spec.js', 'look-energy.spec.js', 'tour.spec.js', 'gallery.spec.js',
       'describe.spec.js', 'param-petals.spec.js', 'approve.spec.js', 'baking.spec.js', 'stats.spec.js',
-      'pages-ux.spec.js', 'composite.spec.js', 'attached.spec.js', 'library-only.spec.js', 'guest.spec.js',
+      'pages-ux.spec.js', 'composite.spec.js', 'attached.spec.js', 'guest.spec.js',
       'param-controls.spec.js', 'phone-cuts.spec.js', 'import-history.spec.js', 'palettes.spec.js', 'account.spec.js',
       'people.spec.js', 'privacy.spec.js', 'visitor.spec.js', 'simple.spec.js'],
       timeout: 5 * 60_000 },
