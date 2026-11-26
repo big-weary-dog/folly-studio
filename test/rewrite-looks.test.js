@@ -118,3 +118,26 @@ test('--apply leaves a folder a server holds alone', async () => {
   assert.ok(!looksIn(dir)[0].codeHash);
   assert.ok(!readdirSync(dir).some((f) => f.startsWith('looks.pre-rewrite')));
 });
+
+test('a module saved with no ref takes its code\'s before upgrade(), so one run does it all', async () => {
+  const was = stored('noref');
+  for (const l of [was, was.versions[0]]) delete l.layers[0].modules[0].ref;
+  const dir = folder('noref', [was]);
+  await rewriteLooks({ dataDir: dir, publicDir, apply: true });
+  const [look] = looksIn(dir);
+  for (const l of [look, look.versions[0]]) {
+    assert.deepEqual([l.layers[0].modules[0].ref, l.layers[0].modules[0].params.direction], ['bars', 'clockwise']);
+  }
+  assert.deepEqual((await rewriteLooks({ dataDir: dir, publicDir, apply: true })).rewrites.map((r) => r.changes), [[]]);
+});
+
+test('a look whose only old field is a version layer\'s remap is written without it', async () => {
+  const dir = folder('remap', [stored('a')]);
+  await rewriteLooks({ dataDir: dir, publicDir, apply: true });
+  const [look] = looksIn(dir);
+  look.versions[0].layers[0].palette = { a: 'b' };
+  writeFileSync(path.join(dir, 'looks.json'), `[\n${JSON.stringify(look)}\n]\n`);
+  const { rewrites } = await rewriteLooks({ dataDir: dir, publicDir, apply: true, now: new Date(2e12) });
+  assert.deepEqual(rewrites[0].changes, ['chain or remaps converted']);
+  assert.ok(!('palette' in looksIn(dir)[0].versions[0].layers[0]));
+});

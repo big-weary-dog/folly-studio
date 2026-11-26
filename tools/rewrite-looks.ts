@@ -69,11 +69,20 @@ export function rewriteLook(stored: Look, refs: Refs, upgraderOf: (ref: unknown)
   const current = !!stored.bake && !!before.bake && stored.bake.layersHash === layersHash(renderFields(before));
   const changes: string[] = [];
   const up = structuredClone(upgradeStored(stored, { ...refs, filled })) as Look & Node;
-  if (json(up.layers) !== json(stored.layers) || up.chain !== stored.chain) changes.push('chain or remaps converted');
+  if (json(up) !== json(stored)) changes.push('chain or remaps converted');
   const read = filled(up) as Look & Node;
   for (const [node, i] of [[up, -1], ...versionsOf(up).map((v, j) => [v, j] as const)] as [Node, number][]) {
     const where = i < 0 ? '' : ` (version ${String(node.n ?? i + 1)})`;
-    if (upgradeNode(node, (i < 0 ? read : versionsOf(read)[i])?.layers)) changes.push(`globals as they play${where}`);
+    const readLayers = (i < 0 ? read : versionsOf(read)[i])?.layers;
+    // Each module's ref as a read resolves it (from its code when the library lacks the one stored), before upgrade().
+    const resolved: unknown[] = [];
+    eachModule(readLayers, (m) => { resolved.push(m.ref); });
+    let k = 0;
+    eachModule(node.layers, (m) => {
+      const ref = resolved[k++];
+      if (typeof ref === 'string') m.ref = ref;
+    });
+    if (upgradeNode(node, readLayers)) changes.push(`globals as they play${where}`);
     const params = upgradeModules(node.layers, upgraderOf);
     if (params.length) changes.push(`params upgraded: ${params.join(', ')}${where}`);
     let code = 0;
