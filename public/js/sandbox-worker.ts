@@ -16,7 +16,7 @@ const post = self.postMessage.bind(self) as (msg: object, transfer?: Transferabl
 let scene: Scene | null = null;
 let prepared: PreparedLayer[] = [];           // render order, bottom first
 let globals: Extra | null = null;             // the newest look's globals, automation and bpm
-let live: PreparedLook | null = null;         // its prepared globals, the clock kept continuous across looks
+let live: PreparedLook | null = null;         // its prepared globals
 const result: ReturnType<typeof renderFrame> = { rgb: new Float32Array(0), errors: [] };
 let layerMs: Record<string, number> = {};     // layer id → its ms last frame: one object, refilled each frame
 // layer id + module id -> the same code keeps its instance and state
@@ -101,7 +101,7 @@ function onLook(msg: Message<'look'>) {
   prepared = next;
   layerMs = Object.fromEntries(next.map((L) => [L.id, 0]));
   globals = extrasOf(msg);
-  live = prepareLook(globals, live ?? undefined);
+  live = prepareLook(globals);
   post({ type: 'compiled', layers: report });
 }
 

@@ -28,7 +28,7 @@ const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-bake-'));
 afterAll(() => fs.rmSync(tmpRoot, { recursive: true, force: true }));
 const layer = (code, extra = {}) => ({ id: 'l1', title: 'x', code, groups: ['cathedral'], blend: 'add', level: 1,
   params: {}, ...extra });
-const BREATHE = 'function pixel(p, t) { return scale([0.2, 0.4, 1], wave(t * 0.25)); }';
+const BREATHE = 'function pixel(p, t) { return scale([0.2, 0.4, 1], 0.5 + 0.5 * sin(TAU * t * 0.25)); }';
 /** A layer of one library module, as the API takes them. */
 const lib = (ref, params, extra = {}) => ({ id: 'l1', title: 'x', groups: ['cathedral'], params: {},
   modules: [{ id: 'm', kind: 'source', ref, params }], ...extra });

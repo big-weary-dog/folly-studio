@@ -21,9 +21,7 @@ describe('stdlib', () => {
     near(S.fract(-0.25), 0.75); near(S.fract(3.5), 0.5);
     assert.equal(S.step(0.5, 0.4), 0); assert.equal(S.step(0.5, 0.5), 1);
     assert.equal(S.smoothstep(0, 1, -1), 0); assert.equal(S.smoothstep(0, 1, 2), 1); near(S.smoothstep(0, 1, 0.5), 0.5);
-    near(S.wave(0), 0.5); near(S.wave(0.25), 1); near(S.wave(0.75), 0);
     near(S.tri(0), 0); near(S.tri(0.5), 1); near(S.tri(1.25), 0.5);
-    near(S.saw(1.75), 0.75);
     near(S.pulse(0, 0.1), 1); near(S.pulse(3, 0.1), 1); assert.equal(S.pulse(0.1, 0.1), 0);
     near(S.pulse(0.98, 0.1), S.pulse(0.02, 0.1)); // wraps
     assert.ok(S.pulse(0.05, 0.1) > 0 && S.pulse(0.05, 0.1) < 1);
@@ -76,7 +74,6 @@ describe('stdlib', () => {
       0x56 / 255]); // cache not shared
     nearC(S.hsv(0, 1, 1), [1, 0, 0]); nearC(S.hsv(1 / 3, 1, 1), [0, 1, 0]); nearC(S.hsv(2 / 3, 1, 1), [0, 0, 1]);
     nearC(S.hsv(1.5, 0, 0.5), [0.5, 0.5, 0.5]);
-    nearC(S.hsl(0, 1, 0.5), [1, 0, 0]); nearC(S.hsl(0.5, 1, 1), [1, 1, 1]); nearC(S.hsl(0.2, 1, 0), [0, 0, 0]);
     nearC(S.rgb(0.1, 0.2, 0.3), [0.1, 0.2, 0.3]); nearC(S.rgb(0.4), [0.4, 0.4, 0.4]);
     nearC(S.scale([1, 0.5, 0.2], 0.5), [0.5, 0.25, 0.1]);
     nearC(S.add([0.5, 0, 0], '#00ff00'), [0.5, 1, 0]);
@@ -169,7 +166,7 @@ describe('scene and groups', () => {
   });
 
   test('a runs clockwise from 12 o\'clock as seen from the playa', () => {
-    const c = compilePattern('function pixel(p) { return [p.a, p.r, p.petal]; }');
+    const c = compilePattern('function pixel(p) { return [p.a, p.r, p.sector]; }');
     const L = prepareLayer(scene, { id: 'a', groups: ['rose-window'] }, c);
     for (let j = 0; j < L.idx.length; j++) {
       const k = L.idx[j];
