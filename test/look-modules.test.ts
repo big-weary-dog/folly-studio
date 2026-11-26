@@ -12,9 +12,9 @@ const mod = (id: string, extra: object = {}) => ({ id, kind: 'source', title: id
 const comp = (layers: unknown, extra: object = {}) => ({ id: 'c', kind: 'composite', title: 'Comp', code: '', layers,
   ...extra });
 const LAYERS = [
-  { id: 'l1', title: 'One', code: 'one' },
+  { id: 'l1', title: 'One', modules: [mod('one')] },
   { id: 'l2', title: 'Two', modules: [mod('a'), comp([{ id: 's1', modules: [mod('b'), comp([{ id: 's2',
-    modules: [mod('c')] }])] }, { id: 's3', code: 'd' }]), mod('e')] },
+    modules: [mod('c')] }])] }, { id: 's3', modules: [mod('d')] }]), mod('e')] },
 ];
 
 test('meets every module that runs code, in order, at any depth; a composite runs none of its own', () => {
@@ -33,7 +33,7 @@ test('says where the shape breaks, and still walks a broken composite\'s sub-lay
     findModule(layers, (met) => { out.push(met.fault ?? met.module!.id); });
     return out;
   };
-  assert.deepEqual(faults([null, { modules: [7, mod('a')] }]), ['layer', 'module', 'a']);
+  assert.deepEqual(faults([null, { modules: [7, mod('a')] }, { code: 'b' }]), ['layer', 'module', 'a', 'layer']);
   assert.deepEqual(faults([{ modules: [comp([{ modules: [mod('a')] }], { code: 'x' })] }]), ['composite', 'a']);
   assert.deepEqual(faults([{ modules: [comp(undefined)] }]), ['composite'], 'a composite without sub-layers');
   for (const code of [false, 0, null]) {

@@ -22,22 +22,18 @@ export { BLENDS, CHAIN_KINDS, MODULE_KINDS, SOURCE_BLENDS } from './chain.ts';
 export type { Blend, ModuleKind, SourceBlend } from './chain.ts';
 const isBlend = (b: unknown): b is Blend => BLENDS.includes(b as Blend);
 
-/** A layer as the core takes one (SPEC "Looks"), any field missing; code and params: a one-source chain. */
-export type LayerInput = Partial<{ id: string, title: string, code: string, params: Record<string, unknown>,
-  modules: Partial<Module>[], groups: string[], tags: string[], blend: string, level: number, clips: unknown,
-  enabled: boolean, soften: unknown }>;
+/** A layer as the core takes one (SPEC "Looks"), any field missing. */
+export type LayerInput = Partial<{ id: string, title: string, modules: Partial<Module>[], groups: string[],
+  tags: string[], blend: string, level: number, clips: unknown, enabled: boolean, soften: unknown }>;
 
-/** A layer's modules, or its own code and params as one source (looks before chains). */
+/** A layer's modules, leaving out any that is not an object; none without a chain. */
 export function layerModules(layer?: LayerInput | null): Partial<Module>[] {
-  if (layer && Array.isArray(layer.modules)) return layer.modules.filter((m) => m && typeof m === 'object');
-  return [{ id: 'm1', kind: 'source', title: layer?.title || 'Pattern', code: layer?.code,
-    params: layer?.params as Module['params'] }];
+  return Array.isArray(layer?.modules) ? layer.modules.filter((m) => m && typeof m === 'object') : [];
 }
 
 /** Each module compiled (null where disabled), a composite's sub-layers too (none for one switched off, as the
  * sandbox counts no error of theirs). Throws on the first failure, as "<module title>: …" in a chain. */
 export function compileLayer(layer?: LayerInput | null): (CompiledLink | null)[] {
-  const modular = Array.isArray(layer?.modules);
   return layerModules(layer).map((m) => {
     if (!isOn(m)) return null;
     if (m.kind === 'composite') {
@@ -47,7 +43,6 @@ export function compileLayer(layer?: LayerInput | null): (CompiledLink | null)[]
     try {
       return compileModule(m.code, m.kind ?? 'source');
     } catch (e) {
-      if (!modular) throw e;
       throw new Error(`${m.title || m.id || 'Module'}: ${(e as Error)?.message || e}`, { cause: e });
     }
   });
@@ -103,7 +98,7 @@ function prepareRuns(S: Scene, chain: Link[], idx: Int32Array) {
 
 function fail(L: PreparedLayer, M: Link | null, msg: string) {
   L.failed = M ? M.id : null;
-  return L.modular && M ? `${M.title}: ${msg}` : msg;
+  return M ? `${M.title}: ${msg}` : msg;
 }
 
 const load = (to: number[], from: Float64Array, o: number) => {
@@ -175,11 +170,10 @@ function runStages(S: Scene, L: PreparedLayer, R: Run, out: Float64Array, T: num
 
 /** A layer ready to render: its pixels, their lx/ly/lz (0.5 on a flat axis) and a/r, its chain and clips. */
 export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
-  compiled: CompiledLink | readonly (CompiledLink | null)[]) {
-  if (!compiled) throw new Error('prepareLayer: layer is not compiled');
+  compiled: readonly (CompiledLink | null)[]) {
+  if (!Array.isArray(compiled)) throw new Error('prepareLayer: layer is not compiled');
   const clips = normalizeClips(layer?.clips), all: Link[] = [];
-  const chain = prepareChain(layerModules(layer), Array.isArray(compiled) ? compiled : [compiled],
-    { scene, clips, all, depth: 0 });
+  const chain = prepareChain(layerModules(layer), compiled, { scene, clips, all, depth: 0 });
   const bent = placeWarps(chain, WARP, SPATIAL);
   const idx = pixelsForGroups(scene, layer?.groups, layer?.tags);
   const m = idx.length;
@@ -220,7 +214,7 @@ export function prepareLayer(scene: Scene, layer: LayerInput | null | undefined,
     frame: Float64Array.of((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2,
       rmax, cy, cz),                                                     // then a r's centre: the middle of the LEDs
     extent: Object.freeze([corner([x0, y0, z0]), corner([x1, y1, z1])]),  // extent()
-    chain, all, modular: Array.isArray(layer?.modules), failed: null as string | null,
+    chain, all, failed: null as string | null,
     blend: isBlend(layer?.blend) ? layer.blend : 'add', level: isNum(layer?.level) ? clamp(layer.level) : 1,
     clips: normalizeClips(layer?.clips), enabled: layer?.enabled !== false,
     p: qs[0], qs, warps: bent.order, c: [0.5, 0, 0, 0],
@@ -266,7 +260,7 @@ export function renderFrame(scene: Scene, layers: readonly (PreparedLayer | null
       if (M.picks) M.picks.frame();
     }
     const err = runChain(scene, L, t, G);
-    if (err) errors.push(L.modular ? { id: L.id, module: L.failed, error: err } : { id: L.id, error: err });
+    if (err) errors.push({ id: L.id, module: L.failed, error: err });
     else {
       if (wipe) wipeColours(L.buf, L, scene, wipe as Transition, env, clipFade(clip!, t) < 0);
       composite(rgb, L, level);

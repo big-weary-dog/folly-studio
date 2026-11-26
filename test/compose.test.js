@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { describe, test } from 'vitest';
 
 import {
-  automationAt, compileLayer, compilePattern, DEFAULT_PALETTE, layerModules, PALETTE_ROLES, prepareLayer, prepareLook,
+  automationAt, compileLayer, DEFAULT_PALETTE, PALETTE_ROLES, prepareLayer, prepareLook,
   prepareScene, renderFrame, setLibrary, upgradeGlobals,
 } from '../core/pattern-core.ts';
 import { libraryCode as lib } from './fixtures/patterns.js';
@@ -24,14 +24,6 @@ const at = (rgb, k) => [rgb[3 * k], rgb[3 * k + 1], rgb[3 * k + 2]];
 const near = (a, b, eps = 1e-5) => a.every((v, i) => Math.abs(v - b[i]) < eps);
 
 describe('module chains', () => {
-  test('a layer with code is a one-source chain and renders exactly as that chain', () => {
-    const code = lib('single-strand');
-    const old = prepareLayer(scene, { id: 'a', code, params: { tail: 20 } }, compilePattern(code));
-    const chain = layerOf({ id: 'b', modules: [src('m', code, { params: { tail: 20 } })] });
-    assert.deepEqual(layerModules({ title: 'X', code }).map((m) => m.kind), ['source']);
-    for (const t of [0, 1.25, 7.5]) assert.deepEqual(frame([chain], t).rgb, frame([old], t).rgb, `t=${t}`);
-  });
-
   test('sources combine over then add; an input-only source feeds a filter without drawing', () => {
     const blue = 'function pixel() { return [0, 0, 0.5]; }';
     const two = layerOf({ id: 'a', modules: [src('r', RED), src('b', blue)] });

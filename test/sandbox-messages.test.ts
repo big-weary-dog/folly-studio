@@ -8,7 +8,7 @@ import {
   compiledReport, frameAnswer, frameErrors, type Layer, layerTimes, type Paused, renderedAnswer, TEXT_MAX,
 } from '../public/js/sandbox-messages.ts';
 
-const look = [{ id: 'a', code: '' }, { id: 'b', code: '' }] as Layer[];
+const look = [{ id: 'a', modules: [] }, { id: 'b', modules: [] }] as Layer[];
 const COUNT = 4;
 
 test('a frame whose rgb is not the rig\'s count × 3 floats is black', () => {

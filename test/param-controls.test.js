@@ -9,13 +9,14 @@ import { compileLayer, prepareLayer, prepareScene, renderFrame } from '../core/p
 import { normaliseParam, visibleParams } from '../public/js/ui/params/bindings.ts';
 import { folly } from './fixtures/rigs.js';
 import { libraryCode as lib, libraryIndex } from './fixtures/patterns.js';
+import { oneSource } from './fixtures/layers.js';
 
 const controls = (schema, saved = {}) => visibleParams(Object.entries(schema)
   .map(([key, p]) => [key, normaliseParam(key, p)]), saved).map(([key]) => key);
 
 test('soft ranges survive compilation and controls while automated bindings reach hard bounds', () => {
   const code = 'const params = { x: { value: 0, min: -8, max: 8, soft: [-2, 2] } };';
-  const schema = compileLayer({ id: 'l', code: `${code} function pixel() { return [0, 0, 0]; }` })[0].params;
+  const schema = compileLayer(oneSource({ id: 'l', code: `${code} function pixel() { return [0, 0, 0]; }` }))[0].params;
   assert.deepEqual(normaliseParam('x', schema.x).soft, [-2, 2]);
   const overrides = { x: { mod: 'global', name: 'drive' } };
   const P = resolveParams(schema, overrides), mods = paramMods(schema, overrides);
@@ -35,7 +36,7 @@ test('malformed soft ranges leave the full drag range available', () => {
 });
 
 test('saved numbers are held to min..max, so no setting runs a pattern past its range', () => {
-  const waves = compileLayer({ id: 'l', code: lib('waves') })[0].params;
+  const waves = compileLayer(oneSource({ id: 'l', code: lib('waves') }))[0].params;
   const held = [[60000, waves.speed.max], [-5, waves.speed.min], ['12', 12], ['fast', 20], [Infinity, 20], [NaN, 20]];
   for (const [speed, want] of held) assert.equal(resolveParams(waves, { speed }).speed, want);
   for (const x of [{ value: 9, min: 0, max: 8 }, { value: 0, min: 1, max: 8 }, { value: 0, min: 1, max: -1 }]) {

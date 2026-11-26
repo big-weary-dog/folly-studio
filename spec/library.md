@@ -528,13 +528,13 @@ an export, while the relay probes a hung layer), and when an export is cancelled
 spec/library "Palettes"), `readPick(value) → { groups, blend, range, rotate } | null` and `pickText(groups)` (a pick read leniently,
 and as text), `readText(value) → string | null` (a text param's value: printable ASCII, at most `TEXT_MAX`, 256,
 characters), `layerModules(layer) → modules`
-(a layer with `code` and no `modules` → one source), `flatModules(modules) → modules` (a composite's too, depth first),
+(those that are objects; none without `modules`), `flatModules(modules) → modules` (a composite's too, depth first),
 `attachedTo(modules, j) → id | null` (the source whose attached run module j may join),
 `compileLayer(layer) → compiled[]` (throws `title: error`), `setLibrary([{ name,
 code }])`, `prepareScene(rig) → scene` (throws on a malformed rig), `groupsByTag(scene, tag) → [group]` (outermost
 first), `pixelsForGroups(scene, ids, tags?) → Int32Array` (spec/looks "Looks"), `tagMask(scene, tag) → Uint8Array`,
 `tagCentres(scene, tag) → [[X, Y, Z]]`, `FLASH` (the default limits), `flashLimits(partial?) → limits` and
-`new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled | compiled[])
+`new FlashWatch(scene, limits?, { record? })` (Baked frames, Checks), `prepareLayer(scene, layer, compiled[])
 → prepared`
 (keeps `normalizeClips(layer.clips)`; a chain with spatial modules or `soften` gets its stage buffers here),
 `neighbourGraph(scene) → { space, wire }` (each CSR: pixel k's neighbours `nb[off[k]]…nb[off[k + 1] − 1]` at
