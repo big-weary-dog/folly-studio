@@ -51,9 +51,8 @@ describe('settings', () => {
     for (const v of ['eighty', '12', 'all', 'soon', 'lots']) assert.ok(!err.message.includes(v), v);
   });
 
-  test('a STUDIO_ name nothing reads is warned of; the deploy script\'s and the retired AI\'s are not', () => {
-    const { said, warned } = quiet({ STUDIO_FLASH_CHEK: 'off', STUDIO_REF: 'main', STUDIO_CODEX_IDLE_MS: '180',
-      STUDIO_GENERATOR: 'codex', HOME: '/home/you' });
+  test('a STUDIO_ name nothing reads is warned of; the deploy script\'s are not', () => {
+    const { said, warned } = quiet({ STUDIO_FLASH_CHEK: 'off', STUDIO_REF: 'main', HOME: '/home/you' });
     assert.deepEqual(warned, ['STUDIO_FLASH_CHEK']);
     assert.match(said[0]!, /STUDIO_FLASH_CHEK is not a setting/);
   });
@@ -80,7 +79,6 @@ describe('npm run config:check', () => {
       { code: 0, out: 'OK\n' });
     const bad = check('PORT=eighty\nSTUDIO_FLASH_CHECK=maybe\n');
     assert.deepEqual(bad, { code: 1, out: 'would not start; fix: PORT STUDIO_FLASH_CHECK\n' });
-    assert.deepEqual(check('STUDIO_TYPO=1\nSTUDIO_CODEX_IDLE_MS=180\n'),
-      { code: 0, out: 'OK\nwarned of: STUDIO_TYPO\n' });
+    assert.deepEqual(check('STUDIO_TYPO=1\n'), { code: 0, out: 'OK\nwarned of: STUDIO_TYPO\n' });
   });
 });
