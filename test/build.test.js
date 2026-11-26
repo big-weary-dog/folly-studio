@@ -98,9 +98,9 @@ describe('the built app', () => {
     onMessage({ data: { type: 'init', rig, library: [] } });
     onMessage({ data: { type: 'look', layers: [oneSource({ id: 'a', code, groups: [rig.groups[0].id], level: 1 })] } });
     onMessage({ data: { type: 'frame', seq: 1, t: 2.5 } });
-    assert.deepEqual(out.map((m) => m.type), ['ready', 'compiling', 'compiled', 'frame']);
-    assert.equal(out[2].layers[0].ok, true, out[2].layers[0].error);
-    const { rgb, errors } = out[3];
+    assert.deepEqual(out.map((m) => m.type), ['ready', 'compiled', 'frame']);
+    assert.equal(out[1].layers[0].ok, true, out[1].layers[0].error);
+    const { rgb, errors } = out[2];
     assert.equal(rgb.length, rig.count * 3);
     assert.equal(errors.length, 0, JSON.stringify(errors));
     assert.ok(rgb.some((v) => v > 0), 'something is lit');
