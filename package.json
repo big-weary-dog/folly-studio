@@ -5,7 +5,7 @@
   "description": "Folly Studio: compose shows from library patterns and preview them on the Gothic Folly.",
   "type": "module",
   "engines": {
-    "node": ">=22.18"
+    "node": "^22.18 || >=23.8"
   },
   "scripts": {
     "prestart": "vite build",
@@ -25,7 +25,7 @@
     "host": "bash deploy/host.sh",
     "config:check": "node tools/config-check.ts",
     "docs:settings": "node tools/settings-table.ts",
-    "bake-bench": "node --experimental-strip-types tools/bake-bench.ts",
+    "bake-bench": "node tools/bake-bench.ts",
     "build-data": "python3 tools/build_rig.py && python3 tools/build_palettes.py"
   },
   "devDependencies": {

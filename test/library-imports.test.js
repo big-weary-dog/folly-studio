@@ -75,12 +75,11 @@ test('library only: an earlier Noise imports by its ref, as playable code; what 
 
 test('the gate: a ref the library has passes, whatever code it carries; code naming nothing, or a retired ref, does '
   + 'not', async () => {
-  const patternsDir = path.join(publicDir, 'patterns');
   const gate = createCodeGate(createLoaders(publicDir, { log: quiet }).loadLibrary);
   const allows = (m) => gate.check([{ modules: [{ id: 'm1', kind: 'source', title: 'N', ...m }] }],
     (why) => new Error(why)).then(() => true, () => false);
   assert.equal(await allows({ ref: 'noise', code: oldNoise }), true);
-  assert.equal(await allows({ code: readFileSync(path.join(patternsDir, 'noise.js'), 'utf8') }), false,
+  assert.equal(await allows({ code: readFileSync(path.join(publicDir, 'patterns', 'noise.js'), 'utf8') }), false,
     'even a current file names nothing');
   assert.equal(await allows({ ref: 'butterfly-classic' }), false, 'retired: no longer in the library');
 });
