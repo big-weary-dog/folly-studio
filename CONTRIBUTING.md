@@ -1,8 +1,8 @@
 # Contributing to Folly Studio
 
-You need Node ≥ 22.18 (it runs TypeScript by stripping the types) and Python 3; `npm ci` installs the
-dependencies from `package-lock.json`. `SPEC.md` indexes the contracts between the pieces, in `spec/`;
-change the relevant file first, in the same change.
+You need Node 22.18 or later, 23 from 23.8 (it runs TypeScript by stripping the types, and compresses with zstd)
+and Python 3; `npm ci` installs the dependencies from `package-lock.json`. `SPEC.md` indexes the contracts between
+the pieces, in `spec/`; change the relevant file first, in the same change.
 
 ## Run, check, regenerate
 

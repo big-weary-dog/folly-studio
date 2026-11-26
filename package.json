@@ -5,7 +5,7 @@
   "description": "Folly Studio: compose shows from library patterns and preview them on the Gothic Folly.",
   "type": "module",
   "engines": {
-    "node": ">=22.18"
+    "node": "^22.18 || >=23.8"
   },
   "scripts": {
     "prestart": "vite build",
