@@ -198,6 +198,6 @@ test('renderFields: plain layers unless something else plays', () => {
   assert.equal(renderFields({ layers, bpm: 120 }), layers, 'the hash of older looks is unchanged');
   assert.deepEqual(renderFields({ layers, globals: { energy: 1 } }), { layers, globals: { energy: 1 }, automation: null,
     bpm: null });
-  const beats = [{ code: PIXEL, params: { v: { mod: 'lfo', unit: 'beats' } } }];
+  const beats = [{ modules: [{ code: PIXEL, params: { v: { mod: 'lfo', unit: 'beats' } } }] }];
   assert.equal(renderFields({ layers: beats, bpm: 90 }).bpm, 90, 'an LFO in beats plays at the look\'s tempo');
 });

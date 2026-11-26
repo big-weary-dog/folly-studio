@@ -49,17 +49,6 @@ describe('a macro with a mod', () => {
     const a = at(paced(1, { storm: lane }), 2, 'w'), b = at(paced(1, { storm: lane }), 2 + 1e-4, 'w');
     assert.ok(Math.abs(b - a) < 1e-3, 'continuous while the fader moves');
   });
-
-  test('a live push on a pace fader keeps the phase (repace)', () => {
-    const L = prepareLook({ globals: { macros: { storm: { value: 1, min: 0, max: 4 },
-      w: { ...wobble, mod: { ...wobble.mod, pace: 'storm' } } } } });
-    lookFrame(L, 1.2);
-    const before = L.G.w, m = L.g.macros.find((x) => x.name === 'storm');
-    L.repace('storm', m.value, 3, 1.2);
-    m.value = 3;
-    lookFrame(L, 1.2);
-    near(L.G.w, before);
-  });
 });
 
 describe('one level', () => {

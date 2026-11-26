@@ -182,9 +182,6 @@ settings (if this machine has them) name the same `PORT` or `STUDIO_DATA`. The d
 [Environment](#environment)) keeps a studio off a folder another one has open, so a dev studio pointed at
 `~/folly-data` by mistake stops at start.
 
-A `-pi` unit an earlier deploy left (the archived Pi engine's dry run, ARCHIVE.md) is stopped and removed, with its
-Pi bundles in `~/.cache/folly-studio/<unit>/`.
-
 Later, `dev.folly.swampkat.com`: a second hostname in the tunnel's ingress, to `127.0.0.1:8781`, behind a Cloudflare
 Access application that admits the owner alone, which the owner sets up in the Cloudflare dashboard.
 
@@ -207,8 +204,7 @@ node attribute). People reach it without installing Tailscale.
 (`src/config.ts`; all of them under "Every setting" below) and logs what is set. A value it cannot read stops it,
 naming the variable: on/off takes `1`, `true`, `on` or `yes`, or `0`, `false`, `off` or `no` (any case); a duration
 takes a unit (`500ms`, `90s`, `5m`, `2h`), and a bare number is in seconds; a size takes `k`, `m` or `g` (`2GB`). A
-`STUDIO_` name it does not read is warned of (a typo?), but for retired ones an older file may still hold, which it
-ignores. Unset, each setting has its default.
+`STUDIO_` name it does not read is warned of (a typo, or a retired setting). Unset, each setting has its default.
 
 ```sh
 HOST=127.0.0.1

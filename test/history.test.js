@@ -10,7 +10,7 @@ import { at, layerOf } from './fixtures/layers.js';
 // White for a twentieth of a second from t = 1, else nothing.
 const flash = ['flash', {}, 'function pixel(p, t) { return t >= 1 && t < 1.05 ? [1, 1, 1, 1] : null; }'];
 // A slow, smooth wave that moves down the layer.
-const drift = ['drift', {}, 'function pixel(p, t) { return [wave(p.ly + 0.2 * t), 0.5, 0.2, 1]; }'];
+const drift = ['drift', {}, 'function pixel(p, t) { return [0.5 + 0.5 * sin(TAU * (p.ly + 0.2 * t)), 0.5, 0.2, 1]; }'];
 const alpha = (L, j) => L.buf[4 * j + 3];
 /** The layer's LEDs nearest the bottom, middle and top (by ly). */
 function ends(L) {
