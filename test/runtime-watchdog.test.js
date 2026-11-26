@@ -82,13 +82,26 @@ test('a look sent and then hung while compiling stops', () => {
 
 test('a message that answers nothing asked leaves the watchdog on what is owed', () => {
   const rt = playing([]);
-  for (const data of [{ type: 'frame', seq: 1 }, { type: 'error', request: 'frame' }, { type: 'rendered' }]) {
+  const stray = [{ type: 'frame', seq: 1 }, { type: 'error', request: 'frame' }, { type: 'rendered' }];
+  for (const data of stray) workers[0].say(data);
+  workers[0].say({ type: 'compiled', layers: [] });
+  for (const data of [...stray.slice(1), { type: 'error', request: 'frame', seq: 9 }, { type: 'frame', seq: 9 }]) {
     workers[0].say(data);
   }
-  workers[0].say({ type: 'compiled', layers: [] });
   assert.ok(rt.frameInFlight, 'the frame is still owed');
   vi.advanceTimersByTime(1500);
   assert.equal(workers.length, 2, 'and its hang is found');
+});
+
+test('only its own heartbeat keeps a request alive', () => {
+  playing([]);
+  workers[0].say({ type: 'compiled', layers: [] });
+  for (let i = 0; i < 3; i++) {
+    vi.advanceTimersByTime(500);
+    workers[0].say({ type: 'compiling' });
+    workers[0].say({ type: 'progress', seq: 1, done: i + 1 });
+  }
+  assert.equal(workers.length, 2, 'a frame owed, and neither counts');
 });
 
 test('a worker that keeps answering is never restarted', () => {

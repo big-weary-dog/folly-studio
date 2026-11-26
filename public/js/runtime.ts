@@ -274,12 +274,14 @@ export class Runtime {
   _message(m: FromWorker) {
     if (!m || typeof m !== 'object' || typeof m.type !== 'string') return;
     const r = this.render_, head = this.jobs[0];
-    // Pattern code can post too: only the answer to the request at the head ends it.
-    if (head && (m.type === 'error' ? m.request === head : m.type === REPLY[head] && (head !== 'frame'
-      || m.seq === this.frameInFlight?.seq) && (head !== 'render' || m.seq === r?.seq))) {
+    // Pattern code can post too: only the answer to the request at the head ends it, and only its heartbeat
+    // ('compiling' for a look, an export's progress) counts as the worker being busy.
+    const mine = head === 'frame' ? m.seq === this.frameInFlight?.seq : head === 'render' ? m.seq === r?.seq : !!head;
+    if (mine && (m.type === 'error' ? m.request === head : m.type === REPLY[head!])) {
       this.jobs.shift();
       this.jobLooks.shift();
-    } else if (m.type !== 'compiling' && m.type !== 'progress') return;
+    } else if (!(m.type === 'compiling' && head === 'look')
+      && !(m.type === 'progress' && mine && head === 'render' && Number(m.done) > r!.done)) return;
     this.heard = performance.now();
     this.overdue = false;
     switch (m.type) {
@@ -300,7 +302,7 @@ export class Runtime {
         if (this.frameInFlight && m.seq === this.frameInFlight.seq) this._frame(m, this.frameInFlight);
         break;
       case 'progress':
-        if (r && m.seq === r.seq && Number(m.done) > r.done) this._progress(r, Number(m.done));
+        this._progress(r!, Number(m.done));
         break;
       case 'rendered': {
         if (!r || m.seq !== r.seq) break;
