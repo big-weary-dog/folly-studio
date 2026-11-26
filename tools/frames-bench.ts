@@ -38,7 +38,7 @@ const channels = ranges.reduce((n, r) => n + r[1], 0);
 
 const NOISE = 'noise (worst case)';
 /** A layer of one pattern: its code plays as the chain's one source. */
-type Layer = LayerInput & { code: string };
+type Layer = LayerInput & { code: string, params?: Record<string, number> };
 const LOOKS = ([
   ...index.filter((p) => (p.kind ?? 'source') === 'source')
     .map(({ name }): [string, Layer[]] => [name, [{ id: 'a', code: source(name) }]]),
@@ -55,8 +55,8 @@ const LOOKS = ([
 ] as [string, Layer[]][]).filter(([name]) => !ONLY || ONLY.split(',').some((o) => name.startsWith(o)));
 
 function bake(layers: Layer[]) {
-  const prepared = layers.map(({ code, ...l }) => {
-    const chain = { ...l, modules: [{ id: 'm1', kind: 'source' as const, code }] };
+  const prepared = layers.map(({ code, params, ...l }) => {
+    const chain = { ...l, modules: [{ id: 'm1', kind: 'source' as const, code, ...(params ? { params } : {}) }] };
     return prepareLayer(scene, chain, compileLayer(chain));
   });
   const frames = Math.round(SECONDS * FPS);

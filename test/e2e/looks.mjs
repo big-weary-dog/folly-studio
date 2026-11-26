@@ -3,8 +3,9 @@
 // moving library pattern, on the Folly's rig (rig-folly.json), which Mirage draws. Only our own patterns run here.
 import { readFileSync } from 'node:fs';
 
-import { compileLayer, prepareLayer, prepareScene, renderFrame, toChannels } from '../../core/pattern-core.ts';
+import { prepareScene, renderFrame, toChannels } from '../../core/pattern-core.ts';
 import { ledRanges, writeFseq } from '../../core/fseq.ts';
+import { sourceLayer } from '../fixtures/layers.js';
 
 const STUDIO = new URL('../../', import.meta.url);
 const rig = JSON.parse(readFileSync(new URL('public/data/rig-folly.json', STUDIO), 'utf8'));
@@ -56,11 +57,8 @@ function pixel(p, t, P) {
  * `fps` (one frame when seconds is 0): { frames, channels: Uint8Array(frames × 40,800), errors }.
  */
 export function renderLook(layers, { seconds = 0, fps = 40, start = 0, gamma = 1, brightness = 1 } = {}) {
-  const prepared = layers.map(({ code, ...l }, i) => {
-    const chain = { id: `l${i}`, groups: ['cathedral'], blend: 'add', level: 1, ...l,
-      modules: [{ id: 'm1', kind: 'source', code }] };
-    return prepareLayer(scene, chain, compileLayer(chain));
-  });
+  const prepared = layers.map((l, i) => sourceLayer(scene, { id: `l${i}`, groups: ['cathedral'], blend: 'add',
+    level: 1, ...l }));
   const frames = Math.max(1, Math.round(seconds * fps));
   const channels = new Uint8Array(frames * FULL);
   const errors = [];
