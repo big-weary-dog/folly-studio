@@ -67,6 +67,7 @@ export class Runtime {
   frameMsg: { type: 'frame'; seq: number; t: number } = { type: 'frame', seq: 0, t: 0 };
   frameInFlight: Frame | null = null;
   lookQueue: { layers: Sent[]; codes: Map<string, Map<string, string>> }[] = [];   // per look sent, not compiled yet
+  jobs: number[] = [];   // each request the worker has not answered, oldest (what it works on) first: its look version
   heard = 0; overdue = false; timer = 0; lastTick = 0;   // when the worker last spoke or was given work; the watchdog
   rate = RATES[0]; due = 0; rateAt = 0; layerMs = new Map<string, number>(); stats = { fps: 0, ms: 0 };
   fpsCount = 0; fpsSince = performance.now();
@@ -181,7 +182,7 @@ export class Runtime {
   _kill() {
     this.worker?.terminate();
     clearInterval(this.timer);
-    Object.assign(this, { worker: null, frameInFlight: null, lookQueue: [], timer: 0, overdue: false });
+    Object.assign(this, { worker: null, frameInFlight: null, lookQueue: [], jobs: [], timer: 0, overdue: false });
   }
 
   _failRender(message: string) {
@@ -207,12 +208,13 @@ export class Runtime {
   }
 
   /** Owed anything: the scene, a frame, a compile, an export? */
-  get owed() { return this.phase === 'init' || !!(this.frameInFlight || this.lookQueue.length || this.render_); }
+  get owed() { return this.jobs.length > 0; }
 
   _post(msg: ToSandbox) {
     if (!this.worker) return;
     if (!this.owed || !this.timer) this.heard = performance.now();   // the silence that counts starts now
     this.worker.postMessage(msg);
+    this.jobs.push(this.lookVersion);
     if (!this.timer) {
       this.lastTick = performance.now();
       this.timer = window.setInterval(() => this._tick(), TICK_MS);
@@ -269,6 +271,7 @@ export class Runtime {
     const r = this.render_;
     this.heard = performance.now();
     this.overdue = false;
+    if (m.type !== 'compiling' && m.type !== 'progress') this.jobs.shift();   // the rest each answer one request
     switch (m.type) {
       case 'ready':
         if (this.phase !== 'init') break;
@@ -318,8 +321,8 @@ export class Runtime {
     if (!this.owed) { clearInterval(this.timer); this.timer = 0; return; }
     if (now - this.heard <= (this.phase === 'init' ? INIT_MS : BUSY_MS)) return;
     if (!this.overdue) { this.overdue = true; return; }   // overdue on two ticks in a row: a queued reply had its turn
-    // The look the worker had stops, unless a newer one is waiting: that one gets its turn on the fresh worker.
-    if (this.phase === 'ready' && !this.lookDirty) this.stopped = true;
+    // The look the worker was on stops, unless a newer one is sent or waiting: that one gets its turn.
+    if (this.phase === 'ready' && !this.lookDirty && this.jobs[0] === this.lookVersion) this.stopped = true;
     this._failRender('Export stopped: the look stopped responding (a frame took over 1 s).');
     this._restart();
   }

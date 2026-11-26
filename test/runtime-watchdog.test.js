@@ -1,5 +1,5 @@
 // The runtime's watchdog (SPEC "Sandbox protocol"): a worker silent for over 1 s while it owes an answer is
-// restarted without the look, which stays stopped until it changes; a newer look waiting then gets its turn.
+// restarted without the look, which stays stopped until it changes; a newer look, sent or waiting, gets its turn.
 import assert from 'node:assert/strict';
 
 import { afterEach, beforeEach, test, vi } from 'vitest';
@@ -51,14 +51,33 @@ test('a look that hangs stops until it changes', () => {
   assert.deepEqual(workers[1].sent, ['init', 'look', 'frame'], 'a changed look plays');
 });
 
-test('a look changed while the old one hung plays on the fresh worker', () => {
+test('a look changed while the old one hangs plays on the fresh worker, sent or not', () => {
   const statuses = [], rt = playing(statuses);
   rt.setLook([]);
   vi.advanceTimersByTime(1500);
+  assert.equal(workers.length, 2);
   workers[1].say({ type: 'ready' });
   rt.pump(0, true);
-  assert.deepEqual(workers[1].sent, ['init', 'look', 'frame']);
+  assert.deepEqual(workers[1].sent, ['init', 'look', 'frame'], 'changed before it was sent');
+  rt.setLook([]);
+  rt.pump(0, true);
+  assert.deepEqual(workers[1].sent, ['init', 'look', 'frame', 'look'], 'changed and sent behind what hangs');
+  vi.advanceTimersByTime(1500);
+  workers[2].say({ type: 'ready' });
+  rt.pump(0, true);
+  assert.deepEqual(workers[2].sent, ['init', 'look', 'frame']);
   assert.ok(!statuses.includes('stopped'));
+});
+
+test('a look sent and then hung while compiling stops', () => {
+  const statuses = [], rt = playing(statuses);
+  workers[0].say({ type: 'compiled', layers: [] });
+  workers[0].say({ type: 'frame', seq: 1 });
+  rt.setLook([]);
+  rt.pump(0.1, true);
+  vi.advanceTimersByTime(1500);
+  workers[1].say({ type: 'ready' });
+  assert.equal(statuses.at(-1), 'stopped');
 });
 
 test('a worker that keeps answering is never restarted', () => {
