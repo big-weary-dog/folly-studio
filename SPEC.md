@@ -37,7 +37,7 @@ in whichever area file holds it.
   layer is a chain), **Composites**, **Attached modules**, **Library**, **Pictures**, **Spatial modules**, **The
   neighbour map**, **History**, **Globals**, **Param bindings**, **Integrated clocks**, **Palettes**, **Sandbox
   protocol** (the pattern Worker and its relay, `core/pattern-core.ts`'s exports).
-- [spec/looks.md](spec/looks.md): **Looks** (what gets saved), **Library only** (the one-time step on a data folder),
+- [spec/looks.md](spec/looks.md): **Looks** (what gets saved), **Library only** (what stored looks hold),
   **Timeline**, **Look files**, **Versions and History**.
 - [spec/http.md](spec/http.md): **Static files**, **Updates**, **HTTP API** (every route), **Accounts and access**
   (accounts, guests, visitors, roles, moderation, Admin, People, Privacy, Stats, No AI).

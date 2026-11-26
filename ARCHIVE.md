@@ -33,3 +33,12 @@ jukebox and offline specs and `dry-engine.js`). The code that wired them in (the
 `ws` and `@fastify/websocket`) changed in place: put it back by hand from `git diff HEAD archive/pi-2026-11 -- <file>`.
 
 The archive may be deleted later; then the tag is the only copy.
+
+# Retired: the library-only step
+
+The one-time step that brought a data folder's stored looks under "Library only" (spec/looks), switching retired
+patterns to their matches and dropping looks with custom code, ran on the public studio's data on 2026-11-25
+(`migrations.json` records it). Its last copy is dev at 3a4c5195: `src/library-only.ts`, `src/library-only-data.ts`,
+`src/retired-patterns.ts` and `tools/library-only.ts`, with `test/library-only.test.js` and
+`test/retired-patterns.test.js`, and its procedure in spec/looks "Library only" and docs/HOSTING.md. A data folder
+or backup from before that date needs it, from there, before a studio of today opens it.
